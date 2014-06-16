@@ -10,10 +10,8 @@
 
 #include <QObject>
 #include "../../qxopengl/qxopengllib.h"
-#include "sharedcontext.h"
 #include "../../qxmath/qxmathlib.h"
 #include "../../qxfile/qxfilelib.h"
-#include "transferfunction.h"
 
 class ImagePreviewWorker : public OpenGLWorker
 {
