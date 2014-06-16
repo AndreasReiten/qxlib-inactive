@@ -1,20 +1,14 @@
 LIBS += -lOpenCL
 QMAKE_CXXFLAGS += -std=c++0x # C++11 
-QT += core gui opengl widgets script
+QT += core gui opengl widgets
 TARGET = qxlib
-QMAKE_MAKEFILE = Makefile
-
-OBJECTS_DIR = .obj
-MOC_DIR = .moc
-RCC_DIR = .rcc
-UI_DIR = .ui
+TEMPLATE = lib
+CONFIG += staticlib
 
 HEADERS += \
     qxfile/utils/fileformat.h \
     qxfile/utils/filetreeview.h \
     qxfile/qxfilelib.h \
-    qximage/utils/imagepreview.h \
-    qximage/qximagelib.h \
     qxmath/utils/ccmatrix.h \
     qxmath/utils/colormatrix.h \
     qxmath/utils/matrix.h \
@@ -28,15 +22,15 @@ HEADERS += \
     qxopengl/utils/sharedcontext.h \
     qxopengl/utils/transferfunction.h \
     qxopengl/qxopengllib.h \
-    qxsvo/qxsvolib.h \
+    qximage/utils/imagepreview.h \
+    qximage/qximagelib.h \
+#    qxsvo/qxsvolib.h \
     qxlib.h
 
 SOURCES += \
     qxfile/utils/fileformat.cpp \
     qxfile/utils/filetreeview.cpp \
     qxfile/qxfilelib.cpp \
-    qximage/utils/imagepreview.cpp \
-    qximage/qximagelib.cpp \
     qxmath/qxmathlib.cpp \
     qxopencl/utils/contextcl.cpp \
     qxopencl/utils/devicecl.cpp \
@@ -45,4 +39,6 @@ SOURCES += \
     qxopengl/utils/sharedcontext.cpp \
     qxopengl/utils/transferfunction.cpp \
     qxopengl/qxopengllib.cpp \
-    qxsvo/qxsvolib.cpp
+    qximage/utils/imagepreview.cpp \
+    qximage/qximagelib.cpp \
+#    qxsvo/qxsvolib.cpp
