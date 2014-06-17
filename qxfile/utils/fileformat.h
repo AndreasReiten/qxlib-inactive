@@ -13,7 +13,6 @@
 #include <cmath>
 #include <limits>
 
-#include <QtGlobal>
 #include <QDebug>
 
 /* GL and CL*/

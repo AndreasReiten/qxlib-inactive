@@ -12,9 +12,10 @@
 #include <iomanip>
 #include <limits>
 #include <cstring>
+#include <vector>
 #include <QDebug>
 #include <QColor>
-#include <vector>
+
 
 const double pi = 4.0*atan(1.0);
 

@@ -5,12 +5,8 @@
 #include <iostream>
 #include <sstream>
 
-#include <QtGlobal>
-
-
 /* GL and CL*/
 #include <CL/opencl.h>
-
 
 /* QT */
 #include <QOpenGLShaderProgram>

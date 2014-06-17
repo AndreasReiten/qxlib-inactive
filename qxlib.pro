@@ -24,8 +24,11 @@ HEADERS += \
     qxopengl/qxopengllib.h \
     qximage/utils/imagepreview.h \
     qximage/qximagelib.h \
-#    qxsvo/qxsvolib.h \
-    qxlib.h
+    qxsvo/qxsvolib.h \
+    qxlib.h \
+    qxsvo/utils/bricknode.h \
+    qxsvo/utils/searchnode.h \
+    qxsvo/utils/sparsevoxelocttree.h
 
 SOURCES += \
     qxfile/utils/fileformat.cpp \
@@ -41,4 +44,7 @@ SOURCES += \
     qxopengl/qxopengllib.cpp \
     qximage/utils/imagepreview.cpp \
     qximage/qximagelib.cpp \
-#    qxsvo/qxsvolib.cpp
+    qxsvo/qxsvolib.cpp \
+    qxsvo/utils/bricknode.cpp \
+    qxsvo/utils/searchnode.cpp \
+    qxsvo/utils/sparsevoxelocttree.cpp
