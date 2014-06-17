@@ -1,5 +1,15 @@
 #include "sparsevoxelocttree.h"
 
+#include <sstream>
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+
+#include <QDataStream>
+#include <QVector>
+#include <QFile>
+#include <QDebug>
+
 SparseVoxelOcttree::SparseVoxelOcttree()
 {
     this->filesize = 0;

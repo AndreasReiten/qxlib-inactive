@@ -12,17 +12,14 @@
 #include <sstream>
 
 #include <QWindow>
-#include <QOpenGLContext>
+//#include <QOpenGLContext>
 #include <QOpenGLFunctions>
 #include <QOpenGLPaintDevice>
 #include <QPainter>
-#include <QTimer>
+//#include <QTimer>
 #include <QElapsedTimer>
-#include <QCoreApplication>
 #include <QThread>
-#include <QOpenGLFramebufferObject>
 #include <QMouseEvent>
-#include <QDebug>
 
 #include "../../qxopencl/qxopencllib.h"
 #include "../../qxmath/qxmathlib.h"

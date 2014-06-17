@@ -2,28 +2,17 @@
 #define FILE_FORMATS_H
 
 /*
- * The fileformat class can be subclassed to support custom file formats (detector data files, typically). 
+ * The DetectorFile class.
  * */
 
-#include <iostream>
-#include <string>
-#include <sstream>
-#include <cstring>
-#include <fstream>
-#include <cmath>
-#include <limits>
-
-#include <QDebug>
-
 /* GL and CL*/
+// It might be cleaner to exclude opencl from this lib and rather use opencl as a method in a parent
 #include <CL/opencl.h>
 
 /* QT */
-#include <QRegExp>
-#include <QString>
-#include <QFileInfo>
+//class QString;
 
-
+/* User libs */
 #include "../../qxopencl/qxopencllib.h"
 #include "../../qxmath/qxmathlib.h"
 

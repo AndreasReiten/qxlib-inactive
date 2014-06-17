@@ -1,5 +1,10 @@
 #include "devicecl.h"
 
+#include <QDebug>
+
+#include <iostream>
+#include <sstream>
+
 DeviceCL::DeviceCL()
 {
 }

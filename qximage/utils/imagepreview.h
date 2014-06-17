@@ -8,9 +8,6 @@
 /* GL and CL*/
 #include <CL/opencl.h>
 
-#include <QTreeView>
-#include <QFileSystemModel>
-
 #include "../../qxopengl/qxopengllib.h"
 #include "../../qxfile/qxfilelib.h"
 #include "../../qxmath/qxmathlib.h"

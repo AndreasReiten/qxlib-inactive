@@ -5,27 +5,10 @@
  * This class initializes an OpenCL context.
  * */
 
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <fstream>
-
 #include <CL/opencl.h>
-#include <CL/cl_gl.h>
-
-#include <QString>
-#include <QList>
-#include <QOpenGLContext>
-#include <QDebug>
 
 #include "devicecl.h"
 #include "../../qxmath/qxmathlib.h"
-
-#ifdef Q_OS_WIN
-    #include <windows.h>
-#elif defined Q_OS_LINUX
-    #include <GL/glx.h>
-#endif
 
 class OpenCLContext
 {

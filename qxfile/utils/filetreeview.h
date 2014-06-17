@@ -7,12 +7,11 @@
 
 #include <QTreeView>
 #include <QFileSystemModel>
-#include <QDebug>
-#include <QString>
-#include <QList>
-#include <QModelIndex>
-#include <QStringList>
-#include <QVariant>
+//#include <QString>
+//#include <QList>
+//#include <QModelIndex>
+//#include <QStringList>
+//#include <QVariant>
 
 class FileTreeView : public QTreeView
 {

@@ -1,5 +1,7 @@
 #include "filetreeview.h"
 
+#include <QDebug>
+
 FileTreeView::FileTreeView(QWidget *parent) :
     QTreeView(parent)
 {

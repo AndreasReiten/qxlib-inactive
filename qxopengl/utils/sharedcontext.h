@@ -1,10 +1,6 @@
 #ifndef SHAREDCONTEXT_H
 #define SHAREDCONTEXT_H
 
-/* Useful C++ libs */
-#include <iostream>
-#include <sstream>
-
 /* GL and CL*/
 #include <CL/opencl.h>
 

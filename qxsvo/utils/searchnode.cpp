@@ -1,5 +1,13 @@
 #include "searchnode.h"
 
+#include <iostream>
+#include <iomanip>
+#include <cmath>
+
+#include <QString>
+#include <QDebug>
+#include <QElapsedTimer>
+
 static const unsigned int MAX_POINTS = 32;
 static const unsigned int MAX_LEVELS = 16;
 static const unsigned int CL_MAX_ITEMS = 1024*2*2*2*2*2*2*2;

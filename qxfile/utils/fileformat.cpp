@@ -1,5 +1,18 @@
 #include "fileformat.h"
 
+#include <QFileInfo>
+#include <QRegExp>
+#include <QString>
+#include <QDebug>
+
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <cstring>
+#include <fstream>
+#include <cmath>
+#include <limits>
+
 DetectorFile::~DetectorFile()
 {
 
@@ -323,7 +336,6 @@ void DetectorFile::print()
 
 int DetectorFile::filterData(size_t * n, Matrix<float> * outBuf, float threshold_reduce_low, float threshold_reduce_high, float threshold_project_low, float threshold_project_high, bool isProjectionActive)
 {
-
     this->threshold_reduce_low = threshold_reduce_low;
     this->threshold_reduce_high = threshold_reduce_high;
     this->threshold_project_low = threshold_project_low;

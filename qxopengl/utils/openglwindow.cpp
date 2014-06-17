@@ -1,5 +1,9 @@
 #include "openglwindow.h"
 
+#include <QCoreApplication>
+#include <QOpenGLFramebufferObject>
+#include <QDebug>
+
 OpenGLWorker::OpenGLWorker(QObject *parent)
     : QObject(parent)
     , paint_device_gl(0)

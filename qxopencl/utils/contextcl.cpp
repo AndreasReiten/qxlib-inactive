@@ -1,5 +1,24 @@
 #include "contextcl.h"
 
+#include <QtGlobal>
+#include <QList>
+//#include <QOpenGLContext>
+#include <QString>
+#include <QDebug>
+
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <fstream>
+
+#include <CL/cl_gl.h>
+
+#ifdef Q_OS_WIN
+    #include <windows.h>
+#elif defined Q_OS_LINUX
+    #include <GL/glx.h>
+#endif
+
 OpenCLContext::OpenCLContext()
 {
 }

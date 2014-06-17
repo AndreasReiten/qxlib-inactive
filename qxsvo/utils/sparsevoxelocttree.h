@@ -1,16 +1,7 @@
 #ifndef SPARSEVOXELOCTTREE_H
 #define SPARSEVOXELOCTTREE_H
 
-#include <sstream>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-
-#include <QDataStream>
-#include <QVector>
-#include <QString>
-#include <QFile>
-#include <QDebug>
+//#include <QString>
 
 #include "../../qxmath/qxmathlib.h"
 

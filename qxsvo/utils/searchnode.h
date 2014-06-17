@@ -1,18 +1,8 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <iostream>
-#include <iomanip>
-#include <cmath>
-
-#include <QObject>
-#include <QString>
-#include <QDebug>
-#include <QElapsedTimer>
-
 #include <CL/opencl.h>
 
-//#include "../../qxopencl/qxopencllib.h"
 #include "../../qxmath/qxmathlib.h"
 
 class SearchNode {

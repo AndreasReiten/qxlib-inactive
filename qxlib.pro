@@ -25,10 +25,10 @@ HEADERS += \
     qximage/utils/imagepreview.h \
     qximage/qximagelib.h \
     qxsvo/qxsvolib.h \
-    qxlib.h \
     qxsvo/utils/bricknode.h \
     qxsvo/utils/searchnode.h \
     qxsvo/utils/sparsevoxelocttree.h
+    qxlib.h \
 
 SOURCES += \
     qxfile/utils/fileformat.cpp \
