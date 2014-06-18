@@ -27,17 +27,17 @@ class DetectorFile
     public:
         ~DetectorFile();
         DetectorFile();
-        DetectorFile(QString path, OpenCLContext * context);
+        DetectorFile(QString path);
 
         QString getPath() const;
 
-        int set(QString path, OpenCLContext * context);
+        int set(QString path);
         int readData();
-        int filterData(size_t * n, Matrix<float> *outBuf, float threshold_reduce_low, float threshold_reduce_high, float threshold_project_low, float threshold_project_high, bool isProjectionActive = true);
+//        int filterData(size_t * n, Matrix<float> *outBuf, float threshold_reduce_low, float threshold_reduce_high, float threshold_project_low, float threshold_project_high, bool isProjectionActive = true);
 
         Matrix<float> & data();
-        int getWidth() const;
-        int getHeight() const;
+        int getFastDimension() const;
+        int getSlowDimension() const;
         size_t getBytes() const;
         float getSearchRadiusLowSuggestion();
         float getSearchRadiusHighSuggestion();
@@ -52,46 +52,14 @@ class DetectorFile
         float getBeamY();
         float getPixSizeX();
         float getPixSizeY();
-        void setProjectionKernel(cl_kernel * kernel);
+//        void setProjectionKernel(cl_kernel * kernel);
         void print();
         QString getHeaderText();
-        void setActiveAngle(int value);
-        void setOffsetOmega(double value);
-        void setOffsetKappa(double value);
-        void setOffsetPhi(double value);
-        
-        
-    private:
-        // Misc
-        int active_angle;
-        OpenCLContext * context_cl;
-        cl_kernel * project_kernel;
-        cl_int err;
-
-        size_t loc_ws[2];
-        size_t glb_ws[2];
-
-        Matrix<float> data_buf;
-        float background_flux;
-        float backgroundExpTime;
-
-        QString path;
-        size_t fast_dimension, slow_dimension;
-        float max_counts;
-        int STATUS_OK;
-
-        int threshold_reduce_low, threshold_reduce_high;
-        int threshold_project_low, threshold_project_high;
-        float srchrad_sugg_low, srchrad_sugg_high;
-
-        void suggestSearchRadius();
-        int readHeader();
-        QString regExp(QString * regular_expression, QString * source, size_t offset, size_t i);
-
-        // Angle offsets
-        double offset_omega;
-        double offset_kappa;
-        double offset_phi;
+//        void setActiveAngle(int value);
+//        void setOffsetOmega(double value);
+//        void setOffsetKappa(double value);
+//        void setOffsetPhi(double value);
+        Matrix<float> &getData();
         
         /* Non-optional keywords */
         QString detector;
@@ -134,8 +102,38 @@ class DetectorFile
         float start_position;
         float position_increment;
         float shutter_time;
-
+        float background_flux;
+        float backgroundExpTime;
         float beta;
+        
+        float max_counts;
+        
+    private:
+        // Misc
+        int active_angle;
+//        OpenCLContext * context_cl;
+//        cl_kernel * project_kernel;
+//        cl_int err;
+        Matrix<float> data_buf;
+        
+
+        QString path;
+        size_t fast_dimension, slow_dimension;
+
+        int STATUS_OK;
+
+//        int threshold_reduce_low, threshold_reduce_high;
+//        int threshold_project_low, threshold_project_high;
+        float srchrad_sugg_low, srchrad_sugg_high;
+
+        void suggestSearchRadius();
+        int readHeader();
+        QString regExp(QString * regular_expression, QString * source, size_t offset, size_t i);
+
+        // Angle offsets
+//        double offset_omega;
+//        double offset_kappa;
+//        double offset_phi;
 };
 
 
