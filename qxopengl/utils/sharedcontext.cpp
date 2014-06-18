@@ -1,5 +1,8 @@
 #include "sharedcontext.h"
 
+#include <iostream>
+#include <sstream>
+
 SharedContextWindow::SharedContextWindow()
     : std_2d_tex_program(0),
     std_2d_col_program(0),

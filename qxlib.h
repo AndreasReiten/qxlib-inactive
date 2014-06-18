@@ -6,6 +6,7 @@
 #include "qxopengl/qxopengllib.h"
 #include "qxfile/qxfilelib.h"
 #include "qximage/qximagelib.h"
-//#include "qxsvo/qxsvolib.h"
+#include "qxsvo/qxsvolib.h"
+
 
 #endif // QXLIB_H

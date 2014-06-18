@@ -5,6 +5,8 @@
 // X % 2^n = X & (2^n - 1)
 // 2^n = 1 << n
 
+#include <iostream>
+#include <iomanip>
 
 BrickNode::BrickNode()
 {

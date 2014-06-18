@@ -5,12 +5,9 @@
  * This is a convenienze class to store and get information about an OpenCL device.
  * */
 
-#include <CL/opencl.h>
-#include <iostream>
-#include <sstream>
 #include <string>
 
-#include <QDebug>
+#include <CL/opencl.h>
 
 class DeviceCL
 {
