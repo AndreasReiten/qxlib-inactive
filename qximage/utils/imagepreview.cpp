@@ -33,8 +33,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             }
 
             Matrix<size_t> image_tex_dim(1,2);
-            image_tex_dim[0] = frame.getWidth();
-            image_tex_dim[1] = frame.getHeight();
+            image_tex_dim[0] = frame.getFastDimension();
+            image_tex_dim[1] = frame.getSlowDimension();
             
             glDeleteTextures(1, &image_tex_gl);
             glGenTextures(1, &image_tex_gl);
@@ -73,8 +73,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             source_cl = clCreateImage2D ( *context_cl->getContext(),
                 CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                 &source_format,
-                frame.getWidth(),
-                frame.getHeight(),
+                frame.getFastDimension(),
+                frame.getSlowDimension(),
                 0,
                 frame.data().data(),
                 &err);
@@ -95,7 +95,7 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             
             setParameter(parameter);
             
-            update(frame.getWidth(), frame.getHeight());
+            update(frame.getFastDimension(), frame.getSlowDimension());
         }
     }
 }
