@@ -22,7 +22,7 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
 
 void ImagePreviewWorker::setImageFromPath(QString path)
 {
-    if (frame.set(path, context_cl))
+    if (frame.set(path))
     {
         if(frame.readData())
         {
