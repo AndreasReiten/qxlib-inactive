@@ -48,3 +48,15 @@ SOURCES += \
     qxsvo/utils/bricknode.cpp \
     qxsvo/utils/searchnode.cpp \
     qxsvo/utils/sparsevoxelocttree.cpp
+
+OTHER_FILES += \
+    qxopengl/glsl/std_2d_col.f.glsl \
+    qxopengl/glsl/std_2d_col.v.glsl \
+    qxopengl/glsl/std_2d_tex.f.glsl \
+    qxopengl/glsl/std_2d_tex.v.glsl \
+    qxopengl/glsl/std_3d_col.f.glsl \
+    qxopengl/glsl/std_3d_col.v.glsl \
+    qxopengl/glsl/std_blend.f.glsl \
+    qxopengl/glsl/std_blend.v.glsl \
+    qxopengl/glsl/unitcell.f.glsl \
+    qxopengl/glsl/unitcell.v.glsl
