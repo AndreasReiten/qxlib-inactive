@@ -525,12 +525,12 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
         this->print(3,"M");
     }
 
-    for (i = 0; i < n; i++) {
+    for (i = 0; i < (int) n; i++) {
         U[i*n+i] = 1;
     }
 
-    for (j = 0; j < n; j++) {
-        for(i = j; i < n; i++) {
+    for (j = 0; j < (int) n; j++) {
+        for(i = j; i < (int) n; i++) {
             sum = 0;
             for(k = 0; k < j; k++) {
                 sum += L[i*n+k] * U[k*n+j];
@@ -538,7 +538,7 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
             L[i*n+j] = buffer[i*n+j] - sum;
         }
 
-        for(i = j; i < n; i++){
+        for(i = j; i < (int) n; i++){
             sum = 0;
             for(k = 0; k < j; k++){
                 sum +=  L[j*n+k]*U[k*n+i];
@@ -559,13 +559,13 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
     }
 
     /* Solve LY = I for Y (= UX) */
-    for(i = 0; i < n; i++)
+    for(i = 0; i < (int) n; i++)
     {
-        for(j = 0; j < n; j++)
+        for(j = 0; j < (int) n; j++)
         {
             T sum = 0;
             
-            for (k = 0; k < n; k++)
+            for (k = 0; k < (int) n; k++)
             {
                 if (k != i) sum += y[k*n+j] * L[i*n+k];
             }
@@ -588,7 +588,7 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
         {
             T sum = 0;
             
-            for (k = 0; k < n; k++)
+            for (k = 0; k < (int) n; k++)
             {
                 if (k != i) sum += x[k*n+j] * U[i*n+k];
             }

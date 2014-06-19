@@ -1,7 +1,9 @@
 #ifndef SPARSEVOXELOCTTREE_H
 #define SPARSEVOXELOCTTREE_H
 
-//#include <QString>
+#include <QString>
+#include <QStringList>
+#include <QDateTime>
 
 #include "../../qxmath/qxmathlib.h"
 
@@ -37,11 +39,31 @@ class SparseVoxelOcttree
         void print();
 
         quint64 getBytes();
-
+        
+        // Get/set functions should be made for the following
         Matrix<unsigned int> index;
         Matrix<unsigned int> brick;
         Matrix<float> pool;
-
+        
+        QDateTime creation_date;
+        qreal creation_noise_cutoff_low;
+        qreal creation_noise_cutoff_high;
+        qreal creation_post_cutoff_low;
+        qreal creation_post_cutoff_high;
+        qreal creation_correction_omega;
+        qreal creation_correction_kappa;
+        qreal creation_correction_phi;
+        QStringList creation_file_paths;
+        
+        qreal view_mode;
+        qreal view_tsf_style;
+        qreal view_tsf_texture;
+        qreal view_data_min;
+        qreal view_data_max;
+        qreal view_alpha;
+        qreal view_brightness;
+        
+        
     private:
         Matrix<double> minmax;
         Matrix<double> extent;
