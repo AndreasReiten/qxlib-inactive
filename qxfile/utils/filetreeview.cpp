@@ -120,6 +120,11 @@ void FileSelectionModel::removeIndex(QModelIndex index)
     emit dataChanged(index.parent(), index.child(rowCount(index)-1,0));
 }
 
+void FileSelectionModel::removeFile(QString path)
+{
+    QPersistentModelIndex persistent_index = index(path);
+    checklist.remove(persistent_index);
+}
 
 QStringList FileSelectionModel::getFiles()
 {

@@ -34,7 +34,7 @@ class FileSelectionModel : public QFileSystemModel
     
 public slots:
     void setStringFilter(QString str);
-//    void removeFile(QString path); // Make an index from the path. Convert index to a persistent one. Look it up in the QSet. Kill.
+    void removeFile(QString path); // Make an index from the path. Convert index to a persistent one. Look it up in the QSet. Kill.
 
 public:
     explicit FileSelectionModel(QWidget *parent = 0);
