@@ -1,6 +1,7 @@
 #include "filetreeview.h"
 
 #include <QDebug>
+#include <QMap>
 
 FileTreeView::FileTreeView(QWidget *parent) :
     QTreeView(parent)
@@ -58,20 +59,9 @@ Qt::ItemFlags FileSelectionModel::flags(const QModelIndex& index) const
 QVariant FileSelectionModel::data(const QModelIndex& index, int role) const
 {
     // Return a state depending on role
-    if (index.isValid() && (index.column() == 0) && (role == Qt::CheckStateRole))
-    {
-        QVariant state;
+    if ((index.column() == 0) && (role == Qt::CheckStateRole)) return checklist.contains(index) ? Qt::Checked : Qt::Unchecked;
 
-        // If the index is not a file and has been added to other_paths
-        if (other_paths.contains(filePath(index))) state = Qt::Checked;
-        // Else if the index is a file and has been added to file paths
-        else if (file_paths.contains(filePath(index))) state = Qt::Checked;
-        else state = Qt::Unchecked;
-        
-        return state;
-    }
-
-    else return QFileSystemModel::data(index, role);
+    return QFileSystemModel::data(index, role);
 }
 
 /* This function is called whenever the data of an index is changed.
@@ -80,36 +70,23 @@ QVariant FileSelectionModel::data(const QModelIndex& index, int role) const
 bool FileSelectionModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
     // Set data depending on role and corresponding value
-    if ((index.isValid()) && (index.column() == 0) && (role == Qt::CheckStateRole))
+    if (role == Qt::CheckStateRole)
     {
-        // Store if checked, remove if unchecked
-        if (value.toInt() == Qt::Checked)
+        if (value == Qt::Checked)
         {
             addIndex(index);
         }
-        else
-        {
-            removeIndex(index);
-        }
+        else removeIndex(index);
+
+        emit dataChanged(index, index);
         return true;
     }
     return QFileSystemModel::setData(index, value, role);
 }
 
-
 void FileSelectionModel::addIndex(QModelIndex index)
 {
-    if (fileInfo(index).isFile() && fileInfo(index).isReadable() && fileInfo(index).exists())
-    {
-        file_paths << filePath(index);
-        file_paths.removeDuplicates();
-    }
-    else
-    {
-        other_paths << filePath(index);
-        other_paths.removeDuplicates();
-    }
-
+    checklist.insert(index);
     if (hasChildren(index))
     {
         for (int i = 0; i < rowCount(index); i++)
@@ -121,15 +98,13 @@ void FileSelectionModel::addIndex(QModelIndex index)
             }
         }
     }
-    
+
     emit dataChanged(index.parent(), index.child(rowCount(index)-1,0));
 }
 
 void FileSelectionModel::removeIndex(QModelIndex index)
 {
-    file_paths.removeAll(filePath(index));
-    other_paths.removeAll(filePath(index));
-
+    checklist.remove(index);
     if (hasChildren(index))
     {
         for (int i = 0; i < rowCount(index); i++)
@@ -141,36 +116,23 @@ void FileSelectionModel::removeIndex(QModelIndex index)
             }
         }
     }
-    
+
     emit dataChanged(index.parent(), index.child(rowCount(index)-1,0));
 }
 
+
 QStringList FileSelectionModel::getFiles()
 {
-    return file_paths;
-}
-
-void FileSelectionModel::removeFile(QString path)
-{
-    file_paths.removeAll(path);
-
-    QModelIndex ix = index(0,0);
-    updateAll(ix);
-}
-
-void FileSelectionModel::updateAll(QModelIndex &index)
-{
-    emit dataChanged(index, index);
-
-    if (hasChildren(index))
+    QStringList paths;
+    foreach (const QPersistentModelIndex &value, checklist)
     {
-        for (int i = 0; i < rowCount(index); i++)
-        {
-            QModelIndex child = index.child(i,0);
-            if (child.isValid())
-            {
-                updateAll(child);
-            }
-        }
+        QModelIndex index = value;
+        if (index.isValid() && fileInfo(index).isFile()) paths << filePath(index);
     }
+
+    return paths;
 }
+
+
+
+

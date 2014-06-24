@@ -7,6 +7,8 @@
 
 #include <QTreeView>
 #include <QFileSystemModel>
+#include <QSet>
+
 //#include <QString>
 //#include <QList>
 //#include <QModelIndex>
@@ -32,8 +34,7 @@ class FileSelectionModel : public QFileSystemModel
     
 public slots:
     void setStringFilter(QString str);
-    void removeFile(QString path);
-    void updateAll(QModelIndex& index);
+//    void removeFile(QString path); // Make an index from the path. Convert index to a persistent one. Look it up in the QSet. Kill.
 
 public:
     explicit FileSelectionModel(QWidget *parent = 0);
@@ -43,14 +44,10 @@ public:
     int columnCount(const QModelIndex& parent = QModelIndex()) const;
     QStringList getFiles();
 
-
 private:
-    QStringList file_paths;
-    QStringList other_paths;
-    
-    QList<QModelIndex> marked;
-    void addIndex(QModelIndex index);
+    QSet<QPersistentModelIndex> checklist;
     void removeIndex(QModelIndex index);
+    void addIndex(QModelIndex index);
 };
 
 #endif // FILETREEVIEW_H
