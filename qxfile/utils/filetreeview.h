@@ -8,6 +8,10 @@
 #include <QTreeView>
 #include <QFileSystemModel>
 #include <QSet>
+#include <QMap>
+#include <QFileInfoList>
+#include <QDir>
+
 
 //#include <QString>
 //#include <QList>
@@ -43,6 +47,7 @@ public:
     bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole);
     int columnCount(const QModelIndex& parent = QModelIndex()) const;
     QStringList getFiles();
+    QMap<QString, QStringList> getPaths();
 
 private:
     QSet<QPersistentModelIndex> checklist;

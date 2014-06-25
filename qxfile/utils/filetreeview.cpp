@@ -138,6 +138,32 @@ QStringList FileSelectionModel::getFiles()
     return paths;
 }
 
+QMap<QString, QStringList>  FileSelectionModel::getPaths()
+{
+    QMap<QString, QStringList> paths;
+    foreach (const QPersistentModelIndex &value, checklist)
+    {
+        QModelIndex index = value;
+        if (index.isValid() && fileInfo(index).isFile()) paths[fileInfo(index).dir().absolutePath()] << filePath(index);
+    }
 
+    QMap<QString, QStringList>::const_iterator i = paths.constBegin();
+    while (i != paths.constEnd())
+    {
+        paths[i.key()].sort();
+        ++i;
+    }
+
+//    foreach (const QStringList &list, paths)
+//    {
+//        foreach (const QFileInfo &file, list)
+//        {
+//            qDebug() << file.absoluteFilePath();
+//        }
+//    }
+
+
+    return paths;
+}
 
 
