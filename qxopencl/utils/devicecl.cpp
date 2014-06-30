@@ -68,7 +68,7 @@ void DeviceCL::getDeviceInfo ()
     
     GLOBAL_VRAM_ALLOC_MAX = max_mem_alloc_size;
     
-    qDebug() << GLOBAL_VRAM_ALLOC_MAX;
+//    qDebug() << GLOBAL_VRAM_ALLOC_MAX;
 }
 
 std::string DeviceCL::getDeviceInfoString()

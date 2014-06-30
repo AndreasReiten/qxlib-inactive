@@ -1,4 +1,8 @@
 #include "imagepreview.h"
+#include <QPen>
+#include <QBrush>
+#include <QRect>
+#include <QColor>
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isImageTexInitialized(false),
@@ -30,13 +34,13 @@ void ImagePreviewWorker::setImageFromPath(QString path)
                 err = clReleaseMemObject(image_tex_cl);
                 err |= clReleaseMemObject(source_cl);
                 if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+                glDeleteTextures(1, &image_tex_gl);
             }
 
             Matrix<size_t> image_tex_dim(1,2);
             image_tex_dim[0] = frame.getFastDimension();
             image_tex_dim[1] = frame.getSlowDimension();
             
-            glDeleteTextures(1, &image_tex_gl);
             glGenTextures(1, &image_tex_gl);
             glBindTexture(GL_TEXTURE_2D, image_tex_gl);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -53,14 +57,12 @@ void ImagePreviewWorker::setImageFromPath(QString path)
                 NULL);
             glBindTexture(GL_TEXTURE_2D, 0);
             
-
+            isImageTexInitialized = true;
 
             // Convert to CL texture
             image_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             
-            isImageTexInitialized = true;
-
             // Pass texture to CL kernel
             err = clSetKernelArg(cl_image_preview, 0, sizeof(cl_mem), (void *) &image_tex_cl);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -195,10 +197,10 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
     if (isTsfTexInitialized){
         err = clReleaseMemObject(tsf_tex_cl);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        glDeleteTextures(1, &tsf_tex_gl);
     }
 
     // Buffer for tsf_tex_gl
-    glDeleteTextures(1, &tsf_tex_gl);
     glGenTextures(1, &tsf_tex_gl);
     glBindTexture(GL_TEXTURE_2D, tsf_tex_gl);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -217,10 +219,10 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
         tsf.getSplined()->getColMajor().toFloat().data());
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    isTsfTexInitialized = true;
+
     tsf_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, tsf_tex_gl, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-    isTsfTexInitialized = true;
 
     err = clSetKernelArg(cl_image_preview, 2, sizeof(cl_mem), (void *) &tsf_tex_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -235,12 +237,11 @@ void ImagePreviewWorker::initialize()
     tsf.setSpline(256);
     
     setTsf(tsf);
+
     setMode(0);
     
     setIntensityMin(1);
     setIntensityMax(1000);
-    
-    
 }
 
 void ImagePreviewWorker::setThresholdAlow(double value)
@@ -295,49 +296,64 @@ void ImagePreviewWorker::render(QPainter *painter)
     painter->setRenderHint(QPainter::Antialiasing);
     
     beginRawGLCalls(painter);
-    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+    glClearColor(1.0f, 1.0f, 0.0f, 0.5f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     const qreal retinaScale = render_surface->devicePixelRatio();
     glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-    
-    shared_window->std_2d_tex_program->bind();
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-    shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
+//    shared_window->std_2d_tex_program->bind();
 
-    GLfloat fragpos[] = {
-        -1.0, -1.0,
-        1.0, -1.0,
-        1.0, 1.0,
-        -1.0, 1.0
-    };
+//    glActiveTexture(GL_TEXTURE0);
+//    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
+//    shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
 
-    GLfloat texpos[] = {
-        0.0, 0.0,
-        1.0, 0.0,
-        1.0, 1.0,
-        0.0, 1.0
-    };
+//    GLfloat fragpos[] = {
+//        -1.0, -1.0,
+//        1.0, -1.0,
+//        1.0, 1.0,
+//        -1.0, 1.0
+//    };
 
-    GLuint indices[] = {0,1,3,1,2,3};
+//    GLfloat texpos[] = {
+//        0.0, 0.0,
+//        1.0, 0.0,
+//        1.0, 1.0,
+//        0.0, 1.0
+//    };
 
-    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos);
-    glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+//    GLuint indices[] = {0,1,3,1,2,3};
 
-    glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
-    glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
+//    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos);
+//    glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
 
-    glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
+//    glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+//    glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
 
-    glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
-    glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
-    glBindTexture(GL_TEXTURE_2D, 0);
+//    glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
 
-    shared_window->std_2d_tex_program->release();
+//    glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
+//    glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+//    glBindTexture(GL_TEXTURE_2D, 0);
+
+//    shared_window->std_2d_tex_program->release();
 
     endRawGLCalls(painter);
+
+    // Minicell backdrop
+    QRect minicell_rect(50,50,200,200);
+
+    QPen pen;
+    pen.setColor(QColor(255,0,0,150));
+    pen.setWidthF(1.0);
+
+    QBrush brush;
+    brush.setColor(QColor(0,255,0,150));
+    brush.setStyle(Qt::SolidPattern);
+
+    painter->setPen(pen);
+    painter->setBrush(brush);
+    painter->drawRoundedRect(minicell_rect, 5, 5, Qt::AbsoluteSize);
 }
 
 void ImagePreviewWorker::setMode(int value)

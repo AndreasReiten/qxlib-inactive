@@ -156,9 +156,11 @@ QMap<QString, QStringList>  FileSelectionModel::getPaths()
 
 //    foreach (const QStringList &list, paths)
 //    {
-//        foreach (const QFileInfo &file, list)
+//        qDebug() << "New directory";
+
+//        foreach (const QString &path, list)
 //        {
-//            qDebug() << file.absoluteFilePath();
+//            qDebug() << path;
 //        }
 //    }
 
