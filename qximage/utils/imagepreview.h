@@ -24,10 +24,10 @@ signals:
     
 public slots:
     void setMode(int value);
-    void setThresholdAlow(double value);
-    void setThresholdAhigh(double value);
-    void setThresholdBlow(double value);
-    void setThresholdBhigh(double value);
+    void setThresholdNoiseLow(double value);
+    void setThresholdNoiseHigh(double value);
+    void setThresholdPostCorrectionLow(double value);
+    void setThresholdPostCorrectionHigh(double value);
     void setIntensityMin(double value);
     void setIntensityMax(double value);
     
@@ -71,7 +71,7 @@ private:
     bool isImageTexInitialized;
     bool isTsfTexInitialized;
     bool isCLInitialized;
-    
+
 protected:
     void initialize();
     void render(QPainter *painter);

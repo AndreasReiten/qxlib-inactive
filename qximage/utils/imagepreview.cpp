@@ -239,28 +239,32 @@ void ImagePreviewWorker::initialize()
     setTsf(tsf);
 
     setMode(0);
-    
+    setThresholdNoiseLow(-1e99);
+    setThresholdNoiseHigh(1e99);
+    setThresholdPostCorrectionLow(-1e99);
+    setThresholdPostCorrectionHigh(1e99);
     setIntensityMin(1);
     setIntensityMax(1000);
 }
 
-void ImagePreviewWorker::setThresholdAlow(double value)
+
+void ImagePreviewWorker::setThresholdNoiseLow(double value)
 {
     parameter[0] = value;
     setParameter(parameter);
 }
 
-void ImagePreviewWorker::setThresholdAhigh(double value)
+void ImagePreviewWorker::setThresholdNoiseHigh(double value)
 {
     parameter[1] = value;
     setParameter(parameter);
 }
-void ImagePreviewWorker::setThresholdBlow(double value)
+void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
 {
     parameter[2] = value;
     setParameter(parameter);
 }
-void ImagePreviewWorker::setThresholdBhigh(double value)
+void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
 {
     parameter[3] = value;
     setParameter(parameter);
@@ -302,41 +306,41 @@ void ImagePreviewWorker::render(QPainter *painter)
     const qreal retinaScale = render_surface->devicePixelRatio();
     glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
 
-//    shared_window->std_2d_tex_program->bind();
+    shared_window->std_2d_tex_program->bind();
 
-//    glActiveTexture(GL_TEXTURE0);
-//    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-//    shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
+    shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
 
-//    GLfloat fragpos[] = {
-//        -1.0, -1.0,
-//        1.0, -1.0,
-//        1.0, 1.0,
-//        -1.0, 1.0
-//    };
+    GLfloat fragpos[] = {
+        0.0, 0.0,
+        1.0, 0.0,
+        1.0, 1.0,
+        0.0, 1.0
+    };
 
-//    GLfloat texpos[] = {
-//        0.0, 0.0,
-//        1.0, 0.0,
-//        1.0, 1.0,
-//        0.0, 1.0
-//    };
+    GLfloat texpos[] = {
+        0.0, 0.0,
+        1.0, 0.0,
+        1.0, 1.0,
+        0.0, 1.0
+    };
 
-//    GLuint indices[] = {0,1,3,1,2,3};
+    GLuint indices[] = {0,1,3,1,2,3};
 
-//    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos);
-//    glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos);
+    glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
 
-//    glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
-//    glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
+    glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+    glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
 
-//    glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
+    glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
 
-//    glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
-//    glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
-//    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
+    glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+    glBindTexture(GL_TEXTURE_2D, 0);
 
-//    shared_window->std_2d_tex_program->release();
+    shared_window->std_2d_tex_program->release();
 
     endRawGLCalls(painter);
 
@@ -354,6 +358,14 @@ void ImagePreviewWorker::render(QPainter *painter)
     painter->setPen(pen);
     painter->setBrush(brush);
     painter->drawRoundedRect(minicell_rect, 5, 5, Qt::AbsoluteSize);
+
+//    QString resolution_string("ANDREAS L REITEN");
+//    QRect resolution_string_rect = emph_fontmetric->boundingRect(resolution_string);
+//    resolution_string_rect += QMargins(5,5,5,5);
+//    resolution_string_rect.moveBottomLeft(QPoint(5, render_surface->height() - 5));
+
+//    painter->drawRoundedRect(resolution_string_rect, 5, 5, Qt::AbsoluteSize);
+//    painter->drawText(100,100,100,100, Qt::AlignCenter, resolution_string);
 }
 
 void ImagePreviewWorker::setMode(int value)
@@ -364,6 +376,24 @@ void ImagePreviewWorker::setMode(int value)
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)
 {
+    if (0)
+    {
+        qDebug() << "th_a_low" << parameter[0];
+        qDebug() << "th_a_high" << parameter[1];
+        qDebug() << "th_b_low" << parameter[2];
+        qDebug() << "th_b_high" << parameter[3];
+        qDebug() << "flux" << parameter[4];
+        qDebug() << "exp_time" << parameter[5];
+        qDebug() << "wavelength" << parameter[6];
+        qDebug() << "det_dist" << parameter[7];
+        qDebug() << "beam_x" << parameter[8];
+        qDebug() << "beam_y" << parameter[9];
+        qDebug() << "pix_size_x" << parameter[10];
+        qDebug() << "pix_size_y" << parameter[11];
+        qDebug() << "intensity_min" << parameter[12];
+        qDebug() << "intensity_max" << parameter[13];
+    }
+
     if (isCLInitialized)
     {
         err = clEnqueueWriteBuffer (*context_cl->getCommandQueue(),
@@ -414,6 +444,8 @@ void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 void ImagePreviewWorker::resizeEvent(QResizeEvent * ev)
 {
     Q_UNUSED(ev);
+
+    if (paint_device_gl) paint_device_gl->setSize(render_surface->size());
 }
 
 ImagePreviewWindow::ImagePreviewWindow()
@@ -464,6 +496,8 @@ void ImagePreviewWindow::initializeWorker()
         connect(this, SIGNAL(wheelEventCaught(QWheelEvent*)), gl_worker, SLOT(wheelEvent(QWheelEvent*)), Qt::DirectConnection);
     }
 
+
+
     isInitialized = true;
 }
 
@@ -494,7 +528,7 @@ void ImagePreviewWindow::renderNow()
             else
             {
                 context_gl->makeCurrent(this);
-                gl_worker->process();
+//                gl_worker->process();
                 emit render();
             }
 

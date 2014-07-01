@@ -81,6 +81,7 @@ void OpenGLWorker::process()
     {
         initializeOpenGLFunctions();
         if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
+        paint_device_gl->setSize(render_surface->size());
         initialize();
         isInitialized = true;
     }
