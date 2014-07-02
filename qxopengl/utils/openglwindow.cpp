@@ -154,25 +154,29 @@ QPointF OpenGLWorker::coordQttoGL(QPointF coord)
     return GLPoint;
 }
 
-void OpenGLWorker::glRect(Matrix<GLfloat> * gl_rect, QRect * qt_rect)
+Matrix<GLfloat> OpenGLWorker::glRect(QRectF & qt_rect)
 {
-    int x,y,w,h;
-    float xf,yf,wf,hf;
-    qt_rect->getRect(&x, &y, &w, &h);
+    Matrix<GLfloat> gl_rect(1,8);
 
-    xf = (x / (float) render_surface->width()) * 2.0 - 1.0;
-    yf = (1.0 - (y + h)/ (float) render_surface->height()) * 2.0 - 1.0;
-    wf = (w / (float) render_surface->width()) * 2.0;
-    hf = (h / (float) render_surface->height()) * 2.0;
+    qreal x,y,w,h;
+    qreal xf,yf,wf,hf;
+    qt_rect.getRect(&x, &y, &w, &h);
 
-    (*gl_rect)[0] = xf;
-    (*gl_rect)[1] = yf;
-    (*gl_rect)[2] = xf + wf;
-    (*gl_rect)[3] = yf;
-    (*gl_rect)[4] = xf + wf;
-    (*gl_rect)[5] = yf + hf;
-    (*gl_rect)[6] = xf;
-    (*gl_rect)[7] = yf + hf;
+    xf = (x / (qreal) render_surface->width()) * 2.0 - 1.0;
+    yf = (1.0 - (y + h)/ (qreal) render_surface->height()) * 2.0 - 1.0;
+    wf = (w / (qreal) render_surface->width()) * 2.0;
+    hf = (h / (qreal) render_surface->height()) * 2.0;
+
+    gl_rect[0] = (GLfloat) xf;
+    gl_rect[1] = (GLfloat) yf;
+    gl_rect[2] = (GLfloat) xf + wf;
+    gl_rect[3] = (GLfloat) yf;
+    gl_rect[4] = (GLfloat) xf + wf;
+    gl_rect[5] = (GLfloat) yf + hf;
+    gl_rect[6] = (GLfloat) xf;
+    gl_rect[7] = (GLfloat) yf + hf;
+
+    return gl_rect;
 }
 
 void OpenGLWorker::setVbo(GLuint vbo, float * buf, size_t length, GLenum usage)
@@ -303,6 +307,8 @@ void OpenGLWindow::initializeGLContext()
 
         if(isMultiThreaded)
         {
+            qDebug() << "Context moving to own thread";
+
             worker_thread = new QThread;
             context_gl->moveToThread(worker_thread);
         }

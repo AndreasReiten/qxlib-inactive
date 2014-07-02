@@ -30,7 +30,10 @@ public slots:
     void setThresholdPostCorrectionHigh(double value);
     void setIntensityMin(double value);
     void setIntensityMax(double value);
-    
+    void setTsfTexture(int value);
+    void setTsfAlpha(int value);
+    void setLog(bool value);
+
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
@@ -53,6 +56,7 @@ private:
     cl_sampler image_sampler;
 
     TransferFunction tsf;
+    int rgb_style, alpha_style;
 
     GLuint image_tex_gl;
     GLuint tsf_tex_gl;
@@ -68,9 +72,30 @@ private:
     void beginRawGLCalls(QPainter * painter);
     void endRawGLCalls(QPainter * painter);
 
+    // Draw
+    void drawImage(QPainter *painter);
+    void drawTexelOverlay(QPainter *painter);
+
+    // Vertice buffer objects
+    GLuint texel_line_vbo[2];
+
+    // Boolean checks
+    bool isInitialized;
     bool isImageTexInitialized;
     bool isTsfTexInitialized;
     bool isCLInitialized;
+    bool isFrameValid;
+    bool isRendering;
+
+    Matrix<double> texture_view_matrix;
+    Matrix<double> texel_view_matrix;
+    Matrix<double> translation_matrix;
+    Matrix<double> zoom_matrix;
+    Matrix<double> texel_offset_matrix;
+
+    // Mouse
+    int last_mouse_pos_x;
+    int last_mouse_pos_y;
 
 protected:
     void initialize();

@@ -28,10 +28,10 @@ template <class T>
 ColorMatrix<T>::ColorMatrix(T R, T G, T B, T A)
 {
     this->reserve(1,4);
-    this->data[0] = R;
-    this->data[1] = G;
-    this->data[2] = B;
-    this->data[3] = A;
+    this->data()[0] = R;
+    this->data()[1] = G;
+    this->data()[2] = B;
+    this->data()[3] = A;
 }
 
 template <class T>

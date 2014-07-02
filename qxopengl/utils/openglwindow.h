@@ -41,7 +41,8 @@ public:
     void getPosition2D(float * pos_2d, float * pos_3d, Matrix<double> * transform);
     void getPosition2D(double * pos_2d, double * pos_3d, Matrix<double> * transform);
     QPointF coordQttoGL(QPointF coord);
-    void glRect(Matrix<GLfloat> * gl_rect, QRect * qt_rect);
+//    void glRect(Matrix<GLfloat> * gl_rect, QRect * qt_rect);
+    Matrix<GLfloat> glRect(QRectF &qt_rect);
     void setMultiThreading(bool value);
 
 signals:

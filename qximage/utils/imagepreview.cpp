@@ -5,18 +5,32 @@
 #include <QColor>
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
+    isInitialized(false),
     isImageTexInitialized(false),
     isTsfTexInitialized(false),
-    isCLInitialized(false)
+    isCLInitialized(false),
+    isFrameValid(false)
 {
     Q_UNUSED(parent);
     
     parameter.reserve(1,16);
+
+    texture_view_matrix.setIdentity(4);
+    translation_matrix.setIdentity(4);
+    zoom_matrix.setIdentity(4);
+
+    texel_view_matrix.setIdentity(4);
+    texel_offset_matrix.setIdentity(4);
+
+    // Set initial zoom
+    zoom_matrix[0] = 0.5;
+    zoom_matrix[5] = 0.5;
+    zoom_matrix[10] = 0.5;
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
 {
-
+    glDeleteBuffers(2, texel_line_vbo);
 }
 
 void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
@@ -30,6 +44,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
     {
         if(frame.readData())
         {
+            isFrameValid = true;
+
             if (isImageTexInitialized){
                 err = clReleaseMemObject(image_tex_cl);
                 err |= clReleaseMemObject(source_cl);
@@ -43,8 +59,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             
             glGenTextures(1, &image_tex_gl);
             glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
             glTexImage2D(
                 GL_TEXTURE_2D,
                 0,
@@ -194,7 +210,8 @@ void ImagePreviewWorker::initResourcesCL()
 
 void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 {
-    if (isTsfTexInitialized){
+    if (isTsfTexInitialized)
+    {
         err = clReleaseMemObject(tsf_tex_cl);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         glDeleteTextures(1, &tsf_tex_gl);
@@ -231,11 +248,11 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 void ImagePreviewWorker::initialize()
 {
     initResourcesCL();
-    
-    // Tsf texture
-    tsf.setColorScheme(1, 2);
-    tsf.setSpline(256);
-    
+
+    glGenBuffers(2, texel_line_vbo);
+
+    isInitialized = true;
+
     setTsf(tsf);
 
     setMode(0);
@@ -247,6 +264,31 @@ void ImagePreviewWorker::initialize()
     setIntensityMax(1000);
 }
 
+
+void ImagePreviewWorker::setTsfTexture(int value)
+{
+    rgb_style = value;
+
+    tsf.setColorScheme(rgb_style, alpha_style);
+    tsf.setSpline(256);
+
+    if (isInitialized) setTsf(tsf);
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+}
+void ImagePreviewWorker::setTsfAlpha(int value)
+{
+    alpha_style = value;
+
+    tsf.setColorScheme(rgb_style, alpha_style);
+    tsf.setSpline(256);
+
+    if (isInitialized) setTsf(tsf);
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+}
+void ImagePreviewWorker::setLog(bool value)
+{
+
+}
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)
 {
@@ -297,14 +339,51 @@ void ImagePreviewWorker::endRawGLCalls(QPainter * painter)
 
 void ImagePreviewWorker::render(QPainter *painter)
 {
+    isRendering = true;
+
     painter->setRenderHint(QPainter::Antialiasing);
     
     beginRawGLCalls(painter);
-    glClearColor(1.0f, 1.0f, 0.0f, 0.5f);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     const qreal retinaScale = render_surface->devicePixelRatio();
     glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+
+    endRawGLCalls(painter);
+
+    drawImage(painter);
+
+    drawTexelOverlay(painter);
+
+    isRendering = false;
+
+//    QRect minicell_rect(50,50,200,200);
+
+//    QPen pen;
+//    pen.setColor(QColor(255,0,0,150));
+//    pen.setWidthF(1.0);
+
+//    QBrush brush;
+//    brush.setColor(QColor(0,255,0,150));
+//    brush.setStyle(Qt::SolidPattern);
+
+//    painter->setPen(pen);
+//    painter->setBrush(brush);
+//    painter->drawRoundedRect(minicell_rect, 5, 5, Qt::AbsoluteSize);
+
+//    QString resolution_string("ANDREAS L REITEN");
+//    QRect resolution_string_rect = emph_fontmetric->boundingRect(resolution_string);
+//    resolution_string_rect += QMargins(5,5,5,5);
+//    resolution_string_rect.moveBottomLeft(QPoint(5, render_surface->height() - 5));
+
+//    painter->drawRoundedRect(resolution_string_rect, 5, 5, Qt::AbsoluteSize);
+//    painter->drawText(100,100,100,100, Qt::AlignCenter, resolution_string);
+}
+
+void ImagePreviewWorker::drawImage(QPainter * painter)
+{
+    beginRawGLCalls(painter);
 
     shared_window->std_2d_tex_program->bind();
 
@@ -312,12 +391,9 @@ void ImagePreviewWorker::render(QPainter *painter)
     glBindTexture(GL_TEXTURE_2D, image_tex_gl);
     shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
 
-    GLfloat fragpos[] = {
-        0.0, 0.0,
-        1.0, 0.0,
-        1.0, 1.0,
-        0.0, 1.0
-    };
+
+    QRectF image_rect(QPointF(render_surface->width()*0.5-frame.getFastDimension()*0.5,render_surface->height()*0.5-frame.getSlowDimension()*0.5),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+    Matrix<GLfloat> fragpos = glRect(image_rect);
 
     GLfloat texpos[] = {
         0.0, 0.0,
@@ -328,7 +404,11 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     GLuint indices[] = {0,1,3,1,2,3};
 
-    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos);
+    texture_view_matrix = zoom_matrix*translation_matrix;
+
+    glUniformMatrix4fv(shared_window->std_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
+
+    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
     glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
 
     glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
@@ -343,35 +423,101 @@ void ImagePreviewWorker::render(QPainter *painter)
     shared_window->std_2d_tex_program->release();
 
     endRawGLCalls(painter);
+}
 
-    // Minicell backdrop
-    QRect minicell_rect(50,50,200,200);
+void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
+{
+    /*
+     * Draw lines between the texels to better distinguish them.
+     * Only happens when the texels occupy a certain number of pixels.
+     */
 
-    QPen pen;
-    pen.setColor(QColor(255,0,0,150));
-    pen.setWidthF(1.0);
+    // Find size of texels in GL coordinates
+    double w = zoom_matrix[0] * 2.0 /(double) render_surface->width();
+    double h = zoom_matrix[0] * 2.0 /(double) render_surface->height();
 
-    QBrush brush;
-    brush.setColor(QColor(0,255,0,150));
-    brush.setStyle(Qt::SolidPattern);
+    // Find size of texels in pixels
+    double wh_pix = zoom_matrix[0];
 
-    painter->setPen(pen);
-    painter->setBrush(brush);
-    painter->drawRoundedRect(minicell_rect, 5, 5, Qt::AbsoluteSize);
+    // The number of texels that fit in
+    double n_texel_x = 2.0 / w;
+    double n_texel_y = 2.0 / h;
 
-//    QString resolution_string("ANDREAS L REITEN");
-//    QRect resolution_string_rect = emph_fontmetric->boundingRect(resolution_string);
-//    resolution_string_rect += QMargins(5,5,5,5);
-//    resolution_string_rect.moveBottomLeft(QPoint(5, render_surface->height() - 5));
+    if((wh_pix > 32.0) && (n_texel_x < 64) && (n_texel_y < 64))
+    {
+        beginRawGLCalls(painter);
 
-//    painter->drawRoundedRect(resolution_string_rect, 5, 5, Qt::AbsoluteSize);
-//    painter->drawText(100,100,100,100, Qt::AlignCenter, resolution_string);
+        // Move to resize event
+            Matrix<float> vertical_lines_buf(65,4);
+            for (int i = 0; i < vertical_lines_buf.getM(); i++)
+            {
+                vertical_lines_buf[i*4+0] = (0.5 + (float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width(); // The added 0.5 is due to image dimension being odd in test cases...
+                vertical_lines_buf[i*4+1] = 1;
+                vertical_lines_buf[i*4+2] = (0.5 + (float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
+                vertical_lines_buf[i*4+3] = -1;
+            }
+            setVbo(texel_line_vbo[0], vertical_lines_buf.data(), vertical_lines_buf.size(), GL_DYNAMIC_DRAW);
+
+            Matrix<float> horizontal_lines_buf(65,4);
+            for (int i = 0; i < horizontal_lines_buf.getM(); i++)
+            {
+                horizontal_lines_buf[i*4+0] = 1.0;
+                horizontal_lines_buf[i*4+1] = (0.5 + (float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
+                horizontal_lines_buf[i*4+2] = -1.0;
+                horizontal_lines_buf[i*4+3] = (0.5 + (float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
+            }
+            setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
+
+        // Draw lines
+        ColorMatrix<float> texel_line_color(0.0f,0.0f,0.0f,1.0f);
+
+        shared_window->std_2d_col_program->bind();
+        glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+        glUniform4fv(shared_window->std_2d_col_color, 1, texel_line_color.data());
+
+        // Vertical
+        texel_offset_matrix[3] = fmod(translation_matrix[3], 2.0 /(double) render_surface->width());
+        texel_offset_matrix[7] = 0;
+        texel_view_matrix = zoom_matrix*texel_offset_matrix;
+
+        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[0]);
+        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.getColMajor().toFloat().data());
+
+        glDrawArrays(GL_LINES,  0, vertical_lines_buf.getM()*2);
+
+        // Horizontal
+        texel_offset_matrix[3] = 0;
+        texel_offset_matrix[7] = fmod(translation_matrix[7], 2.0 /(double) render_surface->height());
+        texel_view_matrix = zoom_matrix*texel_offset_matrix;
+
+        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[1]);
+        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.getColMajor().toFloat().data());
+
+        glDrawArrays(GL_LINES,  0, horizontal_lines_buf.getM()*2);
+
+
+        glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+        shared_window->std_2d_col_program->release();
+
+        endRawGLCalls(painter);
+    }
 }
 
 void ImagePreviewWorker::setMode(int value)
 {
-    err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &value);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    if (isInitialized)
+    {
+        err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &value);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
 }
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)
@@ -409,13 +555,26 @@ void ImagePreviewWorker::setParameter(Matrix<float> & data)
 
 void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
-    Q_UNUSED(x);
-    Q_UNUSED(y);
-    Q_UNUSED(left_button);
     Q_UNUSED(mid_button);
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
+
+    float move_scaling = 1.0;
+    if(shift_button) move_scaling = 5.0;
+    else if(ctrl_button) move_scaling = 0.2;
+
+    if (left_button && (isRendering == false))
+    {
+        double dx = (x - last_mouse_pos_x)*2.0/(render_surface->width()*zoom_matrix[0]);
+        double dy = (last_mouse_pos_y - y)*2.0/(render_surface->height()*zoom_matrix[0]);
+
+        translation_matrix[3] += dx*move_scaling;
+        translation_matrix[7] += dy*move_scaling;
+    }
+
+    last_mouse_pos_x = x;
+    last_mouse_pos_y = y;
 }
 void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
@@ -440,6 +599,21 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
 void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 {
     Q_UNUSED(ev);
+
+    float move_scaling = 1.0;
+    if(ev->modifiers() & Qt::ShiftModifier) move_scaling = 5.0;
+    else if(ev->modifiers() & Qt::ControlModifier) move_scaling = 0.2;
+
+    double delta = move_scaling*((double)ev->delta())*0.0008;
+
+    if ((zoom_matrix[0] + zoom_matrix[0]*delta < 256) && (isRendering == false))
+    {
+        zoom_matrix[0] += zoom_matrix[0]*delta;
+        zoom_matrix[5] += zoom_matrix[5]*delta;
+        zoom_matrix[10] += zoom_matrix[10]*delta;
+    }
+
+
 }
 void ImagePreviewWorker::resizeEvent(QResizeEvent * ev)
 {
@@ -483,6 +657,8 @@ void ImagePreviewWindow::initializeWorker()
     if (isMultiThreaded)
     {
         // Set up worker thread
+        qDebug() << "Move worker to thread";
+
         gl_worker->moveToThread(worker_thread);
         connect(this, SIGNAL(render()), gl_worker, SLOT(process()));
         connect(this, SIGNAL(stopRendering()), worker_thread, SLOT(quit()));
@@ -495,8 +671,6 @@ void ImagePreviewWindow::initializeWorker()
         connect(this, SIGNAL(resizeEventCaught(QResizeEvent*)), gl_worker, SLOT(resizeEvent(QResizeEvent*)));
         connect(this, SIGNAL(wheelEventCaught(QWheelEvent*)), gl_worker, SLOT(wheelEvent(QWheelEvent*)), Qt::DirectConnection);
     }
-
-
 
     isInitialized = true;
 }
