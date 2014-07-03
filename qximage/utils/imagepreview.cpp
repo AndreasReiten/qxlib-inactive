@@ -511,6 +511,30 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         shared_window->std_2d_col_program->release();
 
         endRawGLCalls(painter);
+
+        // Draw intensity numbers over each texel
+
+        // For each visible vertical line
+        for (int i = 0; i < vertical_lines_buf.getM(); i++)
+        {
+            if ((vertical_lines_buf[i*4] >= -1) && (vertical_lines_buf[i*4] <= 1))
+            {
+                // For each visible horizontal line
+                for (int j = 0; j < horizontal_lines_buf.getM(); j++)
+                {
+                    if ((horizontal_lines_buf[j*4+1] >= -1) && (horizontal_lines_buf[j*4+1] <= 1))
+                    {
+                        // Find the corresponding texel in the data buffer and display the intensity value at the current position
+//                        translation_matrix[3]
+
+                    }
+                }
+            }
+        }
+
+
+
+
     }
 }
 
