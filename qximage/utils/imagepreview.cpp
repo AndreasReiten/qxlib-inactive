@@ -18,6 +18,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     texture_view_matrix.setIdentity(4);
     translation_matrix.setIdentity(4);
     zoom_matrix.setIdentity(4);
+    cursor_translation_matrix.setIdentity(4);
 
     texel_view_matrix.setIdentity(4);
     texel_offset_matrix.setIdentity(4);
@@ -169,7 +170,7 @@ void ImagePreviewWorker::initResourcesCL()
 {
     // Build program from OpenCL kernel source
     Matrix<const char *> paths(1,1);
-    paths[0] = "kernels/image_preview.cl";
+    paths[0] = "cl/image_preview.cl";
 
     program = context_cl->createProgram(&paths, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -404,7 +405,7 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     GLuint indices[] = {0,1,3,1,2,3};
 
-    texture_view_matrix = zoom_matrix*translation_matrix;
+    texture_view_matrix = zoom_matrix*cursor_translation_matrix*translation_matrix;
 
     glUniformMatrix4fv(shared_window->std_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
 
@@ -443,7 +444,7 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
     double n_texel_x = 2.0 / w;
     double n_texel_y = 2.0 / h;
 
-    if((wh_pix > 32.0) && (n_texel_x < 64) && (n_texel_y < 64))
+    if((wh_pix > 26.0) && (n_texel_x < 64) && (n_texel_y < 64))
     {
         beginRawGLCalls(painter);
 
@@ -469,7 +470,9 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
             setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
 
         // Draw lines
-        ColorMatrix<float> texel_line_color(0.0f,0.0f,0.0f,1.0f);
+        ColorMatrix<float> texel_line_color(0.0f,0.0f,0.0f,0.7f);
+
+        glLineWidth(2.0);
 
         shared_window->std_2d_col_program->bind();
         glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
@@ -479,7 +482,7 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         // Vertical
         texel_offset_matrix[3] = fmod(translation_matrix[3], 2.0 /(double) render_surface->width());
         texel_offset_matrix[7] = 0;
-        texel_view_matrix = zoom_matrix*texel_offset_matrix;
+        texel_view_matrix = zoom_matrix*cursor_translation_matrix*texel_offset_matrix;
 
         glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[0]);
         glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -492,7 +495,7 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         // Horizontal
         texel_offset_matrix[3] = 0;
         texel_offset_matrix[7] = fmod(translation_matrix[7], 2.0 /(double) render_surface->height());
-        texel_view_matrix = zoom_matrix*texel_offset_matrix;
+        texel_view_matrix = zoom_matrix*cursor_translation_matrix*texel_offset_matrix;
 
         glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[1]);
         glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -567,7 +570,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     if (left_button && (isRendering == false))
     {
         double dx = (x - last_mouse_pos_x)*2.0/(render_surface->width()*zoom_matrix[0]);
-        double dy = (last_mouse_pos_y - y)*2.0/(render_surface->height()*zoom_matrix[0]);
+        double dy = -(y - last_mouse_pos_y)*2.0/(render_surface->height()*zoom_matrix[0]);
 
         translation_matrix[3] += dx*move_scaling;
         translation_matrix[7] += dy*move_scaling;
@@ -608,9 +611,31 @@ void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 
     if ((zoom_matrix[0] + zoom_matrix[0]*delta < 256) && (isRendering == false))
     {
+        /*
+         * Zooming happens around the GL screen coordinate (0,0), i.e. the middle,
+         * but by first tranlating the frame to the position of the cursor, we can
+         * make zooming happen on the cursor instead. Then the frame should be
+         * translated back such that the object under the cursor does not appear
+         * to actually have been translated.
+         * */
+
+        // Translate cursor position to middle
+        double dx = -(ev->x() - render_surface->width()*0.5)*2.0/(render_surface->width()*zoom_matrix[0]);
+        double dy = -((render_surface->height() - ev->y()) - render_surface->height()*0.5)*2.0/(render_surface->height()*zoom_matrix[0]);
+
+        translation_matrix[3] += dx;
+        translation_matrix[7] += dy;
+
+        double tmp = zoom_matrix[0];
+
+        // Zoom
         zoom_matrix[0] += zoom_matrix[0]*delta;
         zoom_matrix[5] += zoom_matrix[5]*delta;
         zoom_matrix[10] += zoom_matrix[10]*delta;
+
+        // Translate from middle back to cursor position, taking into account the new zoom
+        translation_matrix[3] -= dx*tmp/zoom_matrix[0];
+        translation_matrix[7] -= dy*tmp/zoom_matrix[0];
     }
 
 
@@ -657,8 +682,6 @@ void ImagePreviewWindow::initializeWorker()
     if (isMultiThreaded)
     {
         // Set up worker thread
-        qDebug() << "Move worker to thread";
-
         gl_worker->moveToThread(worker_thread);
         connect(this, SIGNAL(render()), gl_worker, SLOT(process()));
         connect(this, SIGNAL(stopRendering()), worker_thread, SLOT(quit()));

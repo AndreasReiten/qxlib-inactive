@@ -91,6 +91,7 @@ private:
     Matrix<double> texel_view_matrix;
     Matrix<double> translation_matrix;
     Matrix<double> zoom_matrix;
+    Matrix<double> cursor_translation_matrix;
     Matrix<double> texel_offset_matrix;
 
     // Mouse

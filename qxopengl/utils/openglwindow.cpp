@@ -307,8 +307,6 @@ void OpenGLWindow::initializeGLContext()
 
         if(isMultiThreaded)
         {
-            qDebug() << "Context moving to own thread";
-
             worker_thread = new QThread;
             context_gl->moveToThread(worker_thread);
         }
