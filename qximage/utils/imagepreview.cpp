@@ -113,6 +113,10 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             parameter[11] = frame.getPixSizeY();
             
             setParameter(parameter);
+            err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
+            err |= clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
+            err |= clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
+            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             
             update(frame.getFastDimension(), frame.getSlowDimension());
         }
@@ -256,13 +260,13 @@ void ImagePreviewWorker::initialize()
 
     setTsf(tsf);
 
-    setMode(0);
+//    setMode(0);
     setThresholdNoiseLow(-1e99);
     setThresholdNoiseHigh(1e99);
     setThresholdPostCorrectionLow(-1e99);
     setThresholdPostCorrectionHigh(1e99);
-    setIntensityMin(1);
-    setIntensityMax(1000);
+//    setDataMin(1);
+//    setDataMax(1000);
 }
 
 
@@ -288,8 +292,30 @@ void ImagePreviewWorker::setTsfAlpha(int value)
 }
 void ImagePreviewWorker::setLog(bool value)
 {
+    isLog = (int) value;
 
+    if (isInitialized)
+    {
+        err = clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
+
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
 }
+
+void ImagePreviewWorker::setDataMin(double value)
+{
+    parameter[12] = value;
+    setParameter(parameter);
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+}
+void ImagePreviewWorker::setDataMax(double value)
+{
+    parameter[13] = value;
+    setParameter(parameter);
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+}
+
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)
 {
@@ -310,16 +336,6 @@ void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
 void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
 {
     parameter[3] = value;
-    setParameter(parameter);
-}
-void ImagePreviewWorker::setIntensityMin(double value)
-{
-    parameter[12] = value;
-    setParameter(parameter);
-}
-void ImagePreviewWorker::setIntensityMax(double value)
-{
-    parameter[13] = value;
     setParameter(parameter);
 }
 
@@ -540,11 +556,28 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
 
 void ImagePreviewWorker::setMode(int value)
 {
+    mode = value;
+
     if (isInitialized)
     {
-        err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &value);
+        err = clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
+
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+}
+
+void ImagePreviewWorker::setCorrection(bool value)
+{
+    isCorrected = (int) value;
+
+    if (isInitialized)
+    {
+        err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
+
+    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)

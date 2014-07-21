@@ -28,11 +28,12 @@ public slots:
     void setThresholdNoiseHigh(double value);
     void setThresholdPostCorrectionLow(double value);
     void setThresholdPostCorrectionHigh(double value);
-    void setIntensityMin(double value);
-    void setIntensityMax(double value);
     void setTsfTexture(int value);
     void setTsfAlpha(int value);
     void setLog(bool value);
+    void setCorrection(bool value);
+    void setDataMin(double value);
+    void setDataMax(double value);
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
@@ -97,6 +98,11 @@ private:
     // Mouse
     int last_mouse_pos_x;
     int last_mouse_pos_y;
+
+    // Display
+    int isLog;
+    int isCorrected;
+    int mode;
 
 protected:
     void initialize();
