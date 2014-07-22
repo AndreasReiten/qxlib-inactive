@@ -21,7 +21,8 @@ public:
     void setSharedWindow(SharedContextWindow * window);
 
 signals:
-    
+    void selectionRectChanged(QRectF rect);
+
 public slots:
     void setMode(int value);
     void setThresholdNoiseLow(double value);
@@ -41,6 +42,8 @@ public slots:
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
     void setImageFromPath(QString path);
+    void setSelectionRect(QRectF rect);
+    void setSelectionActive(bool value);
     
 private:
     SharedContextWindow * shared_window;
@@ -76,6 +79,7 @@ private:
     // Draw
     void drawImage(QPainter *painter);
     void drawTexelOverlay(QPainter *painter);
+    void drawSelection(QPainter *painter);
 
     // Vertice buffer objects
     GLuint texel_line_vbo[2];
@@ -103,6 +107,11 @@ private:
     int isLog;
     int isCorrected;
     int mode;
+
+    // Selection
+    QRectF selection;
+    GLuint selection_rect_vbo;
+    bool isSelectionActive;
 
 protected:
     void initialize();

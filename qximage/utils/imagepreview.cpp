@@ -32,6 +32,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 ImagePreviewWorker::~ImagePreviewWorker()
 {
     glDeleteBuffers(2, texel_line_vbo);
+    glDeleteBuffers(1, &selection_rect_vbo);
 }
 
 void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
@@ -255,18 +256,17 @@ void ImagePreviewWorker::initialize()
     initResourcesCL();
 
     glGenBuffers(2, texel_line_vbo);
+    glGenBuffers(1, &selection_rect_vbo);
 
     isInitialized = true;
 
     setTsf(tsf);
 
-//    setMode(0);
     setThresholdNoiseLow(-1e99);
     setThresholdNoiseHigh(1e99);
     setThresholdPostCorrectionLow(-1e99);
     setThresholdPostCorrectionHigh(1e99);
-//    setDataMin(1);
-//    setDataMax(1000);
+    selection.setCoords(0,0,0,0);
 }
 
 
@@ -323,6 +323,11 @@ void ImagePreviewWorker::setThresholdNoiseLow(double value)
     setParameter(parameter);
 }
 
+void ImagePreviewWorker::setSelectionRect(QRectF rect)
+{
+    selection = rect;
+}
+
 void ImagePreviewWorker::setThresholdNoiseHigh(double value)
 {
     parameter[1] = value;
@@ -373,6 +378,8 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawTexelOverlay(painter);
 
+    drawSelection(painter);
+
     isRendering = false;
 
 //    QRect minicell_rect(50,50,200,200);
@@ -409,7 +416,10 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
 
 
-    QRectF image_rect(QPointF(render_surface->width()*0.5-frame.getFastDimension()*0.5,render_surface->height()*0.5-frame.getSlowDimension()*0.5),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+//    QRectF image_rect(QPointF(render_surface->width()*0.5-frame.getFastDimension()*0.5,render_surface->height()*0.5-frame.getSlowDimension()*0.5),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+//    QRectF image_rect(QPointF((render_surface->width()-frame.getFastDimension())/2, render_surface->height()*0.5-frame.getSlowDimension()*0.5),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+    QRectF image_rect(QPointF(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+
     Matrix<GLfloat> fragpos = glRect(image_rect);
 
     GLfloat texpos[] = {
@@ -442,6 +452,38 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     endRawGLCalls(painter);
 }
 
+void ImagePreviewWorker::drawSelection(QPainter *painter)
+{
+    ColorMatrix<float> selection_rect_color(0.2f,0.2f,1.0f,0.5f);
+
+    Matrix<GLfloat> fragpos = glRect(selection);
+
+    setVbo(selection_rect_vbo, fragpos.data(), fragpos.size(), GL_DYNAMIC_DRAW);
+
+    beginRawGLCalls(painter);
+
+    shared_window->std_2d_col_program->bind();
+    glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+    glUniform4fv(shared_window->std_2d_col_color, 1, selection_rect_color.data());
+
+    glBindBuffer(GL_ARRAY_BUFFER, selection_rect_vbo);
+    glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    texture_view_matrix = zoom_matrix*cursor_translation_matrix*translation_matrix;
+
+    glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
+
+    glDrawArrays(GL_QUADS,  0, 4);
+
+    glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+    shared_window->std_2d_col_program->release();
+
+    endRawGLCalls(painter);
+}
+
 void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
 {
     /*
@@ -468,9 +510,9 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
             Matrix<float> vertical_lines_buf(65,4);
             for (int i = 0; i < vertical_lines_buf.getM(); i++)
             {
-                vertical_lines_buf[i*4+0] = (0.5 + (float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width(); // The added 0.5 is due to image dimension being odd in test cases...
+                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width(); // The added 0.5 is due to image dimension being odd in test cases...
                 vertical_lines_buf[i*4+1] = 1;
-                vertical_lines_buf[i*4+2] = (0.5 + (float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
+                vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
                 vertical_lines_buf[i*4+3] = -1;
             }
             setVbo(texel_line_vbo[0], vertical_lines_buf.data(), vertical_lines_buf.size(), GL_DYNAMIC_DRAW);
@@ -479,9 +521,9 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
             for (int i = 0; i < horizontal_lines_buf.getM(); i++)
             {
                 horizontal_lines_buf[i*4+0] = 1.0;
-                horizontal_lines_buf[i*4+1] = (0.5 + (float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
+                horizontal_lines_buf[i*4+1] = ((float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
                 horizontal_lines_buf[i*4+2] = -1.0;
-                horizontal_lines_buf[i*4+3] = (0.5 + (float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
+                horizontal_lines_buf[i*4+3] = ((float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
             }
             setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
 
@@ -613,6 +655,11 @@ void ImagePreviewWorker::setParameter(Matrix<float> & data)
     }
 }
 
+void ImagePreviewWorker::setSelectionActive(bool value)
+{
+    isSelectionActive = value;
+}
+
 void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
     Q_UNUSED(mid_button);
@@ -640,21 +687,29 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
 {
     Q_UNUSED(x);
     Q_UNUSED(y);
-    Q_UNUSED(left_button);
     Q_UNUSED(mid_button);
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
+
+    if (isSelectionActive && left_button)
+    {
+        qDebug() << "Push at"; // Translate cursor position to image position by applying inverse transform
+    }
 }
 void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
     Q_UNUSED(x);
     Q_UNUSED(y);
-    Q_UNUSED(left_button);
     Q_UNUSED(mid_button);
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
+
+    if (isSelectionActive)
+    {
+        qDebug() << "Release at";
+    }
 }
 void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 {
