@@ -25,6 +25,14 @@ public:
     GLint std_2d_tex_transform;
     QOpenGLShaderProgram *std_2d_tex_program;
     
+    GLint rect_hl_2d_tex_fragpos;
+    GLint rect_hl_2d_tex_pos;
+    GLint rect_hl_2d_tex_texture;
+    GLint rect_hl_2d_tex_transform;
+    GLint rect_hl_2d_tex_bounds;
+    GLint rect_hl_2d_tex_pixel_size;
+    QOpenGLShaderProgram *rect_hl_2d_tex_program;
+    
     GLint std_2d_col_color;
     GLint std_2d_col_transform;
     GLint std_2d_col_fragpos;

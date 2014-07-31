@@ -5,9 +5,11 @@
 
 SharedContextWindow::SharedContextWindow()
     : std_2d_tex_program(0),
+    rect_hl_2d_tex_program(0),
     std_2d_col_program(0),
     std_3d_col_program(0),
     std_blend_program(0),
+    unitcell_program(0),
     gl_worker(0)
 {
 
@@ -42,6 +44,19 @@ void SharedContextWindow::initialize()
     if ((std_2d_tex_pos = std_2d_tex_program->attributeLocation("texpos")) == -1) qCritical("Invalid attribute");
     if ((std_2d_tex_texture = std_2d_tex_program->uniformLocation("texture")) == -1) qCritical("Invalid uniform");
     if ((std_2d_tex_transform = std_2d_tex_program->uniformLocation("transform")) == -1) qCritical("Invalid uniform");
+    
+    // Shader for drawing textures in 2D with a highlighted rectangle
+    rect_hl_2d_tex_program = new QOpenGLShaderProgram(this);
+    rect_hl_2d_tex_program->addShaderFromSourceFile(QOpenGLShader::Vertex, "glsl/rect_hl_2d_tex.v.glsl");
+    rect_hl_2d_tex_program->addShaderFromSourceFile(QOpenGLShader::Fragment, "glsl/rect_hl_2d_tex.f.glsl");
+    if (!rect_hl_2d_tex_program->link()) qFatal(rect_hl_2d_tex_program->log().toStdString().c_str());
+
+    if ((rect_hl_2d_tex_fragpos = rect_hl_2d_tex_program->attributeLocation("fragpos")) == -1) qCritical("Invalid attribute");
+    if ((rect_hl_2d_tex_pos = rect_hl_2d_tex_program->attributeLocation("texpos")) == -1) qCritical("Invalid attribute");
+    if ((rect_hl_2d_tex_texture = rect_hl_2d_tex_program->uniformLocation("texture")) == -1) qCritical("Invalid uniform");
+    if ((rect_hl_2d_tex_transform = rect_hl_2d_tex_program->uniformLocation("transform")) == -1) qCritical("Invalid uniform");
+    if ((rect_hl_2d_tex_bounds = rect_hl_2d_tex_program->uniformLocation("bounds")) == -1) qCritical("Invalid uniform");
+    if ((rect_hl_2d_tex_pixel_size = rect_hl_2d_tex_program->uniformLocation("pixel_size")) == -1) qCritical("Invalid uniform");
 
     // Shader for drawing lines and similar in 3D
     std_3d_col_program = new QOpenGLShaderProgram(this);

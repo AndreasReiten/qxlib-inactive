@@ -18,21 +18,21 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     texture_view_matrix.setIdentity(4);
     translation_matrix.setIdentity(4);
     zoom_matrix.setIdentity(4);
-    cursor_translation_matrix.setIdentity(4);
+//    cursor_translation_matrix.setIdentity(4);
 
     texel_view_matrix.setIdentity(4);
     texel_offset_matrix.setIdentity(4);
 
     // Set initial zoom
-    zoom_matrix[0] = 0.5;
-    zoom_matrix[5] = 0.5;
-    zoom_matrix[10] = 0.5;
+//    zoom_matrix[0] = 0.5;
+//    zoom_matrix[5] = 0.5;
+//    zoom_matrix[10] = 0.5;
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
 {
     glDeleteBuffers(2, texel_line_vbo);
-    glDeleteBuffers(1, &selection_rect_vbo);
+    glDeleteBuffers(1, &selection_lines_vbo);
 }
 
 void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
@@ -256,7 +256,7 @@ void ImagePreviewWorker::initialize()
     initResourcesCL();
 
     glGenBuffers(2, texel_line_vbo);
-    glGenBuffers(1, &selection_rect_vbo);
+    glGenBuffers(1, &selection_lines_vbo);
 
     isInitialized = true;
 
@@ -323,9 +323,11 @@ void ImagePreviewWorker::setThresholdNoiseLow(double value)
     setParameter(parameter);
 }
 
-void ImagePreviewWorker::setSelectionRect(QRectF rect)
+void ImagePreviewWorker::setSelection(QRectF rect)
 {
     selection = rect;
+    
+//    qDebug() << "IP selection" << selection;
 }
 
 void ImagePreviewWorker::setThresholdNoiseHigh(double value)
@@ -378,7 +380,7 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawTexelOverlay(painter);
 
-    drawSelection(painter);
+//    drawSelection(painter);
 
     isRendering = false;
 
@@ -409,16 +411,15 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 {
     beginRawGLCalls(painter);
 
-    shared_window->std_2d_tex_program->bind();
+    shared_window->rect_hl_2d_tex_program->bind();
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-    shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
+    shared_window->rect_hl_2d_tex_program->setUniformValue(shared_window->rect_hl_2d_tex_texture, 0);
 
 
-//    QRectF image_rect(QPointF(render_surface->width()*0.5-frame.getFastDimension()*0.5,render_surface->height()*0.5-frame.getSlowDimension()*0.5),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-//    QRectF image_rect(QPointF((render_surface->width()-frame.getFastDimension())/2, render_surface->height()*0.5-frame.getSlowDimension()*0.5),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
     QRectF image_rect(QPointF(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+    image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
 
     Matrix<GLfloat> fragpos = glRect(image_rect);
 
@@ -431,51 +432,123 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     GLuint indices[] = {0,1,3,1,2,3};
 
-    texture_view_matrix = zoom_matrix*cursor_translation_matrix*translation_matrix;
+    texture_view_matrix = zoom_matrix*translation_matrix;
 
-    glUniformMatrix4fv(shared_window->std_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
+    glUniformMatrix4fv(shared_window->rect_hl_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
+    
+    
+    // The bounds that enclose the highlighted area of the texture are passed to the shader
+//    selection = selection.normalized();
+    
+    Matrix<double> bounds(1,4); // left, top, right, bottom
+    
+    bounds[0] = (double) selection.normalized().left() / (double) frame.getFastDimension();
+    bounds[1] = 1.0 - (double) (selection.normalized().bottom()) / (double) frame.getSlowDimension();
+    bounds[2] = (double) selection.normalized().right() / (double) frame.getFastDimension();
+    bounds[3] = 1.0 - (double) (selection.normalized().top()) / (double) frame.getSlowDimension();
+    
+//    qDebug() << selection.normalized();
+//    qDebug() << selection.normalized().left() << selection.normalized().top() << selection.normalized().right() << selection.normalized().bottom();
+//    bounds.print(2);
+    
+    glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
+    
+    
+    // Set the size of a pixel (in image units)
+    GLfloat pixel_size = (1.0f / (float) frame.getFastDimension()) / zoom_matrix[0];
+    
+    glUniform1f(shared_window->rect_hl_2d_tex_pixel_size, pixel_size);
+    
 
-    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
-    glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+    glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
+    glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
 
-    glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
-    glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
+    glEnableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
+    glEnableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
 
     glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
 
-    glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
-    glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+    glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
+    glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    shared_window->std_2d_tex_program->release();
+    shared_window->rect_hl_2d_tex_program->release();
 
     endRawGLCalls(painter);
 }
 
+void ImagePreviewWorker::centerImage()
+{
+    translation_matrix[3] = (qreal) -frame.getFastDimension()/( (qreal) render_surface->width());
+    translation_matrix[7] = (qreal) frame.getSlowDimension()/( (qreal) render_surface->height());
+    
+    zoom_matrix[0] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
+    zoom_matrix[5] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
+    zoom_matrix[10] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
+}
+
+
 void ImagePreviewWorker::drawSelection(QPainter *painter)
 {
-    ColorMatrix<float> selection_rect_color(0.2f,0.2f,1.0f,0.5f);
+    // Change to draw a faded polygon
+    
+//    ColorMatrix<float> selection_rect_color(1.0f,0.2f,0.0f,0.5f);
+    
+    ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
+    
+    glLineWidth(2.0);
 
-    Matrix<GLfloat> fragpos = glRect(selection);
+//    xf = (x / (qreal) render_surface->width()) * 2.0 - 1.0;
+//    yf = (1.0 - (y + h)/ (qreal) render_surface->height()) * 2.0 - 1.0;
+//    wf = (w / (qreal) render_surface->width()) * 2.0;
+//    hf = (h / (qreal) render_surface->height()) * 2.0;
+    
+    float x0 = (((qreal) selection.normalized().left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0;
+    float y0 = (1.0 - (qreal) (selection.bottom())/ (qreal) render_surface->height()) * 2.0 - 1.0;
+    float x1 = (((qreal) selection.normalized().right()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0;
+    float y1 = (1.0 - (qreal) (selection.top())/ (qreal) render_surface->height()) * 2.0 - 1.0;
+    
+    Matrix<GLfloat> selection_lines(8,2);
+    selection_lines[0] = x0;
+    selection_lines[1] = 1.0;
+    selection_lines[2] = x0;
+    selection_lines[3] = 0.0;
+    
+    selection_lines[4] = x1;
+    selection_lines[5] = 1.0;
+    selection_lines[6] = x1;
+    selection_lines[7] = 0.0;
+    
+    selection_lines[8] = 1.0;
+    selection_lines[9] = y0;
+    selection_lines[10] = 0.0;
+    selection_lines[11] = y0;
+    
+    selection_lines[12] = 1.0;
+    selection_lines[13] = y1;
+    selection_lines[14] = 0.0;
+    selection_lines[15] = y1;
+    
+    
 
-    setVbo(selection_rect_vbo, fragpos.data(), fragpos.size(), GL_DYNAMIC_DRAW);
+    setVbo(selection_lines_vbo, selection_lines.data(), selection_lines.size(), GL_DYNAMIC_DRAW);
 
     beginRawGLCalls(painter);
 
     shared_window->std_2d_col_program->bind();
     glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
-    glUniform4fv(shared_window->std_2d_col_color, 1, selection_rect_color.data());
+    glUniform4fv(shared_window->std_2d_col_color, 1, selection_lines_color.data());
 
-    glBindBuffer(GL_ARRAY_BUFFER, selection_rect_vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, selection_lines_vbo);
     glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    texture_view_matrix = zoom_matrix*cursor_translation_matrix*translation_matrix;
+    texture_view_matrix = zoom_matrix*translation_matrix;
 
     glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
 
-    glDrawArrays(GL_QUADS,  0, 4);
+    glDrawArrays(GL_LINES,  0, 8);
 
     glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
@@ -540,7 +613,7 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         // Vertical
         texel_offset_matrix[3] = fmod(translation_matrix[3], 2.0 /(double) render_surface->width());
         texel_offset_matrix[7] = 0;
-        texel_view_matrix = zoom_matrix*cursor_translation_matrix*texel_offset_matrix;
+        texel_view_matrix = zoom_matrix*texel_offset_matrix;
 
         glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[0]);
         glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -553,7 +626,7 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         // Horizontal
         texel_offset_matrix[3] = 0;
         texel_offset_matrix[7] = fmod(translation_matrix[7], 2.0 /(double) render_surface->height());
-        texel_view_matrix = zoom_matrix*cursor_translation_matrix*texel_offset_matrix;
+        texel_view_matrix = zoom_matrix*texel_offset_matrix;
 
         glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[1]);
         glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -660,6 +733,33 @@ void ImagePreviewWorker::setSelectionActive(bool value)
     isSelectionActive = value;
 }
 
+Matrix<int> ImagePreviewWorker::getImagePixel(int x, int y)
+{
+    // Find the OpenGL coordinate of the cursor
+    Matrix<double> screen_pos_gl(4,1); 
+    screen_pos_gl[0] = 2.0 * (double) x / (double) render_surface->width() - 1.0;
+    screen_pos_gl[1] = - 2.0 * (double) y / (double) render_surface->height() + 1.0;
+    screen_pos_gl[2] = 0;
+    screen_pos_gl[3] = 1.0;
+    
+    // Use the inverse transform to find the corresponding image pixel, rounding to nearest
+    Matrix<double> image_pos_gl(4,1); 
+    image_pos_gl = texture_view_matrix.getInverse4x4()*screen_pos_gl;
+    
+    Matrix<int> image_pixel(2,1);
+    
+    image_pixel[0] = 0.5*image_pos_gl[0]*render_surface->width();
+    image_pixel[1] = -0.5*image_pos_gl[1]*render_surface->height();
+    
+    if (image_pixel[0] < 0) image_pixel[0] = 0;
+    if (image_pixel[0] >= frame.getFastDimension()) image_pixel[0] = frame.getFastDimension() - 1;
+    
+    if (image_pixel[1] < 0) image_pixel[1] = 0;
+    if (image_pixel[1] >= frame.getSlowDimension()) image_pixel[1] = frame.getSlowDimension() - 1;
+    
+    return image_pixel;
+}
+
 void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
     Q_UNUSED(mid_button);
@@ -671,7 +771,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     if(shift_button) move_scaling = 5.0;
     else if(ctrl_button) move_scaling = 0.2;
 
-    if (left_button && (isRendering == false))
+    if (left_button && !isSelectionActive && (isRendering == false))
     {
         double dx = (x - last_mouse_pos_x)*2.0/(render_surface->width()*zoom_matrix[0]);
         double dy = -(y - last_mouse_pos_y)*2.0/(render_surface->height()*zoom_matrix[0]);
@@ -679,10 +779,19 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
         translation_matrix[3] += dx*move_scaling;
         translation_matrix[7] += dy*move_scaling;
     }
+    else if (left_button && isSelectionActive)
+    {
+        Matrix<int> pixel = getImagePixel(x, y);
+        
+        selection.setBottomRight(QPointF(pixel[0], pixel[1]));
+        // QPointF(pixel[0] + (qreal) render_surface->width()*0.5, pixel[1] + (qreal) render_surface->height()*0.5);
+        
+    }
 
     last_mouse_pos_x = x;
     last_mouse_pos_y = y;
 }
+
 void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
     Q_UNUSED(x);
@@ -694,9 +803,13 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
 
     if (isSelectionActive && left_button)
     {
-        qDebug() << "Push at"; // Translate cursor position to image position by applying inverse transform
+        Matrix<int> pixel = getImagePixel(x, y);
+        
+        selection.setTopLeft(QPointF(pixel[0], pixel[1]));
+        selection.setBottomRight(QPointF(pixel[0], pixel[1]));
     }
 }
+
 void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
     Q_UNUSED(x);
@@ -708,7 +821,11 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
 
     if (isSelectionActive)
     {
-        qDebug() << "Release at";
+        Matrix<int> pixel = getImagePixel(x, y);
+        
+        selection.setBottomRight(QPointF(pixel[0], pixel[1]));
+        
+        emit selectionChanged(selection);
     }
 }
 void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)

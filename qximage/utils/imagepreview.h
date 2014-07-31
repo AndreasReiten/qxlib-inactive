@@ -21,7 +21,7 @@ public:
     void setSharedWindow(SharedContextWindow * window);
 
 signals:
-    void selectionRectChanged(QRectF rect);
+    void selectionChanged(QRectF rect);
 
 public slots:
     void setMode(int value);
@@ -42,8 +42,9 @@ public slots:
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
     void setImageFromPath(QString path);
-    void setSelectionRect(QRectF rect);
+    void setSelection(QRectF rect);
     void setSelectionActive(bool value);
+    void centerImage();
     
 private:
     SharedContextWindow * shared_window;
@@ -96,7 +97,7 @@ private:
     Matrix<double> texel_view_matrix;
     Matrix<double> translation_matrix;
     Matrix<double> zoom_matrix;
-    Matrix<double> cursor_translation_matrix;
+//    Matrix<double> cursor_translation_matrix;
     Matrix<double> texel_offset_matrix;
 
     // Mouse
@@ -110,8 +111,9 @@ private:
 
     // Selection
     QRectF selection;
-    GLuint selection_rect_vbo;
+    GLuint selection_lines_vbo;
     bool isSelectionActive;
+    Matrix<int> getImagePixel(int x, int y);
 
 protected:
     void initialize();
