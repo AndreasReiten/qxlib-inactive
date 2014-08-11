@@ -51,6 +51,7 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             if (isImageTexInitialized){
                 err = clReleaseMemObject(image_tex_cl);
                 err |= clReleaseMemObject(source_cl);
+                err |= clReleaseMemObject(target_cl);
                 if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
                 glDeleteTextures(1, &image_tex_gl);
             }
@@ -77,7 +78,7 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             
             isImageTexInitialized = true;
 
-            // Convert to CL texture
+            // Share the texture with the OpenCL runtime
             image_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             
@@ -99,8 +100,16 @@ void ImagePreviewWorker::setImageFromPath(QString path)
                 frame.data().data(),
                 &err);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+            target_cl = clCreateBuffer( *context_cl->getContext(),
+                CL_MEM_ALLOC_HOST_PTR,
+                frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
+                NULL,
+                &err);
+            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             
             err = clSetKernelArg(cl_image_preview, 1, sizeof(cl_mem), (void *) &source_cl);
+            err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &target_cl);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
             // Thresholds and other parameters essential to the file
@@ -122,6 +131,24 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             update(frame.getFastDimension(), frame.getSlowDimension());
         }
     }
+}
+
+void ImagePreviewWorker::integrate(QRect selection)
+{
+    err = clEnqueueReadBufferRect ( 	cl_command_queue command_queue,
+                                        cl_mem buffer,
+                                        cl_bool blocking_read,
+                                        const size_t buffer_origin[3],
+                                        const size_t host_origin[3],
+                                        const size_t region[3],
+                                        size_t buffer_row_pitch,
+                                        size_t buffer_slice_pitch,
+                                        size_t host_row_pitch,
+                                        size_t host_slice_pitch,
+                                        void *ptr,
+                                        cl_uint num_events_in_wait_list,
+                                        const cl_event *event_wait_list,
+                                        cl_event *event)
 }
 
 void ImagePreviewWorker::update(size_t w, size_t h)

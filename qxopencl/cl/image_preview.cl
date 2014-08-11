@@ -7,8 +7,8 @@ __kernel void imagePreview(
     sampler_t intensity_sampler,
     int correction,
     int mode,
-    int log
-
+    int log,
+    __global float * target
 
     )
 {
@@ -92,6 +92,10 @@ __kernel void imagePreview(
                 intensity = Q.w;
             }
         }
+
+        // Write the intensity value to a normal floating point buffer. The value can then be used later without doing all of this.
+        target[id_glb.y*target_dim.x + id_glb.x] = intensity;
+
 
         float2 tsf_position;
         float4 sample;

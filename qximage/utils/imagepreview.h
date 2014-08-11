@@ -56,6 +56,7 @@ private:
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
+    cl_mem target_cl;
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
