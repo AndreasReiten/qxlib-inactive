@@ -30,6 +30,7 @@ class DetectorFile
         DetectorFile(QString path);
 
         QString getPath() const;
+        QString info();
 
         int set(QString path);
         int readData();

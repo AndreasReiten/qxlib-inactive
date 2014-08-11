@@ -340,6 +340,35 @@ void DetectorFile::print()
     qDebug() << ss.str().c_str();
 }
 
+QString DetectorFile::info()
+{
+    std::stringstream ss;
+    ss << "#__________ PILATUS FILE __________" << std::endl;
+    ss << "# Path: " << path.toStdString().c_str() << std::endl;
+    ss << "# Data elements: " << data_buf.size() << std::endl;
+    ss << "# Dimensions: " << fast_dimension << " x " << slow_dimension << std::endl;
+    ss << "# Max counts: " << max_counts << std::endl;
+    ss << "# ..." << std::endl;
+    ss << "# Detector: " << detector.toStdString().c_str() << std::endl;
+    ss << "# Pixel size: " << pixel_size_x << " x " << pixel_size_y << std::endl;
+    ss << "# Exposure time: " << exposure_time << std::endl;
+    ss << "# Exposure period: " << exposure_period << std::endl;
+    ss << "# Count cutoff: " << count_cutoff << std::endl;    
+    ss << "# Wavelength: " << wavelength << std::endl;
+    ss << "# Detector distance: " << detector_distance << std::endl;
+    ss << "# Beam position: " << beam_x << " x " << beam_y << std::endl;
+    ss << "# Flux: " << flux << std::endl;
+    ss << "# Start angle: " << start_angle << std::endl;
+    ss << "# Angle increment: " << angle_increment << std::endl;
+    ss << "# Alpha: " << alpha << std::endl;
+    ss << "# Beta: " << beta << std::endl;
+    ss << "# Kappa: " << kappa << std::endl;
+    ss << "# Phi: " << phi << std::endl;
+    ss << "# Omega: " << omega << std::endl;
+    
+    return QString(ss.str().c_str());
+}
+
 //int DetectorFile::filterData(size_t * n, Matrix<float> * outBuf, float threshold_reduce_low, float threshold_reduce_high, float threshold_project_low, float threshold_project_high, bool isProjectionActive)
 //{
 //    this->threshold_reduce_low = threshold_reduce_low;

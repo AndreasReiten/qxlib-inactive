@@ -22,6 +22,7 @@ public:
 
 signals:
     void selectionChanged(QRectF rect);
+    void outputTextChanged(QString str);
 
 public slots:
     void setMode(int value);
@@ -45,6 +46,8 @@ public slots:
     void setSelection(QRectF rect);
     void setSelectionActive(bool value);
     void centerImage();
+    double integrate(QRectF rect, DetectorFile file);
+    void integrateSingle();
     
 private:
     SharedContextWindow * shared_window;

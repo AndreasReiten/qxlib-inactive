@@ -133,22 +133,68 @@ void ImagePreviewWorker::setImageFromPath(QString path)
     }
 }
 
-void ImagePreviewWorker::integrate(QRect selection)
+double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
 {
-    err = clEnqueueReadBufferRect ( 	cl_command_queue command_queue,
-                                        cl_mem buffer,
-                                        cl_bool blocking_read,
-                                        const size_t buffer_origin[3],
-                                        const size_t host_origin[3],
-                                        const size_t region[3],
-                                        size_t buffer_row_pitch,
-                                        size_t buffer_slice_pitch,
-                                        size_t host_row_pitch,
-                                        size_t host_slice_pitch,
-                                        void *ptr,
-                                        cl_uint num_events_in_wait_list,
-                                        const cl_event *event_wait_list,
-                                        cl_event *event)
+    // Load a chunk of GPU memory into RAM for processing on CPU or back again to the GPU. 
+    rect = rect.normalized();
+    
+    Matrix<size_t> buffer_origin(1,3);
+    buffer_origin[0] = rect.left();
+    buffer_origin[1] = rect.top();
+    buffer_origin[2] = 0;
+    
+    Matrix<size_t> host_origin(1,3);
+    host_origin[0] = 0;
+    host_origin[1] = 0;
+    host_origin[2] = 0;
+    
+    Matrix<size_t> region(1,3);
+    region[0] = rect.width();
+    region[1] = rect.height();
+    region[2] = 0;
+    
+    Matrix<float> host_buffer(rect.height(), rect.width());
+    
+    err = clEnqueueReadBufferRect (*context_cl->getCommandQueue(),
+                                        target_cl,
+                                        true,
+                                        buffer_origin.data(),
+                                        host_origin.data(),
+                                        region.data(),
+                                        (size_t) file.getFastDimension(),
+                                        0,
+                                        host_buffer.getN(),
+                                        0,
+                                        host_buffer.data(),
+                                        0,NULL,NULL);
+    
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    host_buffer.print();
+    
+    return 0;
+}
+
+void ImagePreviewWorker::integrateSingle()
+{
+    if (isFrameValid && (selection.normalized().width() > 0) && (selection.normalized().height() > 0) && (selection.normalized().width() < frame.getFastDimension()) && (selection.normalized().height() < frame.getSlowDimension()))
+    {
+        double value = integrate(selection, frame);
+    
+        QString str;
+        
+        str += "#___ Results from single frame integration___\n";
+        str += "# FRAME\n";
+        str += frame.info();
+        str += "AREA\n";
+        str += QString("Origin x y [pixels]: "+QString::number(selection.normalized().left())+" "+QString::number(selection.normalized().top())+"\n");
+        str += QString("Region x y [pixels]: "+QString::number(selection.normalized().left())+" "+QString::number(selection.normalized().top())+"\n");
+        str += "Integrated intensity\n";
+        str += QString::number(value,'E');
+                
+        
+        emit outputTextChanged(str);
+    }
 }
 
 void ImagePreviewWorker::update(size_t w, size_t h)
@@ -354,7 +400,7 @@ void ImagePreviewWorker::setSelection(QRectF rect)
 {
     selection = rect;
     
-//    qDebug() << "IP selection" << selection;
+//    qDebug() << "IP selection" << selection << "left" << selection.left() << "top" << selection.top();
 }
 
 void ImagePreviewWorker::setThresholdNoiseHigh(double value)
@@ -854,6 +900,8 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         
         emit selectionChanged(selection);
     }
+    
+//    qDebug() << "IP selection" << selection.normalized() << "left" << selection.normalized().left() << "top" << selection.normalized().top();
 }
 void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 {
