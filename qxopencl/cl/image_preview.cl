@@ -94,7 +94,7 @@ __kernel void imagePreview(
         }
 
         // Write the intensity value to a normal floating point buffer. The value can then be used later without doing all of this.
-        target[id_glb.y*target_dim.x + id_glb.x] = 10;//intensity;
+        target[id_glb.y*target_dim.x + id_glb.x] = intensity;
 
 
         float2 tsf_position;
@@ -107,7 +107,7 @@ __kernel void imagePreview(
             {
 //                intensity = 0.001;
                 tsf_position = (float2)(1.0f, 0.5f);
-                sample = read_imagef(tsf_source, tsf_sampler, tsf_position);
+                sample = read_imagef(tsf_source, tsf_sampler, tsf_position) + (float4)(0.0,0.0,1.0,0.2);
 //                sample = (float4)(0.2f,0.2f,1.0f,0.5f);
             }
             else

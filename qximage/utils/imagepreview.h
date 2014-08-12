@@ -57,11 +57,13 @@ private:
     cl_int err;
     cl_program program;
     cl_kernel cl_image_preview;
+    cl_kernel cl_rect_copy_float;
+    cl_kernel cl_psum;
     cl_mem image_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
-    cl_mem target_cl;
+    cl_mem frame_cl;
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;

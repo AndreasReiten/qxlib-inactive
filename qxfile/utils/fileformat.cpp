@@ -381,7 +381,7 @@ QString DetectorFile::info()
 //    target_format.image_channel_data_type = CL_FLOAT;
 
 //    // Prepare the target for storage of projected and corrected pixels (intensity but also xyz position)
-//    cl_mem xyzi_target_cl = clCreateImage2D ( *context_cl->getContext(),
+//    cl_mem xyzi_frame_cl = clCreateImage2D ( *context_cl->getContext(),
 //        CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
 //        &target_format,
 //        fast_dimension,
@@ -445,7 +445,7 @@ QString DetectorFile::info()
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    // Set kernel arguments
-//    err = clSetKernelArg(*project_kernel, 0, sizeof(cl_mem), (void *) &xyzi_target_cl);
+//    err = clSetKernelArg(*project_kernel, 0, sizeof(cl_mem), (void *) &xyzi_frame_cl);
 //    err |= clSetKernelArg(*project_kernel, 1, sizeof(cl_mem), (void *) &source_cl);
 //    err |= clSetKernelArg(*project_kernel, 2, sizeof(cl_sampler), &tsf_sampler);
 //    err |= clSetKernelArg(*project_kernel, 3, sizeof(cl_sampler), &intensity_sampler);
@@ -504,11 +504,11 @@ QString DetectorFile::info()
 //    region[2] = 1;
 
 //    Matrix<float> projected_data_buf(1,fast_dimension*slow_dimension*4);
-//    err = clEnqueueReadImage ( *context_cl->getCommandQueue(), xyzi_target_cl, true, origin, region, 0, 0, projected_data_buf.data(), 0, NULL, NULL);
+//    err = clEnqueueReadImage ( *context_cl->getCommandQueue(), xyzi_frame_cl, true, origin, region, 0, 0, projected_data_buf.data(), 0, NULL, NULL);
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-//    if (xyzi_target_cl){
-//        err = clReleaseMemObject(xyzi_target_cl);
+//    if (xyzi_frame_cl){
+//        err = clReleaseMemObject(xyzi_frame_cl);
 //        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 //    }
 //    if (source_cl){
@@ -653,7 +653,10 @@ int DetectorFile::readData()
             
             
             prev = counts;
-
+            
+            
+//            if (counts < 0) counts = 0;
+            
             data_buf[i*fast_dimension+j] = (float) counts;
 
             if (max_counts < counts) max_counts = counts;

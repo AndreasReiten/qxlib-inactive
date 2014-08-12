@@ -3,6 +3,7 @@
 #include <QBrush>
 #include <QRect>
 #include <QColor>
+#include <QDateTime>
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isInitialized(false),
@@ -52,7 +53,7 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             if (isImageTexInitialized){
                 err = clReleaseMemObject(image_tex_cl);
                 err |= clReleaseMemObject(source_cl);
-                err |= clReleaseMemObject(target_cl);
+                err |= clReleaseMemObject(frame_cl);
                 if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
                 glDeleteTextures(1, &image_tex_gl);
             }
@@ -102,7 +103,7 @@ void ImagePreviewWorker::setImageFromPath(QString path)
                 &err);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-            target_cl = clCreateBuffer( *context_cl->getContext(),
+            frame_cl = clCreateBuffer( *context_cl->getContext(),
                 CL_MEM_ALLOC_HOST_PTR,
                 frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
                 NULL,
@@ -110,7 +111,7 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             
             err = clSetKernelArg(cl_image_preview, 1, sizeof(cl_mem), (void *) &source_cl);
-            err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &target_cl);
+            err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &frame_cl);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
             // Thresholds and other parameters essential to the file
@@ -136,63 +137,88 @@ void ImagePreviewWorker::setImageFromPath(QString path)
 
 double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
 {
-    // Load a chunk of GPU memory into RAM for processing on CPU or back again to the GPU. 
+    // Copy a chunk of GPU memory for further calculations. 
     rect = rect.normalized();
     
-    Matrix<size_t> buffer_origin(1,3);
-    buffer_origin[0] = rect.left();
-    buffer_origin[1] = rect.top();
-    buffer_origin[2] = 0;
+    // Prepare kernel parameters
+    Matrix<size_t> local_ws(1,2);
+    local_ws[0] = 8;
+    local_ws[1] = 8;
     
-    Matrix<size_t> host_origin(1,3);
-    host_origin[0] = 0;
-    host_origin[1] = 0;
-    host_origin[2] = 0;
+    local_ws.print(0,"local_ws");
     
-    Matrix<size_t> region(1,3);
-    region[0] = rect.width()*sizeof(cl_float);
-    region[1] = rect.height()*sizeof(cl_float);
-    region[2] = 0;
+    Matrix<size_t> global_ws(1,2);
+    global_ws[0] = rect.width() + (local_ws[0] - ((size_t) rect.width())%local_ws[0]);
+    global_ws[1] = rect.height() + (local_ws[1] - ((size_t) rect.height())%local_ws[1]);
     
-//    buffer_origin.print(0,"buffer_origin");
-//    host_origin.print(0,"host_origin");
-//    region.print(0,"region");
-
-    Matrix<float> host_buffer(rect.height(), rect.width());
-//    size_t buffer_row_pitch = file.getFastDimension()*sizeof(cl_float);
-
-    err = clEnqueueReadBufferRect (*context_cl->getCommandQueue(),
-                                        target_cl,
-                                        CL_TRUE,
-                                        buffer_origin.data(),
-                                        host_origin.data(),
-                                        region.data(),
-                                        (size_t) file.getFastDimension()*sizeof(cl_float),
-                                        (size_t) file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
-                                        host_buffer.getN()*sizeof(cl_float),
-                                        host_buffer.getN()*host_buffer.getM()*sizeof(cl_float),
-                                        host_buffer.data(),
-                                        0,NULL,NULL);
+    global_ws.print(0,"global_ws");
     
+    Matrix<int> file_size(1,2);
+    file_size[0] = file.getFastDimension();
+    file_size[1] = file.getSlowDimension();
+    
+    file_size.print(0,"file_size");
+    
+    Matrix<int> file_origin(1,2);
+    file_origin[0] = rect.left();
+    file_origin[1] = rect.top();
+    
+    file_origin.print(0,"file_origin");
+    
+    int file_row_pitch = file.getFastDimension();
+    
+    Matrix<int> selection_origin(1,2);
+    selection_origin[0] = 0;
+    selection_origin[1] = 0;
+    
+    int selection_row_pitch = rect.width();
+    
+    Matrix<int> selection_size(1,2);
+    selection_size[0] = selection.width();
+    selection_size[1] = selection.height();
+    
+    cl_mem selection_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        rect.width()*rect.height()*sizeof(cl_float),
+        NULL,
+        &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    host_buffer.print(2);
+    // Set kernel parameters
+    err = clSetKernelArg(cl_rect_copy_float,  0, sizeof(cl_mem), (void *) &frame_cl);
+    err |= clSetKernelArg(cl_rect_copy_float, 1, sizeof(cl_int2), file_size.data());
+    err |= clSetKernelArg(cl_rect_copy_float, 2, sizeof(cl_int2), file_origin.data());
+    err |= clSetKernelArg(cl_rect_copy_float, 3, sizeof(int), &file_row_pitch);
+    err |= clSetKernelArg(cl_rect_copy_float, 4, sizeof(cl_mem), (void *) &selection_cl);
+    err |= clSetKernelArg(cl_rect_copy_float, 5, sizeof(cl_int2), selection_origin.data());
+    err |= clSetKernelArg(cl_rect_copy_float, 6, sizeof(int), &selection_row_pitch);
+    err |= clSetKernelArg(cl_rect_copy_float, 7, sizeof(cl_int2), selection_size.data());
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    // Launch the kernel
+    err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), cl_rect_copy_float, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    err = clFinish(*context_cl->getCommandQueue());
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    Matrix<float> tmp(rect.height(),rect.width());
 
+    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
+                                        selection_cl,
+                                        CL_TRUE,
+                                        0,
+                                        (size_t) rect.width()*rect.height()*sizeof(cl_float),
+                                        tmp.data(),
+                                        0,NULL,NULL);
 
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-//    Matrix<float> tmp(  file.getFastDimension(), file.getSlowDimension());
-
-//    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
-//                                        target_cl,
-//                                        CL_TRUE,
-//                                        0,
-//                                        (size_t) file.getFastDimension()*file.getSlowDimension()*4,
-//                                        tmp.data(),
-//                                        0,NULL,NULL);
-
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    tmp.print(2);
+    tmp.print(1);
+    
+    err = clReleaseMemObject(selection_cl);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
     
     return 0;
 }
@@ -230,14 +256,16 @@ void ImagePreviewWorker::integrateSingle()
         double value = integrate(selection, frame);
     
         QString str;
-        
-        str += "#___ Results from single frame integration___\n";
-        str += "# FRAME\n";
+//        QDateTime now = ;
+                
+        str += "# SINGLE FRAME INTEGRATION\n";
+        str += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+        str += "#\n";
         str += frame.info();
-        str += "AREA\n";
-        str += QString("Origin x y [pixels]: "+QString::number(selection.normalized().left())+" "+QString::number(selection.normalized().top())+"\n");
-        str += QString("Region x y [pixels]: "+QString::number(selection.normalized().left())+" "+QString::number(selection.normalized().top())+"\n");
-        str += "Integrated intensity\n";
+        str += "#\n# AREA\n";
+        str += QString("# Origin x y [pixels]: "+QString::number(selection.normalized().left())+" "+QString::number(selection.normalized().top())+"\n");
+        str += QString("# Region w h [pixels]: "+QString::number(selection.normalized().width())+" "+QString::number(selection.normalized().height())+"\n");
+        str += "#\n# Integrated intensity\n";
         str += QString::number(value,'E');
                 
         
@@ -295,8 +323,10 @@ void ImagePreviewWorker::update(size_t w, size_t h)
 void ImagePreviewWorker::initResourcesCL()
 {
     // Build program from OpenCL kernel source
-    Matrix<const char *> paths(1,1);
+    Matrix<const char *> paths(3,1);
     paths[0] = "cl/image_preview.cl";
+    paths[1] = "cl/mem_functions.cl";
+    paths[2] = "cl/parallel_reduce.cl";
 
     program = context_cl->createProgram(&paths, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -305,6 +335,12 @@ void ImagePreviewWorker::initResourcesCL()
 
     // Kernel handles
     cl_image_preview = clCreateKernel(program, "imagePreview", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    cl_rect_copy_float = clCreateKernel(program, "rectCopyFloat", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    cl_psum = clCreateKernel(program, "psum", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     // Image sampler
@@ -904,7 +940,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     {
         Matrix<int> pixel = getImagePixel(x, y);
         
-        selection.setBottomRight(QPointF(pixel[0], pixel[1]));
+        selection.setBottomRight(QPointF(pixel[0]+1, pixel[1]+1));
         // QPointF(pixel[0] + (qreal) render_surface->width()*0.5, pixel[1] + (qreal) render_surface->height()*0.5);
         
     }
@@ -944,7 +980,7 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     {
         Matrix<int> pixel = getImagePixel(x, y);
         
-        selection.setBottomRight(QPointF(pixel[0], pixel[1]));
+        selection.setBottomRight(QPointF(pixel[0]+1, pixel[1]+1));
         
         emit selectionChanged(selection);
     }

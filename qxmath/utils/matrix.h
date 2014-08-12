@@ -64,6 +64,7 @@ class Matrix {
         size_t getM() const;
         size_t getN() const;
         size_t size() const;
+        size_t bsize() const;
         size_t bytes() const;
         
         void print(int precision = 0, const char * id = "") const;
@@ -872,7 +873,11 @@ size_t Matrix<T>::size() const
 }
 
 
-
+template <class T>
+size_t Matrix<T>::bsize() const
+{
+    return m*n*sizeof(T);
+}
 
 
 
