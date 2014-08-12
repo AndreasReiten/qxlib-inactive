@@ -53,7 +53,7 @@ __kernel void imagePreview(
         // Flat min/max filter (threshold_one)
         if (((intensity < th_a_low) || (intensity > th_a_high)))
         {
-            intensity = 0.0f;
+            intensity = 0.0f; // A bit too specific
         }
 
         if (correction == 1)
@@ -94,7 +94,7 @@ __kernel void imagePreview(
         }
 
         // Write the intensity value to a normal floating point buffer. The value can then be used later without doing all of this.
-        target[id_glb.y*target_dim.x + id_glb.x] = intensity;
+        target[id_glb.y*target_dim.x + id_glb.x] = 10;//intensity;
 
 
         float2 tsf_position;

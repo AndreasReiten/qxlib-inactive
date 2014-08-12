@@ -9,7 +9,8 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isImageTexInitialized(false),
     isTsfTexInitialized(false),
     isCLInitialized(false),
-    isFrameValid(false)
+    isFrameValid(false),
+    integration_mode(0)
 {
     Q_UNUSED(parent);
     
@@ -149,30 +150,77 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     host_origin[2] = 0;
     
     Matrix<size_t> region(1,3);
-    region[0] = rect.width();
-    region[1] = rect.height();
+    region[0] = rect.width()*sizeof(cl_float);
+    region[1] = rect.height()*sizeof(cl_float);
     region[2] = 0;
     
+//    buffer_origin.print(0,"buffer_origin");
+//    host_origin.print(0,"host_origin");
+//    region.print(0,"region");
+
     Matrix<float> host_buffer(rect.height(), rect.width());
-    
+//    size_t buffer_row_pitch = file.getFastDimension()*sizeof(cl_float);
+
     err = clEnqueueReadBufferRect (*context_cl->getCommandQueue(),
                                         target_cl,
-                                        true,
+                                        CL_TRUE,
                                         buffer_origin.data(),
                                         host_origin.data(),
                                         region.data(),
-                                        (size_t) file.getFastDimension(),
-                                        0,
-                                        host_buffer.getN(),
-                                        0,
+                                        (size_t) file.getFastDimension()*sizeof(cl_float),
+                                        (size_t) file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
+                                        host_buffer.getN()*sizeof(cl_float),
+                                        host_buffer.getN()*host_buffer.getM()*sizeof(cl_float),
                                         host_buffer.data(),
                                         0,NULL,NULL);
     
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    host_buffer.print();
+    host_buffer.print(2);
+
+
+
+//    Matrix<float> tmp(  file.getFastDimension(), file.getSlowDimension());
+
+//    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
+//                                        target_cl,
+//                                        CL_TRUE,
+//                                        0,
+//                                        (size_t) file.getFastDimension()*file.getSlowDimension()*4,
+//                                        tmp.data(),
+//                                        0,NULL,NULL);
+
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+//    tmp.print(2);
     
     return 0;
+}
+
+void ImagePreviewWorker::integrateSelectedMode()
+{
+
+
+    switch (integration_mode)
+    {
+        case 0: // Single
+            integrateSingle();
+            break;
+
+        case 1: // Folder
+            break;
+
+        case 2: // All
+            break;
+
+        default: // Should not occur
+            break;
+    }
+}
+
+void ImagePreviewWorker::setIntegrationMode(int value)
+{
+    integration_mode = value;
 }
 
 void ImagePreviewWorker::integrateSingle()

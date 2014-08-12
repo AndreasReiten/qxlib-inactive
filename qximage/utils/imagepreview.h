@@ -48,6 +48,8 @@ public slots:
     void centerImage();
     double integrate(QRectF rect, DetectorFile file);
     void integrateSingle();
+    void integrateSelectedMode();
+    void setIntegrationMode(int value);
     
 private:
     SharedContextWindow * shared_window;
@@ -118,6 +120,9 @@ private:
     GLuint selection_lines_vbo;
     bool isSelectionActive;
     Matrix<int> getImagePixel(int x, int y);
+
+    // Integration
+    int integration_mode;
 
 protected:
     void initialize();
