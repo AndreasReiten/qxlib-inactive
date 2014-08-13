@@ -117,9 +117,9 @@ std::string DeviceCL::getDeviceInfoString()
     return ss.str();
 }
 
-const char * cl_error_cstring(cl_int error)
+const char * cl_error_cstring(cl_int err)
 {
-    switch (error) {
+    switch (err) {
         case CL_SUCCESS:                            return "CL_SUCCESS";
         case CL_DEVICE_NOT_FOUND:                   return "CL_DEVICE_NOT_FOUND";
         case CL_DEVICE_NOT_AVAILABLE:               return "CL_DEVICE_NOT_AVAILABLE";

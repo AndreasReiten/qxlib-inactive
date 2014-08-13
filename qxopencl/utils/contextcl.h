@@ -23,7 +23,7 @@ public:
     QList<DeviceCL> * getDeviceList();
     DeviceCL * getMainDevice();
 
-    cl_program createProgram(QStringList paths, cl_int * error);
+    cl_program createProgram(QStringList paths, cl_int * err);
     void buildProgram(cl_program * program, const char * options);
     
     cl_kernel cl_rect_copy_float; 

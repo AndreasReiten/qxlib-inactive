@@ -4,14 +4,15 @@
 #include <QRect>
 #include <QColor>
 #include <QDateTime>
+#include <QCoreApplication>
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isInitialized(false),
     isImageTexInitialized(false),
     isTsfTexInitialized(false),
     isCLInitialized(false),
-    isFrameValid(false),
-    integration_mode(0)
+    isFrameValid(false)
+//    integration_mode(0)
 {
     Q_UNUSED(parent);
     
@@ -140,8 +141,20 @@ void ImagePreviewWorker::setImageFromPath(QString path)
     }
 }
 
-double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
+void ImagePreviewWorker::integrate(QString path, QRectF rect)
 {
+    selection = rect;
+    
+    if ((rect.normalized().width() <= 0) || (rect.normalized().height() <= 0) || (rect.normalized().width() > frame.getFastDimension()) || (rect.normalized().height() > frame.getSlowDimension()))
+    {
+        emit integrationCompleted(0,1);
+        return;
+    }
+    
+//    qDebug() << "integrate()" << rect;
+    
+    if (path != frame.getPath()) setImageFromPath(path);
+    
     // Copy a chunk of GPU memory for further calculations. 
     rect = rect.normalized();
     
@@ -158,19 +171,19 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     
 //    global_ws.print(0,"global_ws");
     
-    Matrix<int> file_size(1,2);
-    file_size[0] = file.getFastDimension();
-    file_size[1] = file.getSlowDimension();
+    Matrix<int> frame_size(1,2);
+    frame_size[0] = frame.getFastDimension();
+    frame_size[1] = frame.getSlowDimension();
     
-//    file_size.print(0,"file_size");
+//    frame_size.print(0,"frame_size");
     
-    Matrix<int> file_origin(1,2);
-    file_origin[0] = rect.left();
-    file_origin[1] = rect.top();
+    Matrix<int> frame_origin(1,2);
+    frame_origin[0] = rect.left();
+    frame_origin[1] = rect.top();
     
-//    file_origin.print(0,"file_origin");
+//    frame_origin.print(0,"frame_origin");
     
-    int file_row_pitch = file.getFastDimension();
+    int frame_row_pitch = frame.getFastDimension();
     
     Matrix<int> selection_origin(1,2);
     selection_origin[0] = 0;
@@ -210,9 +223,9 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     // Set kernel parameters
 //    qDebug() << "got here";
     err = clSetKernelArg(context_cl->cl_rect_copy_float,  0, sizeof(cl_mem), (void *) &frame_cl);
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 1, sizeof(cl_int2), file_size.data());
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 2, sizeof(cl_int2), file_origin.data());
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 3, sizeof(int), &file_row_pitch);
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 1, sizeof(cl_int2), frame_size.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 2, sizeof(cl_int2), frame_origin.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 3, sizeof(int), &frame_row_pitch);
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 4, sizeof(cl_mem), (void *) &selection_cl);
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 5, sizeof(cl_int2), selection_size.data());
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 6, sizeof(cl_int2), selection_origin.data());
@@ -229,17 +242,17 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     err = clFinish(*context_cl->getCommandQueue());
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    Matrix<float> tmp(rect.height(),rect.width());
+//    Matrix<float> tmp(rect.height(),rect.width());
 
-    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
-                                        selection_cl,
-                                        CL_TRUE,
-                                        0,
-                                        (size_t) rect.width()*rect.height()*sizeof(cl_float),
-                                        tmp.data(),
-                                        0,NULL,NULL);
+//    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
+//                                        selection_cl,
+//                                        CL_TRUE,
+//                                        0,
+//                                        (size_t) rect.width()*rect.height()*sizeof(cl_float),
+//                                        tmp.data(),
+//                                        0,NULL,NULL);
 
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    Matrix<float> tmp2(frame.getSlowDimension(),frame.getFastDimension());
 
@@ -253,12 +266,12 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
 
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    err = clFinish(*context_cl->getCommandQueue());
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clFinish(*context_cl->getCommandQueue());
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    tmp2.print(1,"Frame");
 
-    tmp.print(1,"Selection");
+//    tmp.print(1,"Selection");
     
     float sum = sumGpuArray(selection_cl, selection_read_size, 64);
     
@@ -267,8 +280,8 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     err = clReleaseMemObject(selection_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    
-    return sum;
+    emit integrationCompleted(sum, 0);
+//    QCoreApplication::processEvents();
 }
 
 float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, size_t work_group_size)
@@ -363,54 +376,7 @@ float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, si
     return sum;
 }
 
-void ImagePreviewWorker::integrateSelectedMode()
-{
 
-
-    switch (integration_mode)
-    {
-        case 0: // Single
-            integrateSingle();
-            break;
-
-        case 1: // Folder
-            break;
-
-        case 2: // All
-            break;
-
-        default: // Should not occur
-            break;
-    }
-}
-
-void ImagePreviewWorker::setIntegrationMode(int value)
-{
-    integration_mode = value;
-}
-
-void ImagePreviewWorker::integrateSingle()
-{
-    if (isFrameValid && (selection.normalized().width() > 0) && (selection.normalized().height() > 0) && (selection.normalized().width() <= frame.getFastDimension()) && (selection.normalized().height() <= frame.getSlowDimension()))
-    {
-        double value = integrate(selection, frame);
-    
-        QString str;
-                
-        str += "# SINGLE FRAME INTEGRATION\n";
-        str += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
-        str += "#\n";
-        str += frame.info();
-        str += "#\n# AREA\n";
-        str += QString("# Origin x y [pixels]: "+QString::number(selection.normalized().left())+" "+QString::number(selection.normalized().top())+"\n");
-        str += QString("# Region w h [pixels]: "+QString::number(selection.normalized().width())+" "+QString::number(selection.normalized().height())+"\n");
-        str += "#\n# Integrated intensity\n";
-        str += QString::number(value,'E');
-                
-        
-        emit outputTextChanged(str);
-    }
-}
 
 void ImagePreviewWorker::update(size_t w, size_t h)
 {

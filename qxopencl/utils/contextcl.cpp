@@ -45,7 +45,7 @@ DeviceCL * OpenCLContext::getMainDevice()
     return main_device;
 }
 
-cl_program OpenCLContext::createProgram(QStringList paths, cl_int * error)
+cl_program OpenCLContext::createProgram(QStringList paths, cl_int * err)
 {
     // Program
     Matrix<size_t> lengths(1, paths.size());
@@ -83,7 +83,7 @@ cl_program OpenCLContext::createProgram(QStringList paths, cl_int * error)
         sources[i] = blobs[i].data();
         lengths[i] = blobs[i].length();
     }
-    return clCreateProgramWithSource(context, paths.size(), sources.data(), lengths.data(), error);
+    return clCreateProgramWithSource(context, paths.size(), sources.data(), lengths.data(), err);
 }
 
 void OpenCLContext::buildProgram(cl_program * program, const char * options)

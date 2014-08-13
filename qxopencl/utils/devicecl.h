@@ -58,7 +58,7 @@ private:
     size_t GLOBAL_VRAM_ALLOC_MAX;
 };
 
-const char * cl_error_cstring(cl_int error);
+const char * cl_error_cstring(cl_int err);
 
 #endif // DEVICECL_H
 

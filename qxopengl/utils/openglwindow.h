@@ -139,6 +139,6 @@ protected:
     bool isMultiThreaded;
 };
 
-const char * gl_error_cstring(GLenum error);
+const char * gl_error_cstring(GLenum err);
 
 #endif

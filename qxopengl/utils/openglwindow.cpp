@@ -391,9 +391,9 @@ void OpenGLWindow::stopAnimating()
     setAnimating(false);
 }
 
-const char * gl_error_cstring(GLenum error)
+const char * gl_error_cstring(GLenum err)
 {
-    switch (error) {
+    switch (err) {
         case GL_NO_ERROR:                       return "GL_NO_ERROR";
         case GL_INVALID_ENUM:                   return "GL_INVALID_ENUM";
         case GL_INVALID_OPERATION:              return "GL_INVALID_OPERATION";

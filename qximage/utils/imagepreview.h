@@ -22,7 +22,7 @@ public:
 
 signals:
     void selectionChanged(QRectF rect);
-    void outputTextChanged(QString str);
+    void integrationCompleted(double value, int error);
 
 public slots:
     void setMode(int value);
@@ -46,10 +46,7 @@ public slots:
     void setSelection(QRectF rect);
     void setSelectionActive(bool value);
     void centerImage();
-    double integrate(QRectF rect, DetectorFile file);
-    void integrateSingle();
-    void integrateSelectedMode();
-    void setIntegrationMode(int value);
+    void integrate(QString path, QRectF rect);
     
 private:
     SharedContextWindow * shared_window;
@@ -124,7 +121,6 @@ private:
     Matrix<int> getImagePixel(int x, int y);
 
     // Integration
-    int integration_mode;
     float sumGpuArray(cl_mem cl_data, unsigned int read_size, size_t work_group_size);
 
 protected:
