@@ -4,13 +4,14 @@ __kernel void rectCopyFloat(
     int2 in_origin,
     int in_row_pitch, 
     __global float * out,
+    int2 out_size,
     int2 out_origin,
     int out_row_pitch,
     int2 region)
 {
     // Use to copy a rectangular region from a buffer into another buffer.
     
-    if ((get_global_id(0) + in_origin.x < in_size.x) && (get_global_id(1) + in_origin.y < in_size.y))
+    if ((get_global_id(0) + in_origin.x < in_size.x) && (get_global_id(1) + in_origin.y < in_size.y) && (get_global_id(0) + out_origin.x < out_size.x) && (get_global_id(1) + out_origin.y < out_size.y))
     {
         int2 in_id = (int2)(in_origin.x + get_global_id(0), in_origin.y + get_global_id(1));
         

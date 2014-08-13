@@ -160,6 +160,7 @@ Matrix<GLfloat> OpenGLWorker::glRect(QRectF & qt_rect)
 
     qreal x,y,w,h;
     qreal xf,yf,wf,hf;
+    qt_rect = qt_rect.normalized();
     qt_rect.getRect(&x, &y, &w, &h);
 
     xf = (x / (qreal) render_surface->width()) * 2.0 - 1.0;

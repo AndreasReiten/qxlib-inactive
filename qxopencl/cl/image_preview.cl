@@ -48,7 +48,8 @@ __kernel void imagePreview(
     if ((id_glb.x < target_dim.x) && (id_glb.y < target_dim.y))
     {
 
-        float intensity = read_imagef(source, intensity_sampler, (target_dim - id_glb - 1)).w; /* DANGER */
+//        float intensity = read_imagef(source, intensity_sampler, (target_dim - id_glb - 1)).w; /* DANGER */
+        float intensity = read_imagef(source, intensity_sampler, id_glb).w; /* DANGER */
 
         // Flat min/max filter (threshold_one)
         if (((intensity < th_a_low) || (intensity > th_a_high)))

@@ -57,6 +57,25 @@ DetectorFile::DetectorFile(QString path):
 //    active_angle = value;
 //}
 
+void DetectorFile::setNaive()
+{
+    fast_dimension = 10;
+    slow_dimension = 5;
+
+    data_buf.set(slow_dimension, fast_dimension, 0);
+
+    float value = 0;
+
+    for (int i = 0; i < data_buf.size(); i++)
+    {
+        data_buf[i] = value;
+
+        value += 1;
+    }
+
+    STATUS_OK = 1;
+}
+
 float DetectorFile::getWavelength()
 {
     return wavelength;

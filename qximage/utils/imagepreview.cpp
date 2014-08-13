@@ -29,6 +29,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 //    zoom_matrix[0] = 0.5;
 //    zoom_matrix[5] = 0.5;
 //    zoom_matrix[10] = 0.5;
+
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
@@ -48,6 +49,10 @@ void ImagePreviewWorker::setImageFromPath(QString path)
     {
         if(frame.readData())
         {
+//            frame.setNaive();
+
+//            frame.getData().print();
+
             isFrameValid = true;
 
             if (isImageTexInitialized){
@@ -145,37 +150,41 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     local_ws[0] = 8;
     local_ws[1] = 8;
     
-    local_ws.print(0,"local_ws");
+//    local_ws.print(0,"local_ws");
     
     Matrix<size_t> global_ws(1,2);
     global_ws[0] = rect.width() + (local_ws[0] - ((size_t) rect.width())%local_ws[0]);
     global_ws[1] = rect.height() + (local_ws[1] - ((size_t) rect.height())%local_ws[1]);
     
-    global_ws.print(0,"global_ws");
+//    global_ws.print(0,"global_ws");
     
     Matrix<int> file_size(1,2);
     file_size[0] = file.getFastDimension();
     file_size[1] = file.getSlowDimension();
     
-    file_size.print(0,"file_size");
+//    file_size.print(0,"file_size");
     
     Matrix<int> file_origin(1,2);
     file_origin[0] = rect.left();
     file_origin[1] = rect.top();
     
-    file_origin.print(0,"file_origin");
+//    file_origin.print(0,"file_origin");
     
     int file_row_pitch = file.getFastDimension();
     
     Matrix<int> selection_origin(1,2);
     selection_origin[0] = 0;
     selection_origin[1] = 0;
+
+//    selection_origin.print(0,"selection_origin");
     
     int selection_row_pitch = rect.width();
     
     Matrix<int> selection_size(1,2);
-    selection_size[0] = selection.width();
-    selection_size[1] = selection.height();
+    selection_size[0] = rect.width();
+    selection_size[1] = rect.height();
+
+//    selection_size.print(0,"selection_size");
     
     cl_mem selection_cl = clCreateBuffer( *context_cl->getContext(),
         CL_MEM_ALLOC_HOST_PTR,
@@ -190,9 +199,10 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
     err |= clSetKernelArg(cl_rect_copy_float, 2, sizeof(cl_int2), file_origin.data());
     err |= clSetKernelArg(cl_rect_copy_float, 3, sizeof(int), &file_row_pitch);
     err |= clSetKernelArg(cl_rect_copy_float, 4, sizeof(cl_mem), (void *) &selection_cl);
-    err |= clSetKernelArg(cl_rect_copy_float, 5, sizeof(cl_int2), selection_origin.data());
-    err |= clSetKernelArg(cl_rect_copy_float, 6, sizeof(int), &selection_row_pitch);
-    err |= clSetKernelArg(cl_rect_copy_float, 7, sizeof(cl_int2), selection_size.data());
+    err |= clSetKernelArg(cl_rect_copy_float, 5, sizeof(cl_int2), selection_size.data());
+    err |= clSetKernelArg(cl_rect_copy_float, 6, sizeof(cl_int2), selection_origin.data());
+    err |= clSetKernelArg(cl_rect_copy_float, 7, sizeof(int), &selection_row_pitch);
+    err |= clSetKernelArg(cl_rect_copy_float, 8, sizeof(cl_int2), selection_size.data());
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Launch the kernel
@@ -214,7 +224,24 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
 
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    tmp.print(1);
+//    Matrix<float> tmp2(frame.getSlowDimension(),frame.getFastDimension());
+
+//    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
+//                                        frame_cl,
+//                                        CL_TRUE,
+//                                        0,
+//                                        (size_t) frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
+//                                        tmp2.data(),
+//                                        0,NULL,NULL);
+
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+//    err = clFinish(*context_cl->getCommandQueue());
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+//    tmp2.print(1,"Frame");
+
+    tmp.print(1,"Selection");
     
     err = clReleaseMemObject(selection_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -251,12 +278,11 @@ void ImagePreviewWorker::setIntegrationMode(int value)
 
 void ImagePreviewWorker::integrateSingle()
 {
-    if (isFrameValid && (selection.normalized().width() > 0) && (selection.normalized().height() > 0) && (selection.normalized().width() < frame.getFastDimension()) && (selection.normalized().height() < frame.getSlowDimension()))
+    if (isFrameValid && (selection.normalized().width() > 0) && (selection.normalized().height() > 0) && (selection.normalized().width() <= frame.getFastDimension()) && (selection.normalized().height() <= frame.getSlowDimension()))
     {
         double value = integrate(selection, frame);
     
         QString str;
-//        QDateTime now = ;
                 
         str += "# SINGLE FRAME INTEGRATION\n";
         str += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";

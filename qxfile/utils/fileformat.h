@@ -34,7 +34,8 @@ class DetectorFile
 
         int set(QString path);
         int readData();
-//        int filterData(size_t * n, Matrix<float> *outBuf, float threshold_reduce_low, float threshold_reduce_high, float threshold_project_low, float threshold_project_high, bool isProjectionActive = true);
+
+        void setNaive();
 
         Matrix<float> & data();
         int getFastDimension() const;
@@ -53,13 +54,8 @@ class DetectorFile
         float getBeamY();
         float getPixSizeX();
         float getPixSizeY();
-//        void setProjectionKernel(cl_kernel * kernel);
         void print();
         QString getHeaderText();
-//        void setActiveAngle(int value);
-//        void setOffsetOmega(double value);
-//        void setOffsetKappa(double value);
-//        void setOffsetPhi(double value);
         Matrix<float> &getData();
         
         /* Non-optional keywords */
@@ -112,9 +108,6 @@ class DetectorFile
     private:
         // Misc
         int active_angle;
-//        OpenCLContext * context_cl;
-//        cl_kernel * project_kernel;
-//        cl_int err;
         Matrix<float> data_buf;
         
 
@@ -123,18 +116,12 @@ class DetectorFile
 
         int STATUS_OK;
 
-//        int threshold_reduce_low, threshold_reduce_high;
-//        int threshold_project_low, threshold_project_high;
         float srchrad_sugg_low, srchrad_sugg_high;
 
         void suggestSearchRadius();
         int readHeader();
         QString regExp(QString * regular_expression, QString * source, size_t offset, size_t i);
 
-        // Angle offsets
-//        double offset_omega;
-//        double offset_kappa;
-//        double offset_phi;
 };
 
 
