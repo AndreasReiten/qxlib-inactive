@@ -8,6 +8,7 @@
 /* GL and CL*/
 // It might be cleaner to exclude opencl from this lib and rather use opencl as a method in a parent
 #include <CL/opencl.h>
+#include <QMetaType>
 
 /* QT */
 //class QString;
@@ -124,5 +125,8 @@ class DetectorFile
 
 };
 
+Q_DECLARE_METATYPE(DetectorFile);
+
+QDebug operator<<(QDebug dbg, const DetectorFile &file);
 
 #endif

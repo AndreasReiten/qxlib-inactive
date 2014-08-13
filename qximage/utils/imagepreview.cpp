@@ -141,15 +141,22 @@ void ImagePreviewWorker::setImageFromPath(QString path)
     }
 }
 
-void ImagePreviewWorker::integrate(QString path, QRectF rect)
+double ImagePreviewWorker::integrate(QString path, QRectF rect)
 {
+    if (rect.left() < 0) rect.setLeft(0);
+    if (rect.right() >= frame.getFastDimension()) rect.setRight(frame.getFastDimension() - 1);
+    if (rect.top() < 0) rect.setTop(0);
+    if (rect.bottom() >= frame.getSlowDimension()) rect.setBottom(frame.getSlowDimension() - 1);
+
     selection = rect;
-    
-    if ((rect.normalized().width() <= 0) || (rect.normalized().height() <= 0) || (rect.normalized().width() > frame.getFastDimension()) || (rect.normalized().height() > frame.getSlowDimension()))
-    {
-        emit integrationCompleted(0,1);
-        return;
-    }
+
+    emit selectionChanged(selection);
+
+//    if ((rect.normalized().width() <= 0) || (rect.normalized().height() <= 0) || (rect.normalized().width() > frame.getFastDimension()) || (rect.normalized().height() > frame.getSlowDimension()))
+//    {
+//        emit integrationCompleted(0,1);
+//        return;
+//    }
     
 //    qDebug() << "integrate()" << rect;
     
@@ -282,6 +289,8 @@ void ImagePreviewWorker::integrate(QString path, QRectF rect)
     
     emit integrationCompleted(sum, 0);
 //    QCoreApplication::processEvents();
+
+    return sum;
 }
 
 float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, size_t work_group_size)

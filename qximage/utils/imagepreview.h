@@ -46,7 +46,7 @@ public slots:
     void setSelection(QRectF rect);
     void setSelectionActive(bool value);
     void centerImage();
-    void integrate(QString path, QRectF rect);
+    double integrate(QString path, QRectF rect);
     
 private:
     SharedContextWindow * shared_window;

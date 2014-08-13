@@ -13,6 +13,12 @@
 #include <cmath>
 #include <limits>
 
+QDebug operator<<(QDebug dbg, const DetectorFile &file)
+{
+    dbg.nospace() << "DetectorFile()";
+    return dbg.maybeSpace();
+}
+
 DetectorFile::~DetectorFile()
 {
 
