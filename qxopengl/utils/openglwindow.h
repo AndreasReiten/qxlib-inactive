@@ -138,4 +138,7 @@ protected:
     bool isAnimating;
     bool isMultiThreaded;
 };
+
+const char * gl_error_cstring(GLenum error);
+
 #endif

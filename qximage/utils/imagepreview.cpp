@@ -186,27 +186,44 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
 
 //    selection_size.print(0,"selection_size");
     
+    // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequen parallel reduction
+    int selection_read_size = rect.width()*rect.height();
+    int selection_local_size = 64;
+    int selection_global_size = selection_read_size + (selection_read_size % selection_local_size ? selection_local_size - (selection_read_size % selection_local_size) : 0);
+    int selection_padded_size = selection_global_size + selection_global_size/selection_local_size;
+    
+    if(0)
+    {
+        qDebug() << "selection_read_size   " << selection_read_size;
+        qDebug() << "selection_local_size  " << selection_local_size;
+        qDebug() << "selection_global_size " << selection_global_size;
+        qDebug() << "selection_padded_size " << selection_padded_size;
+    }
+    
     cl_mem selection_cl = clCreateBuffer( *context_cl->getContext(),
         CL_MEM_ALLOC_HOST_PTR,
-        rect.width()*rect.height()*sizeof(cl_float),
+        selection_padded_size*sizeof(cl_float),
         NULL,
         &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Set kernel parameters
-    err = clSetKernelArg(cl_rect_copy_float,  0, sizeof(cl_mem), (void *) &frame_cl);
-    err |= clSetKernelArg(cl_rect_copy_float, 1, sizeof(cl_int2), file_size.data());
-    err |= clSetKernelArg(cl_rect_copy_float, 2, sizeof(cl_int2), file_origin.data());
-    err |= clSetKernelArg(cl_rect_copy_float, 3, sizeof(int), &file_row_pitch);
-    err |= clSetKernelArg(cl_rect_copy_float, 4, sizeof(cl_mem), (void *) &selection_cl);
-    err |= clSetKernelArg(cl_rect_copy_float, 5, sizeof(cl_int2), selection_size.data());
-    err |= clSetKernelArg(cl_rect_copy_float, 6, sizeof(cl_int2), selection_origin.data());
-    err |= clSetKernelArg(cl_rect_copy_float, 7, sizeof(int), &selection_row_pitch);
-    err |= clSetKernelArg(cl_rect_copy_float, 8, sizeof(cl_int2), selection_size.data());
+//    qDebug() << "got here";
+    err = clSetKernelArg(context_cl->cl_rect_copy_float,  0, sizeof(cl_mem), (void *) &frame_cl);
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 1, sizeof(cl_int2), file_size.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 2, sizeof(cl_int2), file_origin.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 3, sizeof(int), &file_row_pitch);
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 4, sizeof(cl_mem), (void *) &selection_cl);
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 5, sizeof(cl_int2), selection_size.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 6, sizeof(cl_int2), selection_origin.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 7, sizeof(int), &selection_row_pitch);
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 8, sizeof(cl_int2), selection_size.data());
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    qDebug() << "got here";
+    
     
     // Launch the kernel
-    err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), cl_rect_copy_float, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
+    err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), context_cl->cl_rect_copy_float, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     err = clFinish(*context_cl->getCommandQueue());
@@ -236,18 +253,114 @@ double ImagePreviewWorker::integrate(QRectF rect, DetectorFile file)
 
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-//    err = clFinish(*context_cl->getCommandQueue());
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    err = clFinish(*context_cl->getCommandQueue());
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    tmp2.print(1,"Frame");
 
     tmp.print(1,"Selection");
     
+    float sum = sumGpuArray(selection_cl, selection_read_size, 64);
+    
+//    qDebug() << sum;
+    
     err = clReleaseMemObject(selection_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     
-    return 0;
+    return sum;
+}
+
+float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, size_t work_group_size)
+{
+    /* 
+     * This function for parallel reduction does its work over multiple passes. First pass 
+     * sums the data in blocks corresponding to the local size (work group size). The 
+     * results from each block is written to an extension of the array, or padding. The 
+     * next pass sums the data (again in blocks) in the padded section, and writes it to 
+     * the beginning of the buffer. This back and forth cycle is repeated until the buffer 
+     * is reduced to a single value, the sum.
+     * */
+    
+    /* Set initial kernel parameters (they will change for each iteration)*/
+    Matrix<size_t> local_size(1,1,work_group_size);
+    Matrix<size_t> global_size(1,1);
+    unsigned int read_offset = 0;
+    unsigned int write_offset;
+
+    global_size[0] = read_size + (read_size % local_size[0] ? local_size[0] - (read_size % local_size[0]) : 0);
+    write_offset = global_size[0];
+    
+    bool forth = true;
+    float sum;
+
+    /* Pass arguments to kernel */
+    err = clSetKernelArg(context_cl->cl_parallel_reduction, 0, sizeof(cl_mem), (void *) &cl_data);
+    err |= clSetKernelArg(context_cl->cl_parallel_reduction, 1, local_size[0]*sizeof(cl_float), NULL);
+    err |= clSetKernelArg(context_cl->cl_parallel_reduction, 2, sizeof(cl_uint), &read_size);
+    err |= clSetKernelArg(context_cl->cl_parallel_reduction, 3, sizeof(cl_uint), &read_offset);
+    err |= clSetKernelArg(context_cl->cl_parallel_reduction, 4, sizeof(cl_uint), &write_offset);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    /* Launch kernel repeatedly until the summing is done */
+    while (read_size > 1)
+    {
+        if(0)
+        {
+            qDebug() << "Forth        " << forth;
+            qDebug() << "Read size    " << read_size;
+            qDebug() << "Read offset  " << read_offset;
+            qDebug() << "Write offset " << write_offset;
+        }
+        
+        err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), context_cl->cl_parallel_reduction, 1, 0, global_size.data(), local_size.data(), 0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        err = clFinish(*context_cl->getCommandQueue());
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        /* Extract the sum */
+        err = clEnqueueReadBuffer ( *context_cl->getCommandQueue(),
+            cl_data,
+            CL_TRUE,
+            forth ? global_size[0]*sizeof(cl_float) : 0,
+            sizeof(cl_float),
+            &sum,
+            0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        /* Prepare the kernel parameters for the next iteration */
+        forth = !forth;
+
+        // Prepare to read memory in front of the separator and write to the memory behind it
+        if (forth)
+        {
+            read_size = (global_size[0])/local_size[0];
+            if (read_size % local_size[0]) global_size[0] = read_size + local_size[0] - (read_size % local_size[0]);
+            else global_size[0] = read_size;
+
+            read_offset = 0;
+            write_offset = global_size[0];
+        }
+        // Prepare to read memory behind the separator and write to the memory in front of it
+        else
+        {
+            read_offset = global_size[0];
+            write_offset = 0;
+
+            read_size = global_size[0]/local_size[0];
+            if (read_size % local_size[0]) global_size[0] = read_size + local_size[0] - (read_size % local_size[0]);
+            else global_size[0] = read_size;
+        }
+
+        err = clSetKernelArg(context_cl->cl_parallel_reduction, 2, sizeof(cl_uint), &read_size);
+        err |= clSetKernelArg(context_cl->cl_parallel_reduction, 3, sizeof(cl_uint), &read_offset);
+        err |= clSetKernelArg(context_cl->cl_parallel_reduction, 4, sizeof(cl_uint), &write_offset);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    }
+
+    return sum;
 }
 
 void ImagePreviewWorker::integrateSelectedMode()
@@ -336,25 +449,57 @@ void ImagePreviewWorker::update(size_t w, size_t h)
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         }
     }
-
+    err = clFinish(*context_cl->getCommandQueue());
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    Matrix<size_t> origin(1,3);
+//    origin[0] = 0;
+//    origin[1] = 0;
+//    origin[2] = 0;
+    
+//    Matrix<size_t> region(1,3);
+//    region[0] = frame.getFastDimension();
+//    region[1] = frame.getSlowDimension();
+//    region[2] = 1;
+    
+//    region.print(0,"region");
+    
+//    Matrix<float> tmp(frame.getSlowDimension(), frame.getFastDimension()*4,-3);
+    
+//    err = clEnqueueReadImage(
+//                *context_cl->getCommandQueue(),
+//                image_tex_cl, 
+//                CL_TRUE, 
+//                origin.data(), 
+//                region.data(), 
+//                (size_t) frame.getFastDimension()*4*4, 
+//                0, 
+//                tmp.data(), 
+//                0, NULL, NULL);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clFinish(*context_cl->getCommandQueue());
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+//    tmp.print(2,"texture_cl");
+    
+    
     // Release shared CL/GL objects
     err = clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
     err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    err = clFinish(*context_cl->getCommandQueue());
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clFinish(*context_cl->getCommandQueue());
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
 void ImagePreviewWorker::initResourcesCL()
 {
     // Build program from OpenCL kernel source
-    Matrix<const char *> paths(3,1);
-    paths[0] = "cl/image_preview.cl";
-    paths[1] = "cl/mem_functions.cl";
-    paths[2] = "cl/parallel_reduce.cl";
+    QStringList paths;
+    paths << "cl/image_preview.cl";
+//    paths[1] = "cl/mem_functions.cl";
+//    paths[2] = "cl/parallel_reduce.cl";
 
-    program = context_cl->createProgram(&paths, &err);
+    program = context_cl->createProgram(paths, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     context_cl->buildProgram(&program, "-Werror");
@@ -363,11 +508,11 @@ void ImagePreviewWorker::initResourcesCL()
     cl_image_preview = clCreateKernel(program, "imagePreview", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    cl_rect_copy_float = clCreateKernel(program, "rectCopyFloat", &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    context_cl->cl_rect_copy_float = clCreateKernel(program, "rectCopyFloat", &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    cl_psum = clCreateKernel(program, "psum", &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    context_cl->cl_parallel_reduction = clCreateKernel(program, "psum", &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     // Image sampler
     image_sampler = clCreateSampler(*context_cl->getContext(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
@@ -561,7 +706,7 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawImage(painter);
 
-    drawTexelOverlay(painter);
+//    drawTexelOverlay(painter);
 
 //    drawSelection(painter);
 
@@ -596,10 +741,20 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     shared_window->rect_hl_2d_tex_program->bind();
 
-    glActiveTexture(GL_TEXTURE0);
+//    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, image_tex_gl);
     shared_window->rect_hl_2d_tex_program->setUniformValue(shared_window->rect_hl_2d_tex_texture, 0);
 
+//    Matrix<GLfloat> tmp(frame.getSlowDimension(),frame.getFastDimension()*4,-1);
+    
+//    glGetTexImage(GL_TEXTURE_2D,  0,  GL_RGBA,  GL_FLOAT,  tmp.data());
+    
+//    if ( glGetError() != GL_NO_ERROR) qFatal(gl_error_cstring(glGetError()));
+    
+//    glFinish();
+    
+//    tmp.print(1,"Texture");
+    
 
     QRectF image_rect(QPointF(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
     image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
@@ -612,13 +767,22 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
         1.0, 1.0,
         0.0, 1.0
     };
+    
+//    GLfloat texpos[] = { // The texpos is flipped along a horizontal mirror plane.
+//        0.0, 1.0,
+//        1.0, 1.0,
+//        1.0, 0.0,
+//        0.0, 0.0
+//    };
+    
+//    fragpos.print(2,"fragpos");
 
     GLuint indices[] = {0,1,3,1,2,3};
 
     texture_view_matrix = zoom_matrix*translation_matrix;
 
     glUniformMatrix4fv(shared_window->rect_hl_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
-    
+    if ( glGetError() != GL_NO_ERROR) qFatal(gl_error_cstring(glGetError()));
     
     // The bounds that enclose the highlighted area of the texture are passed to the shader
 //    selection = selection.normalized();

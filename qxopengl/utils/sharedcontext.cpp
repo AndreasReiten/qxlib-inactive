@@ -107,6 +107,7 @@ void SharedContextWindow::initialize()
     this->getCLContext()->initDevices();
     this->getCLContext()->initSharedContext();
     this->getCLContext()->initCommandQueue();
+    this->getCLContext()->initResources();
 }
 
 

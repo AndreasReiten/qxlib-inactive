@@ -59,19 +59,29 @@ DetectorFile::DetectorFile(QString path):
 
 void DetectorFile::setNaive()
 {
-    fast_dimension = 10;
-    slow_dimension = 5;
+    fast_dimension = 11;
+    slow_dimension = 6;
+    
+    
+    float buf[] = {
+        0.1, 0.1, 1.0, 1.0, 0.1, 0.1, 1.0, 0.1, 0.1, 0.1, 0.1,
+        0.1, 1.0, 0.1, 0.1, 1.0, 0.1, 1.0, 0.1, 0.1, 0.1, 0.1,
+        0.1, 1.0, 0.1, 0.1, 0.1, 0.1, 1.0, 0.1, 0.1, 0.1, 0.1,
+        0.1, 1.0, 0.1, 1.0, 1.0, 0.1, 1.0, 0.1, 0.1, 0.1, 0.1,
+        0.1, 1.0, 0.1, 0.1, 1.0, 0.1, 1.0, 0.1, 0.1, 0.1, 0.1,
+        0.1, 0.1, 1.0, 1.0, 0.1, 0.1, 1.0, 1.0, 1.0, 1.0, 0.1,
+    };
+    
+    data_buf.setDeep(slow_dimension, fast_dimension, buf);
 
-    data_buf.set(slow_dimension, fast_dimension, 0);
+//    float value = 0;
 
-    float value = 0;
+//    for (int i = 0; i < data_buf.size(); i++)
+//    {
+//        data_buf[i] = value;
 
-    for (int i = 0; i < data_buf.size(); i++)
-    {
-        data_buf[i] = value;
-
-        value += 1;
-    }
+//        value += 1;
+//    }
 
     STATUS_OK = 1;
 }
@@ -674,7 +684,7 @@ int DetectorFile::readData()
             prev = counts;
             
             
-//            if (counts < 0) counts = 0;
+            if (counts < 0) counts = 0;
             
             data_buf[i*fast_dimension+j] = (float) counts;
 

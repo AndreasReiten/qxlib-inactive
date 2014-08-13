@@ -121,8 +121,13 @@ __kernel void imagePreview(
         {
             tsf_position = (float2)(native_divide(intensity - intensity_min, intensity_max - intensity_min), 0.5f);
             sample = read_imagef(tsf_source, tsf_sampler, tsf_position);
+//            sample.w = 1.0;
+            
+
+//            if ((id_glb.x == 0) && (id_glb.y == 0)) sample = (float4)(1.0,0.0,1.0,1.0);
         }
 
+//        write_imagef(preview, (int2)(id_glb.x, target_dim.y - id_glb.y), sample);
         write_imagef(preview, id_glb, sample);
     }
 }

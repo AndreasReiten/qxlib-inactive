@@ -5,6 +5,8 @@
 //#include <QOpenGLContext>
 #include <QString>
 #include <QDebug>
+#include <QFile>
+#include <QByteArray>
 
 #include <iostream>
 #include <sstream>
@@ -43,37 +45,45 @@ DeviceCL * OpenCLContext::getMainDevice()
     return main_device;
 }
 
-cl_program OpenCLContext::createProgram(Matrix<const char *> * paths, cl_int * error)
+cl_program OpenCLContext::createProgram(QStringList paths, cl_int * error)
 {
     // Program
-    Matrix<size_t> lengths(1, paths->size());
-    Matrix<const char *> sources(1, paths->size());
-    Matrix<QByteArray> qsources(1, paths->size());
-
-    for (size_t i = 0; i < paths->size(); i++)
+    Matrix<size_t> lengths(1, paths.size());
+    Matrix<const char *> sources(1, paths.size());
+//    Matrix<QByteArray> qsources(1, paths.size());
+    
+    Matrix<QByteArray> blobs(1,paths.size());
+    
+    for (size_t i = 0; i < paths.size(); i++)
     {
-        std::ifstream in(paths->at(i), std::ios::in | std::ios::binary);
-        std::string contents;
+//        std::ifstream in(paths.at(i), std::ios::in | std::ios::binary);
+//        std::string contents;
     
-        if (in)
-        {
-            in.seekg(0, std::ios::end);
-            contents.resize(in.tellg());
-            in.seekg(0, std::ios::beg);
-            in.read(&contents[0], contents.size());
-            in.close();
-        }
-        else
-        {
-            qDebug(QString("Could not open file: " + QString(paths->at(i))).toStdString().c_str());
-        }
+//        if (in)
+//        {
+//            in.seekg(0, std::ios::end);
+//            contents.resize(in.tellg());
+//            in.seekg(0, std::ios::beg);
+//            in.read(&contents[0], contents.size());
+//            in.close();
+//        }
+//        else
+//        {
+//            qDebug(QString("Could not open file: " + QString(paths.at(i))).toStdString().c_str());
+//        }
     
-        qsources[i] = QString(contents.c_str()).toUtf8();
+//        qsources[i] = QString(contents.c_str()).toUtf8();
         
-        sources[i] = qsources[i].data();
-        lengths[i] = strlen(sources[i]);
+        QFile file(paths[i]);
+        if (!file.open(QIODevice::ReadOnly)) qDebug(QString(QString("Could not open file: ")+paths[i]).toStdString().c_str());
+        blobs[i] = file.readAll();
+        
+//        qDebug() << blobs[i];
+        
+        sources[i] = blobs[i].data();
+        lengths[i] = blobs[i].length();
     }
-    return clCreateProgramWithSource(context, paths->size(), sources.data(), lengths.data(), error);
+    return clCreateProgramWithSource(context, paths.size(), sources.data(), lengths.data(), error);
 }
 
 void OpenCLContext::buildProgram(cl_program * program, const char * options)
@@ -193,4 +203,22 @@ void OpenCLContext::initCommandQueue()
     }
 }
 
+void OpenCLContext::initResources()
+{
+    // Build program from OpenCL kernel source
+    QStringList paths;
+    paths << "cl/mem_functions.cl";
+    paths << "cl/parallel_reduce.cl";
 
+    program = createProgram(paths, &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    buildProgram(&program, "-Werror");
+
+    // Kernel handles
+    cl_rect_copy_float = clCreateKernel(program, "rectCopyFloat", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    cl_parallel_reduction = clCreateKernel(program, "psum", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+}

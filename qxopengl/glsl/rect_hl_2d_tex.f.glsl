@@ -5,7 +5,8 @@ varying float f_pixel_size;
 
 void main(void)
 {
-    vec4 color = texture2D(texture, f_texpos);
+    vec2 flipped_texpos = vec2(f_texpos.x, 1.0 - f_texpos.y); // The OpenGL convention (origin at the bottom-left corner) is different than in 2D applications (origin at the top-left corner)
+    vec4 color = texture2D(texture, flipped_texpos);
  
     vec4 dark = vec4(0.0,0.0,0.0,1.0);
     

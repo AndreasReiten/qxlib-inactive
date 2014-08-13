@@ -57,8 +57,8 @@ private:
     cl_int err;
     cl_program program;
     cl_kernel cl_image_preview;
-    cl_kernel cl_rect_copy_float;
-    cl_kernel cl_psum;
+//    cl_kernel cl_rect_copy_float; // move to context_cl?
+//    cl_kernel cl_parallel_reduction;
     cl_mem image_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
@@ -125,6 +125,7 @@ private:
 
     // Integration
     int integration_mode;
+    float sumGpuArray(cl_mem cl_data, unsigned int read_size, size_t work_group_size);
 
 protected:
     void initialize();
