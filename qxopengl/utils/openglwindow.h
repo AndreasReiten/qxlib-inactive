@@ -74,7 +74,7 @@ protected:
 private:
     // Boolean checks
     bool isInitialized;
-    bool isMultiThreaded;
+    bool isThreaded;
 
     double fps;
     QElapsedTimer fps_elapsed_timer;
@@ -136,7 +136,7 @@ protected:
     bool isUpdatePending;
     bool isWorkerBusy;
     bool isAnimating;
-    bool isMultiThreaded;
+    bool isThreaded;
 };
 
 const char * gl_error_cstring(GLenum err);

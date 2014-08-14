@@ -20,7 +20,7 @@ void main(void)
         
         color.xyz = vec3(average);
         
-        color = mix(color, dark, 1.0 - color.w);
+        color = mix(color, dark, 1.0 - color.w*0.5);
     }
     // Else within bounds
     if ((f_texpos.x > f_bounds.x - f_pixel_size) && (f_texpos.x < f_bounds.x))

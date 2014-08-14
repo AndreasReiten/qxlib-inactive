@@ -11,7 +11,9 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isImageTexInitialized(false),
     isTsfTexInitialized(false),
     isCLInitialized(false),
-    isFrameValid(false)
+    isFrameValid(false),
+    rgb_style(1),
+    alpha_style(2)
 //    integration_mode(0)
 {
     Q_UNUSED(parent);
@@ -30,7 +32,12 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 //    zoom_matrix[0] = 0.5;
 //    zoom_matrix[5] = 0.5;
 //    zoom_matrix[10] = 0.5;
-
+    
+    setThresholdNoiseLow(-1e99);
+    setThresholdNoiseHigh(1e99);
+    setThresholdPostCorrectionLow(-1e99);
+    setThresholdPostCorrectionHigh(1e99);
+    selection.setCoords(-1000,-1000,0,0);
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
@@ -53,6 +60,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
 //            frame.setNaive();
 
 //            frame.getData().print();
+            
+            
 
             isFrameValid = true;
 
@@ -389,81 +398,84 @@ float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, si
 
 void ImagePreviewWorker::update(size_t w, size_t h)
 {
-    // Aquire shared CL/GL objects
-    glFinish();
-    err = clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
-    err |= clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    
-    // Launch rendering kernel
-    Matrix<size_t> local_ws(1,2);
-    local_ws[0] = 16;
-    local_ws[1] = 16;
-    
-    Matrix<size_t> global_ws(1,2);
-    global_ws[0] = w + (local_ws[0] - w%local_ws[0]);
-    global_ws[1] = h + (local_ws[1] - h%local_ws[1]);
-    
-    Matrix<size_t> area_per_call(1,2);
-    area_per_call[0] = 128;
-    area_per_call[1] = 128;
-
-    Matrix<size_t> call_offset(1,2);
-    call_offset[0] = 0;
-    call_offset[1] = 0;
-
-    // Launch the kernel
-    for (size_t glb_x = 0; glb_x < global_ws[0]; glb_x += area_per_call[0])
+    if (isFrameValid)
     {
-        for (size_t glb_y = 0; glb_y < global_ws[1]; glb_y += area_per_call[1])
+        // Aquire shared CL/GL objects
+        glFinish();
+        err = clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
+        err |= clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        // Launch rendering kernel
+        Matrix<size_t> local_ws(1,2);
+        local_ws[0] = 16;
+        local_ws[1] = 16;
+        
+        Matrix<size_t> global_ws(1,2);
+        global_ws[0] = w + (local_ws[0] - w%local_ws[0]);
+        global_ws[1] = h + (local_ws[1] - h%local_ws[1]);
+        
+        Matrix<size_t> area_per_call(1,2);
+        area_per_call[0] = 128;
+        area_per_call[1] = 128;
+    
+        Matrix<size_t> call_offset(1,2);
+        call_offset[0] = 0;
+        call_offset[1] = 0;
+    
+        // Launch the kernel
+        for (size_t glb_x = 0; glb_x < global_ws[0]; glb_x += area_per_call[0])
         {
-            call_offset[0] = glb_x;
-            call_offset[1] = glb_y;
-
-            err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), cl_image_preview, 2, call_offset.data(), area_per_call.data(), local_ws.data(), 0, NULL, NULL);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+            for (size_t glb_y = 0; glb_y < global_ws[1]; glb_y += area_per_call[1])
+            {
+                call_offset[0] = glb_x;
+                call_offset[1] = glb_y;
+    
+                err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), cl_image_preview, 2, call_offset.data(), area_per_call.data(), local_ws.data(), 0, NULL, NULL);
+                if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+            }
         }
+        err = clFinish(*context_cl->getCommandQueue());
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    //    Matrix<size_t> origin(1,3);
+    //    origin[0] = 0;
+    //    origin[1] = 0;
+    //    origin[2] = 0;
+        
+    //    Matrix<size_t> region(1,3);
+    //    region[0] = frame.getFastDimension();
+    //    region[1] = frame.getSlowDimension();
+    //    region[2] = 1;
+        
+    //    region.print(0,"region");
+        
+    //    Matrix<float> tmp(frame.getSlowDimension(), frame.getFastDimension()*4,-3);
+        
+    //    err = clEnqueueReadImage(
+    //                *context_cl->getCommandQueue(),
+    //                image_tex_cl, 
+    //                CL_TRUE, 
+    //                origin.data(), 
+    //                region.data(), 
+    //                (size_t) frame.getFastDimension()*4*4, 
+    //                0, 
+    //                tmp.data(), 
+    //                0, NULL, NULL);
+    //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    //    err = clFinish(*context_cl->getCommandQueue());
+    //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+    //    tmp.print(2,"texture_cl");
+        
+        
+        // Release shared CL/GL objects
+        err = clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
+        err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    //    err = clFinish(*context_cl->getCommandQueue());
+    //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
-    err = clFinish(*context_cl->getCommandQueue());
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    Matrix<size_t> origin(1,3);
-//    origin[0] = 0;
-//    origin[1] = 0;
-//    origin[2] = 0;
-    
-//    Matrix<size_t> region(1,3);
-//    region[0] = frame.getFastDimension();
-//    region[1] = frame.getSlowDimension();
-//    region[2] = 1;
-    
-//    region.print(0,"region");
-    
-//    Matrix<float> tmp(frame.getSlowDimension(), frame.getFastDimension()*4,-3);
-    
-//    err = clEnqueueReadImage(
-//                *context_cl->getCommandQueue(),
-//                image_tex_cl, 
-//                CL_TRUE, 
-//                origin.data(), 
-//                region.data(), 
-//                (size_t) frame.getFastDimension()*4*4, 
-//                0, 
-//                tmp.data(), 
-//                0, NULL, NULL);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    err = clFinish(*context_cl->getCommandQueue());
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    
-//    tmp.print(2,"texture_cl");
-    
-    
-    // Release shared CL/GL objects
-    err = clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
-    err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    err = clFinish(*context_cl->getCommandQueue());
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
 void ImagePreviewWorker::initResourcesCL()
@@ -556,20 +568,19 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 
 void ImagePreviewWorker::initialize()
 {
+//    qDebug() << "Call to initialize";
+    
     initResourcesCL();
 
     glGenBuffers(2, texel_line_vbo);
     glGenBuffers(1, &selection_lines_vbo);
 
     isInitialized = true;
-
-    setTsf(tsf);
-
-    setThresholdNoiseLow(-1e99);
-    setThresholdNoiseHigh(1e99);
-    setThresholdPostCorrectionLow(-1e99);
-    setThresholdPostCorrectionHigh(1e99);
-    selection.setCoords(0,0,0,0);
+    
+//    qDebug() << "Manual set of tsf";
+    
+//    setTsf(tsf);
+//    qDebug() << "Manual set of tsf done";
 }
 
 
@@ -581,7 +592,7 @@ void ImagePreviewWorker::setTsfTexture(int value)
     tsf.setSpline(256);
 
     if (isInitialized) setTsf(tsf);
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setTsfAlpha(int value)
 {
@@ -591,7 +602,7 @@ void ImagePreviewWorker::setTsfAlpha(int value)
     tsf.setSpline(256);
 
     if (isInitialized) setTsf(tsf);
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setLog(bool value)
 {
@@ -603,50 +614,59 @@ void ImagePreviewWorker::setLog(bool value)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
 
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setDataMin(double value)
 {
+    if (0) qDebug() << value;
+    
     parameter[12] = value;
     setParameter(parameter);
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setDataMax(double value)
 {
+    if (0) qDebug() << value;
+    
     parameter[13] = value;
     setParameter(parameter);
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
-}
-
-
-void ImagePreviewWorker::setThresholdNoiseLow(double value)
-{
-    parameter[0] = value;
-    setParameter(parameter);
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setSelection(QRectF rect)
 {
     selection = rect;
     
-//    qDebug() << "IP selection" << selection << "left" << selection.left() << "top" << selection.top();
+    qDebug() << "IP selection" << selection << "left" << selection.left() << "top" << selection.top();
 }
+
+void ImagePreviewWorker::setThresholdNoiseLow(double value)
+{
+    parameter[0] = value;
+    setParameter(parameter);
+    update(frame.getFastDimension(), frame.getSlowDimension());
+}
+
+
 
 void ImagePreviewWorker::setThresholdNoiseHigh(double value)
 {
     parameter[1] = value;
     setParameter(parameter);
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
 {
     parameter[2] = value;
     setParameter(parameter);
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
 {
     parameter[3] = value;
     setParameter(parameter);
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::beginRawGLCalls(QPainter * painter)
@@ -1001,7 +1021,7 @@ void ImagePreviewWorker::setMode(int value)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
 
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setCorrection(bool value)
@@ -1014,7 +1034,7 @@ void ImagePreviewWorker::setCorrection(bool value)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
 
-    if (isFrameValid) update(frame.getFastDimension(), frame.getSlowDimension());
+    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)
@@ -1230,9 +1250,9 @@ void ImagePreviewWindow::initializeWorker()
     gl_worker->setGLContext(context_gl);
     gl_worker->setOpenCLContext(context_cl);
     gl_worker->setSharedWindow(shared_window);
-    gl_worker->setMultiThreading(isMultiThreaded);
+    gl_worker->setMultiThreading(isThreaded);
 
-    if (isMultiThreaded)
+    if (isThreaded)
     {
         // Set up worker thread
         gl_worker->moveToThread(worker_thread);
@@ -1246,6 +1266,8 @@ void ImagePreviewWindow::initializeWorker()
         connect(this, SIGNAL(metaMouseReleaseEventCaught(int, int, int, int, int, int, int)), gl_worker, SLOT(metaMouseReleaseEvent(int, int, int, int, int, int, int)));
         connect(this, SIGNAL(resizeEventCaught(QResizeEvent*)), gl_worker, SLOT(resizeEvent(QResizeEvent*)));
         connect(this, SIGNAL(wheelEventCaught(QWheelEvent*)), gl_worker, SLOT(wheelEvent(QWheelEvent*)), Qt::DirectConnection);
+        
+        emit render();
     }
 
     isInitialized = true;
@@ -1269,7 +1291,7 @@ void ImagePreviewWindow::renderNow()
 
         if (gl_worker)
         {
-            if (isMultiThreaded)
+            if (isThreaded)
             {
                 isWorkerBusy = true;
                 worker_thread->start();

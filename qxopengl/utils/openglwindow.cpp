@@ -8,7 +8,7 @@ OpenGLWorker::OpenGLWorker(QObject *parent)
     : QObject(parent)
     , paint_device_gl(0)
     , isInitialized(false)
-    , isMultiThreaded(false)
+    , isThreaded(false)
 {
     fps_elapsed_timer.start();
 }
@@ -75,6 +75,8 @@ void OpenGLWorker::resizeEvent(QResizeEvent * ev)
 
 void OpenGLWorker::process()
 {
+//    qDebug() << "Call to process";
+    
     context_gl->makeCurrent(render_surface);
 
     if (!isInitialized)
@@ -82,6 +84,8 @@ void OpenGLWorker::process()
         initializeOpenGLFunctions();
         if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
         paint_device_gl->setSize(render_surface->size());
+//        qDebug() << "Process calling initialize";
+        
         initialize();
         isInitialized = true;
     }
@@ -102,7 +106,7 @@ void OpenGLWorker::render(QPainter *painter)
 
 void OpenGLWorker::initialize()
 {
-
+    
 }
 
 void OpenGLWorker::setGLContext(QOpenGLContext *context)
@@ -208,7 +212,7 @@ OpenGLWindow::OpenGLWindow(QWindow *parent, QOpenGLContext * shareContext)
     , isUpdatePending(false)
     , isWorkerBusy(false)
     , isAnimating(false)
-    , isMultiThreaded(false)
+    , isThreaded(false)
 {
     this->shared_context = shareContext;
 
@@ -222,7 +226,7 @@ void OpenGLWindow::setOpenCLContext(OpenCLContext * context)
 
 OpenGLWindow::~OpenGLWindow()
 {
-    if (isMultiThreaded)
+    if (isThreaded)
     {
         worker_thread->quit();
         worker_thread->wait(1000);
@@ -246,12 +250,12 @@ void OpenGLWindow::mouseMoveEvent(QMouseEvent* ev)
 
 void OpenGLWindow::setMultiThreading(bool value)
 {
-    isMultiThreaded = value;
+    isThreaded = value;
 }
 
 void OpenGLWorker::setMultiThreading(bool value)
 {
-    isMultiThreaded = value;
+    isThreaded = value;
 }
 
 void OpenGLWindow::wheelEvent(QWheelEvent* ev)
@@ -306,7 +310,7 @@ void OpenGLWindow::initializeGLContext()
         initialize();
         context_gl->doneCurrent();
 
-        if(isMultiThreaded)
+        if(isThreaded)
         {
             worker_thread = new QThread;
             context_gl->moveToThread(worker_thread);
@@ -360,6 +364,9 @@ void OpenGLWindow::initialize()
 
 void OpenGLWindow::initializeWorker()
 {
+    /*
+     * Call after the worker has been set
+     * */
 
 }
 
