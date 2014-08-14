@@ -83,7 +83,7 @@ public:
     ImageFolder * current();
     ImageFolder * next();
     ImageFolder * previous();
-
+    
     void clear();
     void append(ImageFolder image_folder);
     void removeCurrent();
