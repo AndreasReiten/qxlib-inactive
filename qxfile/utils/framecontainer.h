@@ -40,8 +40,8 @@ public:
 
     void setPath(QString str);
     const QString path() const;
-    const int size() const;
-    const int i() const;
+    int size() const;
+    int i() const;
 
     void setImages(QList<Image> list);
     void removeCurrent();
@@ -55,7 +55,7 @@ public:
     Image * previous();
     Image * begin();
 
-    const bool operator == (const ImageFolder&) const;
+    bool operator == (const ImageFolder&);
 
 private:
     QString p_path;
@@ -83,13 +83,15 @@ public:
     ImageFolder * current();
     ImageFolder * next();
     ImageFolder * previous();
-    
+
+    QStringList paths();
+
     void clear();
     void append(ImageFolder image_folder);
     void removeCurrent();
     void setFolders(QList<ImageFolder> list);
     const QList<ImageFolder> &folders() const;
-    const int size() const;
+    int size() const;
 private:
     QList<ImageFolder> p_folders;
     int p_i;

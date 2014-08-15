@@ -638,7 +638,7 @@ void ImagePreviewWorker::setSelection(QRectF rect)
 {
     selection = rect;
     
-    qDebug() << "IP selection" << selection << "left" << selection.left() << "top" << selection.top();
+//    qDebug() << "IP selection" << selection << "left" << selection.left() << "top" << selection.top();
 }
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)

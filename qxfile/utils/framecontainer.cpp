@@ -31,7 +31,7 @@ const QRectF Image::selection() const
 
 QDebug operator<<(QDebug dbg, const Image &image)
 {
-    dbg.nospace() << "Image()";
+    dbg.nospace() << "Image()" << image.path();
     return dbg.maybeSpace();
 }
 
@@ -75,12 +75,12 @@ const QString ImageFolder::path() const
     return p_path;
 }
 
-const int ImageFolder::size() const
+int ImageFolder::size() const
 {
     return p_images.size();
 }
 
-const int ImageFolder::i() const
+int ImageFolder::i() const
 {
     return p_i;
 }
@@ -156,7 +156,7 @@ const QList<Image> & ImageFolder::images() const
     return p_images;
 }
 
-const bool ImageFolder::operator == (const ImageFolder& other) const
+bool ImageFolder::operator ==(const ImageFolder& other)
 {
     if (this->path() == other.path()) return true;
     else return false;
@@ -164,7 +164,7 @@ const bool ImageFolder::operator == (const ImageFolder& other) const
 
 QDebug operator<<(QDebug dbg, const ImageFolder &image_folder)
 {
-    dbg.nospace() << "ImageFolder()";
+    dbg.nospace() << "ImageFolder()" << image_folder.path();
     return dbg.maybeSpace();
 }
 
@@ -250,7 +250,22 @@ void FolderSet::removeCurrent()
     }
 }
 
-const int FolderSet::size() const
+QStringList FolderSet::paths()
+{
+    QStringList paths;
+
+    for (int i = 0; i < p_folders.size(); i++)
+    {
+        for (int j = 0; j < p_folders[i].images().size(); j++)
+        {
+            paths << p_folders[i].images()[j].path();
+        }
+    }
+
+    return paths;
+}
+
+int FolderSet::size() const
 {
     return p_folders.size();
 }
@@ -267,7 +282,7 @@ void FolderSet::append(ImageFolder image_folder)
 
 QDebug operator<<(QDebug dbg, const FolderSet &folder_set)
 {
-    dbg.nospace() << "FolderSet()";
+    dbg.nospace() << "FolderSet()" << folder_set.size();
     return dbg.maybeSpace();
 }
 
