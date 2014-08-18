@@ -24,6 +24,8 @@ signals:
     void selectionChanged(QRectF rect);
     void integrationCompleted(double value, int error);
 
+    void resultFinished(QString str);
+    
 public slots:
     void setMode(int value);
     void setThresholdNoiseLow(double value);
@@ -48,7 +50,14 @@ public slots:
     void centerImage();
     double integrate(QString path, QRectF rect);
     
+    void integrateSingle(Image image);
+    void integrateFolder(ImageFolder folder);
+    void integrateSet(FolderSet set);
+    
 private:
+    QString integrationFrameString(double value, Image &image);
+    
+    
     SharedContextWindow * shared_window;
 
     cl_int err;

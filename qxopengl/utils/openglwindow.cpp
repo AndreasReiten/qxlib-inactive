@@ -75,9 +75,10 @@ void OpenGLWorker::resizeEvent(QResizeEvent * ev)
 
 void OpenGLWorker::process()
 {
-//    qDebug() << "Call to process";
+//    qDebug() << "Making current";
     
     context_gl->makeCurrent(render_surface);
+//    isGLContextCurrent = true;
 
     if (!isInitialized)
     {
@@ -95,6 +96,8 @@ void OpenGLWorker::process()
         render(&painter);
     }
     context_gl->swapBuffers(render_surface);
+//    isGLContextCurrent = false;
+            
     setFps();
     emit finished();
 }

@@ -77,6 +77,9 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             image_tex_dim[0] = frame.getFastDimension();
             image_tex_dim[1] = frame.getSlowDimension();
             
+//            qDebug() << "Need current context";
+            context_gl->makeCurrent(render_surface);
+            
             glGenTextures(1, &image_tex_gl);
             glBindTexture(GL_TEXTURE_2D, image_tex_gl);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -149,6 +152,64 @@ void ImagePreviewWorker::setImageFromPath(QString path)
         }
     }
 }
+
+QString ImagePreviewWorker::integrationFrameString(double value, Image & image)
+{
+    QString str;
+    str += QString::number(value,'E')+" "
+            +QString::number(image.selection().left())+" "
+            +QString::number(image.selection().top())+" "
+            +QString::number(image.selection().width())+" "
+            +QString::number(image.selection().height())+" "
+            +image.path()+"\n";
+}
+
+void ImagePreviewWorker::integrateSingle(Image image)
+{
+    QString result;
+    double value = integrate(image.path(), image.selection());
+    result += integrationFrameString(value,image);
+    emit resultFinished(result);
+    
+}
+
+void ImagePreviewWorker::integrateFolder(ImageFolder folder)
+{
+    QString result;
+    
+    for (int i = 0; i < folder.size(); i++)
+    {
+        double value = integrate(folder.current()->path(), folder.current()->selection());
+        
+        result += integrationFrameString(value, *folder.current());
+    
+        folder.next();
+    }
+    
+    emit resultFinished(result);
+}
+
+void ImagePreviewWorker::integrateSet(FolderSet set)
+{
+    QString result;
+    
+    for (int i = 0; i < set.size(); i++)
+    {
+        for (int j = 0; j < set.current()->size(); j++)
+        {
+            double value = integrate(set.current()->current()->path(), set.current()->current()->selection());
+            
+            result += integrationFrameString(value, *set.current()->current());
+        
+            set.current()->next(); 
+        }
+        
+        set.next();
+    }
+    
+    emit resultFinished(result);
+}
+
 
 double ImagePreviewWorker::integrate(QString path, QRectF rect)
 {
@@ -1299,12 +1360,15 @@ void ImagePreviewWindow::renderNow()
             }
             else
             {
-                context_gl->makeCurrent(this);
-//                gl_worker->process();
-                emit render();
+//                context_gl->makeCurrent(this);
+////                gl_worker->process();
+//                emit render();
             }
 
         }
     }
     if (isAnimating) renderLater();
 }
+
+
+

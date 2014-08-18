@@ -12,6 +12,7 @@ class Image
 {
 public:
     Image();
+    Image(const Image & other);
     ~Image();
 
     void setPath(QString str);
@@ -26,6 +27,7 @@ private:
 };
 
 Q_DECLARE_METATYPE(Image);
+//qRegisterMetaType<Image>();
 
 QDebug operator<<(QDebug dbg, const Image &file);
 
@@ -36,6 +38,7 @@ class ImageFolder
 {
 public:
     ImageFolder();
+    ImageFolder(const ImageFolder & other);
     ~ImageFolder();
 
     void setPath(QString str);
@@ -78,6 +81,7 @@ class FolderSet
 {
 public:
     FolderSet();
+    FolderSet(const FolderSet & other);
     ~FolderSet();
 
     ImageFolder * current();

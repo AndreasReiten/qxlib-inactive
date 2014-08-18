@@ -4,6 +4,13 @@ Image::Image()
 {
     p_selection = QRectF(0,0,5000,5000);
 }
+
+Image::Image(const Image & other)
+{
+    p_selection = other.selection();
+    p_path = other.path();
+}
+
 Image::~Image()
 {
     ;
@@ -58,8 +65,16 @@ QDataStream &operator>>(QDataStream &in, Image &image)
 ImageFolder::ImageFolder()
 {
     p_i = 0;
+    p_i_memory = 0;
 }
-
+ImageFolder::ImageFolder(const ImageFolder & other)
+{
+    p_images = other.images();
+    p_path = other.path();
+    p_i = 0;
+    p_i_memory = 0;
+    
+}
 ImageFolder::~ImageFolder()
 {
     ;
@@ -199,7 +214,13 @@ FolderSet::FolderSet()
     p_i = 0;
     p_i_memory = 0;
 }
-
+FolderSet::FolderSet(const FolderSet & other)
+{
+    p_folders = other.folders();
+    p_i = 0;
+    p_i_memory = 0;
+    
+}
 FolderSet::~FolderSet()
 {
 
