@@ -50,11 +50,11 @@ signals:
 
 public slots:
     void process();
-    virtual void metaMouseMoveEventCompact(QMouseEvent ev);
+//    virtual void metaMouseMoveEventCompact(QMouseEvent ev);
     virtual void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     virtual void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     virtual void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-    virtual void mouseMoveEvent(QMouseEvent* ev);
+//    virtual void mouseMoveEvent(QMouseEvent* ev);
     virtual void wheelEvent(QWheelEvent* ev);
     virtual void resizeEvent(QResizeEvent * ev);
     void setFps();
@@ -97,8 +97,11 @@ signals:
     void metaMouseMoveEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMouseReleaseEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-    void metaMouseMoveEventCaughtCompact(QMouseEvent ev);
-    void mouseMoveEventCaught(QMouseEvent* ev);
+//    void metaMouseMoveEventCaught(QMouseEvent);
+//    void metaMousePressEventCaught(QMouseEvent);
+//    void metaMouseReleaseEventCaught(QMouseEvent ev);
+//    void metaMouseMoveEventCaughtCompact(QMouseEvent ev);
+    void mouseMoveEventCaught(QMouseEvent ev);
     void wheelEventCaught(QWheelEvent* ev);
     void resizeEventCaught(QResizeEvent* ev);
     void stopRendering();
@@ -135,7 +138,7 @@ protected:
     
 //    bool isUpdatePending;
     bool isWorkerBusy;
-    bool isAnimating;
+//    bool isAnimating;
     bool isThreaded;
 };
 

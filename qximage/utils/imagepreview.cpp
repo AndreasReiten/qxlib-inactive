@@ -1355,7 +1355,7 @@ void ImagePreviewWindow::renderNow()
         emit stopRendering();
         return;
     }
-    if (!isWorkerBusy)
+    else if (!isWorkerBusy)
     {
 //        qDebug() << "Worker is busy";
         if (!isInitialized) initializeWorker();
