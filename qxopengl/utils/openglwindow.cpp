@@ -18,16 +18,6 @@ OpenGLWorker::~OpenGLWorker()
     if (paint_device_gl) delete paint_device_gl;
 }
 
-//void OpenGLWorker::mouseMoveEvent(QMouseEvent* ev)
-//{
-//    Q_UNUSED(ev);
-//}
-
-//void OpenGLWorker::metaMouseMoveEventCompact(QMouseEvent ev)
-//{
-//    Q_UNUSED(ev);
-//}
-
 void OpenGLWorker::metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
     Q_UNUSED(x);
@@ -75,17 +65,13 @@ void OpenGLWorker::resizeEvent(QResizeEvent * ev)
 
 void OpenGLWorker::process()
 {
-//    qDebug() << "Making current";
-    
     context_gl->makeCurrent(render_surface);
-//    isGLContextCurrent = true;
 
     if (!isInitialized)
     {
         initializeOpenGLFunctions();
         if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
         paint_device_gl->setSize(render_surface->size());
-//        qDebug() << "Process calling initialize";
         
         initialize();
         isInitialized = true;
@@ -96,7 +82,6 @@ void OpenGLWorker::process()
         render(&painter);
     }
     context_gl->swapBuffers(render_surface);
-//    isGLContextCurrent = false;
             
     setFps();
     emit finished();
@@ -212,9 +197,7 @@ OpenCLContext * OpenGLWindow::getCLContext()
 OpenGLWindow::OpenGLWindow(QWindow *parent, QOpenGLContext * shareContext)
     : QWindow(parent)
     , context_gl(0)
-//    , isUpdatePending(false)
     , isWorkerBusy(false)
-//    , isAnimating(false)
     , isThreaded(false)
 {
     this->shared_context = shareContext;
@@ -249,7 +232,6 @@ void OpenGLWindow::mousePressEvent(QMouseEvent* ev)
 void OpenGLWindow::mouseMoveEvent(QMouseEvent* ev)
 {
     emit metaMouseMoveEventCaught((int)ev->x(), (int)ev->y(), (int)(ev->buttons() & Qt::LeftButton), (int)(ev->buttons() & Qt::MidButton), (int)(ev->buttons() & Qt::RightButton), (int)(ev->modifiers() & Qt::ControlModifier), (int)(ev->modifiers() & Qt::ShiftModifier));
-//    emit mouseMoveEventCaught(*ev);
 }
 
 void OpenGLWindow::setMultiThreading(bool value)
@@ -272,12 +254,6 @@ void OpenGLWindow::resizeEvent(QResizeEvent * ev)
     emit resizeEventCaught(ev);
     renderLater();
 }
-
-//void OpenGLWindow::setOpenGLWorker(OpenGLWorker * worker)
-//{
-//    gl_worker = worker;
-//    worker->setRenderSurface(this);
-//}
 
 void OpenGLWindow::initializeGLContext()
 {
@@ -335,20 +311,14 @@ double OpenGLWorker::getFps()
 
 void OpenGLWindow::renderLater()
 {
-//    if (!isUpdatePending) {
-//        isUpdatePending = true;
-        QCoreApplication::postEvent(this, new QEvent(QEvent::UpdateRequest));
-//    }
+    QCoreApplication::postEvent(this, new QEvent(QEvent::UpdateRequest));
 }
 
 bool OpenGLWindow::event(QEvent *event)
 {
-//    qDebug() << "Exposed";
     switch (event->type()) 
     {
     case QEvent::UpdateRequest:
-//        qDebug() << "UpdateRequest";
-//        isUpdatePending = false;
         renderNow();
         return true;
     default:
@@ -358,8 +328,6 @@ bool OpenGLWindow::event(QEvent *event)
 
 void OpenGLWindow::exposeEvent(QExposeEvent *event)
 {
-//    qDebug() << "Exposed";
-    
     Q_UNUSED(event);
 
     if (isExposed())
@@ -388,24 +356,6 @@ void OpenGLWindow::renderNow()
 {
 
 }
-
-//void OpenGLWindow::setAnimating(bool animating)
-//{
-//    isAnimating = animating;
-
-//    if (isAnimating)
-//        renderLater();
-//}
-
-//void OpenGLWindow::startAnimating()
-//{
-//    setAnimating(true);
-//}
-
-//void OpenGLWindow::stopAnimating()
-//{
-//    setAnimating(false);
-//}
 
 const char * gl_error_cstring(GLenum err)
 {

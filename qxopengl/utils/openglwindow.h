@@ -12,11 +12,9 @@
 #include <sstream>
 
 #include <QWindow>
-//#include <QOpenGLContext>
 #include <QOpenGLFunctions>
 #include <QOpenGLPaintDevice>
 #include <QPainter>
-//#include <QTimer>
 #include <QElapsedTimer>
 #include <QThread>
 #include <QMouseEvent>
@@ -41,7 +39,6 @@ public:
     void getPosition2D(float * pos_2d, float * pos_3d, Matrix<double> * transform);
     void getPosition2D(double * pos_2d, double * pos_3d, Matrix<double> * transform);
     QPointF coordQttoGL(QPointF coord);
-//    void glRect(Matrix<GLfloat> * gl_rect, QRect * qt_rect);
     Matrix<GLfloat> glRect(QRectF &qt_rect);
     void setMultiThreading(bool value);
 
@@ -50,11 +47,9 @@ signals:
 
 public slots:
     void process();
-//    virtual void metaMouseMoveEventCompact(QMouseEvent ev);
     virtual void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     virtual void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     virtual void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-//    virtual void mouseMoveEvent(QMouseEvent* ev);
     virtual void wheelEvent(QWheelEvent* ev);
     virtual void resizeEvent(QResizeEvent * ev);
     void setFps();
@@ -88,7 +83,6 @@ public:
     explicit OpenGLWindow(QWindow *parent = 0, QOpenGLContext * shareContext = 0);
     ~OpenGLWindow();
     virtual void initializeWorker();
-//    void setAnimating(bool animating);
     void setMultiThreading(bool value);
     QOpenGLContext * getGLContext();
     OpenCLContext * getCLContext();
@@ -97,10 +91,6 @@ signals:
     void metaMouseMoveEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMouseReleaseEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-//    void metaMouseMoveEventCaught(QMouseEvent);
-//    void metaMousePressEventCaught(QMouseEvent);
-//    void metaMouseReleaseEventCaught(QMouseEvent ev);
-//    void metaMouseMoveEventCaughtCompact(QMouseEvent ev);
     void mouseMoveEventCaught(QMouseEvent ev);
     void wheelEventCaught(QWheelEvent* ev);
     void resizeEventCaught(QResizeEvent* ev);
@@ -108,8 +98,6 @@ signals:
     void render();
 
 public slots:
-//    void startAnimating();
-//    void stopAnimating();
     void setSwapState();
     void setOpenCLContext(OpenCLContext * context);
     virtual void renderNow();
@@ -136,9 +124,7 @@ protected:
     QOpenGLContext *context_gl;
     OpenCLContext *context_cl;
     
-//    bool isUpdatePending;
     bool isWorkerBusy;
-//    bool isAnimating;
     bool isThreaded;
 };
 

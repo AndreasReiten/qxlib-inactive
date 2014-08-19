@@ -22,8 +22,6 @@ public:
 
 signals:
     void selectionChanged(QRectF rect);
-//    void integrationCompleted(double value, int error);
-
     void pathChanged(QString str);
     void resultFinished(QString str);
     void refresh();
@@ -65,8 +63,6 @@ private:
     cl_int err;
     cl_program program;
     cl_kernel cl_image_preview;
-//    cl_kernel cl_rect_copy_float; // move to context_cl?
-//    cl_kernel cl_parallel_reduction;
     cl_mem image_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
@@ -107,7 +103,6 @@ private:
     bool isTsfTexInitialized;
     bool isCLInitialized;
     bool isFrameValid;
-//    bool isRendering;
 
     Matrix<double> texture_view_matrix;
     Matrix<double> texel_view_matrix;

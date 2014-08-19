@@ -14,7 +14,6 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isFrameValid(false),
     rgb_style(1),
     alpha_style(2)
-//    integration_mode(0)
 {
     Q_UNUSED(parent);
     
@@ -23,16 +22,10 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     texture_view_matrix.setIdentity(4);
     translation_matrix.setIdentity(4);
     zoom_matrix.setIdentity(4);
-//    cursor_translation_matrix.setIdentity(4);
 
     texel_view_matrix.setIdentity(4);
     texel_offset_matrix.setIdentity(4);
 
-    // Set initial zoom
-//    zoom_matrix[0] = 0.5;
-//    zoom_matrix[5] = 0.5;
-//    zoom_matrix[10] = 0.5;
-    
     setThresholdNoiseLow(-1e99);
     setThresholdNoiseHigh(1e99);
     setThresholdPostCorrectionLow(-1e99);
@@ -53,18 +46,10 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
 
 void ImagePreviewWorker::setImageFromPath(QString path)
 {
-//    qDebug() << "setImage";
-    
     if (frame.set(path))
     {
         if(frame.readData())
         {
-//            frame.setNaive();
-
-//            frame.getData().print();
-            
-            
-
             isFrameValid = true;
 
             if (isImageTexInitialized){
@@ -79,7 +64,6 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             image_tex_dim[0] = frame.getFastDimension();
             image_tex_dim[1] = frame.getSlowDimension();
             
-//            qDebug() << "Need current context";
             context_gl->makeCurrent(render_surface);
             
             glGenTextures(1, &image_tex_gl);
@@ -230,45 +214,15 @@ double ImagePreviewWorker::integrate(Image * image)
 
     emit selectionChanged(selection);
 
-//    if ((rect.normalized().width() <= 0) || (rect.normalized().height() <= 0) || (rect.normalized().width() > frame.getFastDimension()) || (rect.normalized().height() > frame.getSlowDimension()))
-//    {
-//        emit integrationCompleted(0,1);
-//        return;
-//    }
-    
-//    qDebug() << "integrate()" << rect;
     
     if (path != frame.getPath())
     {
         setImageFromPath(path);
-//        emit render();
-//        emit refresh();
-        
-        //    qDebug() << "Making current";
-            
-//            context_gl->makeCurrent(render_surface);
-        //    isGLContextCurrent = true;
-        
-//            if (!isInitialized)
-//            {
-//                initializeOpenGLFunctions();
-//                if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
-//                paint_device_gl->setSize(render_surface->size());
-//        //        qDebug() << "Process calling initialize";
-                
-//                initialize();
-//                isInitialized = true;
-//            }
-//            else
             {
                 QPainter painter(paint_device_gl);
                 render(&painter);
             }
             context_gl->swapBuffers(render_surface);
-        //    isGLContextCurrent = false;
-                    
-//            setFps();
-//            emit finished();
     }
     // Copy a chunk of GPU memory for further calculations. 
     rect = rect.normalized();
@@ -278,25 +232,17 @@ double ImagePreviewWorker::integrate(Image * image)
     local_ws[0] = 8;
     local_ws[1] = 8;
     
-//    local_ws.print(0,"local_ws");
-    
     Matrix<size_t> global_ws(1,2);
     global_ws[0] = rect.width() + (local_ws[0] - ((size_t) rect.width())%local_ws[0]);
     global_ws[1] = rect.height() + (local_ws[1] - ((size_t) rect.height())%local_ws[1]);
-    
-//    global_ws.print(0,"global_ws");
     
     Matrix<int> frame_size(1,2);
     frame_size[0] = frame.getFastDimension();
     frame_size[1] = frame.getSlowDimension();
     
-//    frame_size.print(0,"frame_size");
-    
     Matrix<int> frame_origin(1,2);
     frame_origin[0] = rect.left();
     frame_origin[1] = rect.top();
-    
-//    frame_origin.print(0,"frame_origin");
     
     int frame_row_pitch = frame.getFastDimension();
     
@@ -304,16 +250,12 @@ double ImagePreviewWorker::integrate(Image * image)
     selection_origin[0] = 0;
     selection_origin[1] = 0;
 
-//    selection_origin.print(0,"selection_origin");
-    
     int selection_row_pitch = rect.width();
     
     Matrix<int> selection_size(1,2);
     selection_size[0] = rect.width();
     selection_size[1] = rect.height();
 
-//    selection_size.print(0,"selection_size");
-    
     // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequen parallel reduction
     int selection_read_size = rect.width()*rect.height();
     int selection_local_size = 64;
@@ -336,7 +278,6 @@ double ImagePreviewWorker::integrate(Image * image)
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Set kernel parameters
-//    qDebug() << "got here";
     err = clSetKernelArg(context_cl->cl_rect_copy_float,  0, sizeof(cl_mem), (void *) &frame_cl);
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 1, sizeof(cl_int2), frame_size.data());
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 2, sizeof(cl_int2), frame_origin.data());
@@ -347,7 +288,6 @@ double ImagePreviewWorker::integrate(Image * image)
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 7, sizeof(int), &selection_row_pitch);
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 8, sizeof(cl_int2), selection_size.data());
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    qDebug() << "got here";
     
     
     // Launch the kernel
@@ -357,47 +297,12 @@ double ImagePreviewWorker::integrate(Image * image)
     err = clFinish(*context_cl->getCommandQueue());
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-//    Matrix<float> tmp(rect.height(),rect.width());
-
-//    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
-//                                        selection_cl,
-//                                        CL_TRUE,
-//                                        0,
-//                                        (size_t) rect.width()*rect.height()*sizeof(cl_float),
-//                                        tmp.data(),
-//                                        0,NULL,NULL);
-
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    Matrix<float> tmp2(frame.getSlowDimension(),frame.getFastDimension());
-
-//    err = clEnqueueReadBuffer (*context_cl->getCommandQueue(),
-//                                        frame_cl,
-//                                        CL_TRUE,
-//                                        0,
-//                                        (size_t) frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
-//                                        tmp2.data(),
-//                                        0,NULL,NULL);
-
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    err = clFinish(*context_cl->getCommandQueue());
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    tmp2.print(1,"Frame");
-
-//    tmp.print(1,"Selection");
-    
     float sum = sumGpuArray(selection_cl, selection_read_size, 64);
     
-//    qDebug() << sum;
     
     err = clReleaseMemObject(selection_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-//    emit integrationCompleted(sum, 0);
-//    QCoreApplication::processEvents();
-
     return sum;
 }
 
@@ -536,45 +441,11 @@ void ImagePreviewWorker::update(size_t w, size_t h)
         }
         err = clFinish(*context_cl->getCommandQueue());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    //    Matrix<size_t> origin(1,3);
-    //    origin[0] = 0;
-    //    origin[1] = 0;
-    //    origin[2] = 0;
-        
-    //    Matrix<size_t> region(1,3);
-    //    region[0] = frame.getFastDimension();
-    //    region[1] = frame.getSlowDimension();
-    //    region[2] = 1;
-        
-    //    region.print(0,"region");
-        
-    //    Matrix<float> tmp(frame.getSlowDimension(), frame.getFastDimension()*4,-3);
-        
-    //    err = clEnqueueReadImage(
-    //                *context_cl->getCommandQueue(),
-    //                image_tex_cl, 
-    //                CL_TRUE, 
-    //                origin.data(), 
-    //                region.data(), 
-    //                (size_t) frame.getFastDimension()*4*4, 
-    //                0, 
-    //                tmp.data(), 
-    //                0, NULL, NULL);
-    //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    //    err = clFinish(*context_cl->getCommandQueue());
-    //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-        
-    //    tmp.print(2,"texture_cl");
-        
         
         // Release shared CL/GL objects
         err = clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
         err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    
-        
-    //    err = clFinish(*context_cl->getCommandQueue());
-    //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
 }
 
@@ -583,8 +454,6 @@ void ImagePreviewWorker::initResourcesCL()
     // Build program from OpenCL kernel source
     QStringList paths;
     paths << "cl/image_preview.cl";
-//    paths[1] = "cl/mem_functions.cl";
-//    paths[2] = "cl/parallel_reduce.cl";
 
     program = context_cl->createProgram(paths, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -595,12 +464,6 @@ void ImagePreviewWorker::initResourcesCL()
     cl_image_preview = clCreateKernel(program, "imagePreview", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-//    context_cl->cl_rect_copy_float = clCreateKernel(program, "rectCopyFloat", &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    
-//    context_cl->cl_parallel_reduction = clCreateKernel(program, "psum", &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
     // Image sampler
     image_sampler = clCreateSampler(*context_cl->getContext(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -668,19 +531,12 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 
 void ImagePreviewWorker::initialize()
 {
-//    qDebug() << "Call to initialize";
-    
     initResourcesCL();
 
     glGenBuffers(2, texel_line_vbo);
     glGenBuffers(1, &selection_lines_vbo);
 
     isInitialized = true;
-    
-//    qDebug() << "Manual set of tsf";
-    
-//    setTsf(tsf);
-//    qDebug() << "Manual set of tsf done";
 }
 
 
@@ -737,8 +593,6 @@ void ImagePreviewWorker::setDataMax(double value)
 void ImagePreviewWorker::setSelection(QRectF rect)
 {
     selection = rect;
-    
-//    qDebug() << "IP selection" << selection << "left" << selection.left() << "top" << selection.top();
 }
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)
@@ -786,8 +640,6 @@ void ImagePreviewWorker::endRawGLCalls(QPainter * painter)
 
 void ImagePreviewWorker::render(QPainter *painter)
 {
-//    isRendering = true;
-    
     painter->setRenderHint(QPainter::Antialiasing);
     
     beginRawGLCalls(painter);
@@ -804,47 +656,7 @@ void ImagePreviewWorker::render(QPainter *painter)
     
     // Fps
     QString fps_string("Fps: "+QString::number(getFps(), 'f', 0));
-//    QFont emph_font;
-//    emph_font.setBold(true);
-//    emph_fontmetric = new QFontMetrics(emph_font, paint_device_gl);
-//    QRectF fps_string_rect = emph_fontmetric->boundingRect(fps_string);
-//    fps_string_rect.setWidth(std::max(fps_string_width_prev, fps_string_rect.width()));
-//    fps_string_width_prev = fps_string_rect.width();
-//    QRect fps_string_rect;
-//    fps_string_rect += QMargins(5,5,5,5);
-//    fps_string_rect.moveTopRight(QPoint(render_surface->width()-5,5));
-
-//    painter->setBrush(*fill_brush);
-//    painter->drawRoundedRect(fps_string_rect, 5, 5, Qt::AbsoluteSize);
     painter->drawText(QPointF(5,render_surface->height()-5), fps_string);
-    
-//    drawTexelOverlay(painter);
-
-//    drawSelection(painter);
-
-//    isRendering = false;
-    
-//    QRect minicell_rect(50,50,200,200);
-
-//    QPen pen;
-//    pen.setColor(QColor(255,0,0,150));
-//    pen.setWidthF(1.0);
-
-//    QBrush brush;
-//    brush.setColor(QColor(0,255,0,150));
-//    brush.setStyle(Qt::SolidPattern);
-
-//    painter->setPen(pen);
-//    painter->setBrush(brush);
-//    painter->drawRoundedRect(minicell_rect, 5, 5, Qt::AbsoluteSize);
-
-//    QString resolution_string("ANDREAS L REITEN");
-//    QRect resolution_string_rect = emph_fontmetric->boundingRect(resolution_string);
-//    resolution_string_rect += QMargins(5,5,5,5);
-//    resolution_string_rect.moveBottomLeft(QPoint(5, render_surface->height() - 5));
-
-//    painter->drawRoundedRect(resolution_string_rect, 5, 5, Qt::AbsoluteSize);
-//    painter->drawText(100,100,100,100, Qt::AlignCenter, resolution_string);
 }
 
 void ImagePreviewWorker::drawImage(QPainter * painter)
@@ -853,20 +665,8 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     shared_window->rect_hl_2d_tex_program->bind();
 
-//    glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, image_tex_gl);
     shared_window->rect_hl_2d_tex_program->setUniformValue(shared_window->rect_hl_2d_tex_texture, 0);
-
-//    Matrix<GLfloat> tmp(frame.getSlowDimension(),frame.getFastDimension()*4,-1);
-    
-//    glGetTexImage(GL_TEXTURE_2D,  0,  GL_RGBA,  GL_FLOAT,  tmp.data());
-    
-//    if ( glGetError() != GL_NO_ERROR) qFatal(gl_error_cstring(glGetError()));
-    
-//    glFinish();
-    
-//    tmp.print(1,"Texture");
-    
 
     QRectF image_rect(QPointF(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
     image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
@@ -880,15 +680,6 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
         0.0, 1.0
     };
     
-//    GLfloat texpos[] = { // The texpos is flipped along a horizontal mirror plane.
-//        0.0, 1.0,
-//        1.0, 1.0,
-//        1.0, 0.0,
-//        0.0, 0.0
-//    };
-    
-//    fragpos.print(2,"fragpos");
-
     GLuint indices[] = {0,1,3,1,2,3};
 
     texture_view_matrix = zoom_matrix*translation_matrix;
@@ -897,18 +688,12 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     if ( glGetError() != GL_NO_ERROR) qFatal(gl_error_cstring(glGetError()));
     
     // The bounds that enclose the highlighted area of the texture are passed to the shader
-//    selection = selection.normalized();
-    
     Matrix<double> bounds(1,4); // left, top, right, bottom
     
     bounds[0] = (double) selection.normalized().left() / (double) frame.getFastDimension();
     bounds[1] = 1.0 - (double) (selection.normalized().bottom()) / (double) frame.getSlowDimension();
     bounds[2] = (double) selection.normalized().right() / (double) frame.getFastDimension();
     bounds[3] = 1.0 - (double) (selection.normalized().top()) / (double) frame.getSlowDimension();
-    
-//    qDebug() << selection.normalized();
-//    qDebug() << selection.normalized().left() << selection.normalized().top() << selection.normalized().right() << selection.normalized().bottom();
-//    bounds.print(2);
     
     glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
     
@@ -950,18 +735,10 @@ void ImagePreviewWorker::centerImage()
 void ImagePreviewWorker::drawSelection(QPainter *painter)
 {
     // Change to draw a faded polygon
-    
-//    ColorMatrix<float> selection_rect_color(1.0f,0.2f,0.0f,0.5f);
-    
     ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
     
     glLineWidth(2.0);
 
-//    xf = (x / (qreal) render_surface->width()) * 2.0 - 1.0;
-//    yf = (1.0 - (y + h)/ (qreal) render_surface->height()) * 2.0 - 1.0;
-//    wf = (w / (qreal) render_surface->width()) * 2.0;
-//    hf = (h / (qreal) render_surface->height()) * 2.0;
-    
     float x0 = (((qreal) selection.normalized().left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0;
     float y0 = (1.0 - (qreal) (selection.bottom())/ (qreal) render_surface->height()) * 2.0 - 1.0;
     float x1 = (((qreal) selection.normalized().right()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0;
@@ -1042,7 +819,7 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
             Matrix<float> vertical_lines_buf(65,4);
             for (int i = 0; i < vertical_lines_buf.getM(); i++)
             {
-                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width(); // The added 0.5 is due to image dimension being odd in test cases...
+                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
                 vertical_lines_buf[i*4+1] = 1;
                 vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
                 vertical_lines_buf[i*4+3] = -1;
@@ -1374,7 +1151,6 @@ void ImagePreviewWindow::initializeWorker()
         // Set up worker thread
         gl_worker->moveToThread(worker_thread);
         connect(this, SIGNAL(render()), gl_worker, SLOT(process()));
-//        connect(gl_worker, SIGNAL(refresh()), this, SLOT(renderNow()));
         connect(this, SIGNAL(stopRendering()), worker_thread, SLOT(quit()));
         connect(gl_worker, SIGNAL(finished()), this, SLOT(setSwapState()));
 
@@ -1396,40 +1172,23 @@ void ImagePreviewWindow::renderNow()
     
     if (!isExposed())
     {
-//        qDebug() << "Not exposed";
         emit stopRendering();
         return;
     }
     else if (!isWorkerBusy)
     {
-//        qDebug() << "Worker is busy";
         if (!isInitialized) initializeWorker();
 
         if (gl_worker)
         {
             if (isThreaded)
             {
-//                qDebug() << "Activate the thread and render";
                 isWorkerBusy = true;
                 worker_thread->start(); // Reaching this point will activate the thread
                 emit render();
             }
-            else
-            {
-//                context_gl->makeCurrent(this);
-////                gl_worker->process();
-//                emit render();
-            }
-
         }
-        
-//        renderLater();
-//        return;
     }
-//    else
-//    {
-        
-//    }
     renderLater();
 }
 
