@@ -53,6 +53,8 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
 
 void ImagePreviewWorker::setImageFromPath(QString path)
 {
+//    qDebug() << "setImage";
+    
     if (frame.set(path))
     {
         if(frame.readData())
@@ -240,7 +242,33 @@ double ImagePreviewWorker::integrate(Image * image)
     {
         setImageFromPath(path);
 //        emit render();
-        emit refresh();
+//        emit refresh();
+        
+        //    qDebug() << "Making current";
+            
+//            context_gl->makeCurrent(render_surface);
+        //    isGLContextCurrent = true;
+        
+//            if (!isInitialized)
+//            {
+//                initializeOpenGLFunctions();
+//                if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
+//                paint_device_gl->setSize(render_surface->size());
+//        //        qDebug() << "Process calling initialize";
+                
+//                initialize();
+//                isInitialized = true;
+//            }
+//            else
+            {
+                QPainter painter(paint_device_gl);
+                render(&painter);
+            }
+            context_gl->swapBuffers(render_surface);
+        //    isGLContextCurrent = false;
+                    
+//            setFps();
+//            emit finished();
     }
     // Copy a chunk of GPU memory for further calculations. 
     rect = rect.normalized();
@@ -758,8 +786,8 @@ void ImagePreviewWorker::endRawGLCalls(QPainter * painter)
 
 void ImagePreviewWorker::render(QPainter *painter)
 {
-    isRendering = true;
-
+//    isRendering = true;
+    
     painter->setRenderHint(QPainter::Antialiasing);
     
     beginRawGLCalls(painter);
@@ -772,13 +800,30 @@ void ImagePreviewWorker::render(QPainter *painter)
     endRawGLCalls(painter);
 
     drawImage(painter);
+    
+    
+    // Fps
+    QString fps_string("Fps: "+QString::number(getFps(), 'f', 0));
+//    QFont emph_font;
+//    emph_font.setBold(true);
+//    emph_fontmetric = new QFontMetrics(emph_font, paint_device_gl);
+//    QRectF fps_string_rect = emph_fontmetric->boundingRect(fps_string);
+//    fps_string_rect.setWidth(std::max(fps_string_width_prev, fps_string_rect.width()));
+//    fps_string_width_prev = fps_string_rect.width();
+//    QRect fps_string_rect;
+//    fps_string_rect += QMargins(5,5,5,5);
+//    fps_string_rect.moveTopRight(QPoint(render_surface->width()-5,5));
 
+//    painter->setBrush(*fill_brush);
+//    painter->drawRoundedRect(fps_string_rect, 5, 5, Qt::AbsoluteSize);
+    painter->drawText(QPointF(5,render_surface->height()-5), fps_string);
+    
 //    drawTexelOverlay(painter);
 
 //    drawSelection(painter);
 
-    isRendering = false;
-
+//    isRendering = false;
+    
 //    QRect minicell_rect(50,50,200,200);
 
 //    QPen pen;
@@ -1185,7 +1230,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     if(shift_button) move_scaling = 5.0;
     else if(ctrl_button) move_scaling = 0.2;
 
-    if (left_button && !isSelectionActive && (isRendering == false))
+    if (left_button && !isSelectionActive)// && (isRendering == false))
     {
         double dx = (x - last_mouse_pos_x)*2.0/(render_surface->width()*zoom_matrix[0]);
         double dy = -(y - last_mouse_pos_y)*2.0/(render_surface->height()*zoom_matrix[0]);
@@ -1254,7 +1299,7 @@ void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 
     double delta = move_scaling*((double)ev->delta())*0.0008;
 
-    if ((zoom_matrix[0] + zoom_matrix[0]*delta < 256) && (isRendering == false))
+    if ((zoom_matrix[0] + zoom_matrix[0]*delta < 256))// && (isRendering == false))
     {
         /*
          * Zooming happens around the GL screen coordinate (0,0), i.e. the middle,
@@ -1366,7 +1411,7 @@ void ImagePreviewWindow::renderNow()
             {
 //                qDebug() << "Activate the thread and render";
                 isWorkerBusy = true;
-                worker_thread->start();
+                worker_thread->start(); // Reaching this point will activate the thread
                 emit render();
             }
             else

@@ -107,7 +107,7 @@ private:
     bool isTsfTexInitialized;
     bool isCLInitialized;
     bool isFrameValid;
-    bool isRendering;
+//    bool isRendering;
 
     Matrix<double> texture_view_matrix;
     Matrix<double> texel_view_matrix;

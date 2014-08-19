@@ -358,6 +358,8 @@ bool OpenGLWindow::event(QEvent *event)
 
 void OpenGLWindow::exposeEvent(QExposeEvent *event)
 {
+//    qDebug() << "Exposed";
+    
     Q_UNUSED(event);
 
     if (isExposed())
