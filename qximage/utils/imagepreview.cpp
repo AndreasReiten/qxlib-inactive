@@ -149,6 +149,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             
             update(frame.getFastDimension(), frame.getSlowDimension());
+            
+            emit pathChanged(frame.getPath());
         }
     }
 }
@@ -162,15 +164,15 @@ QString ImagePreviewWorker::integrationFrameString(double value, Image & image)
             +QString::number(image.selection().width())+" "
             +QString::number(image.selection().height())+" "
             +image.path()+"\n";
+    return str;
 }
 
 void ImagePreviewWorker::integrateSingle(Image image)
 {
     QString result;
-    double value = integrate(image.path(), image.selection());
+    double value = integrate(&image);
     result += integrationFrameString(value,image);
     emit resultFinished(result);
-    
 }
 
 void ImagePreviewWorker::integrateFolder(ImageFolder folder)
@@ -179,7 +181,7 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
     
     for (int i = 0; i < folder.size(); i++)
     {
-        double value = integrate(folder.current()->path(), folder.current()->selection());
+        double value = integrate(folder.current());
         
         result += integrationFrameString(value, *folder.current());
     
@@ -197,7 +199,7 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
     {
         for (int j = 0; j < set.current()->size(); j++)
         {
-            double value = integrate(set.current()->current()->path(), set.current()->current()->selection());
+            double value = integrate(set.current()->current());
             
             result += integrationFrameString(value, *set.current()->current());
         
@@ -211,13 +213,17 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
 }
 
 
-double ImagePreviewWorker::integrate(QString path, QRectF rect)
+double ImagePreviewWorker::integrate(Image * image)
 {
+    QRectF rect = image->selection();
+    QString path = image->path();
+    
     if (rect.left() < 0) rect.setLeft(0);
-    if (rect.right() >= frame.getFastDimension()) rect.setRight(frame.getFastDimension() - 1);
+    if (rect.right() >= frame.getFastDimension()) rect.setRight(frame.getFastDimension());
     if (rect.top() < 0) rect.setTop(0);
-    if (rect.bottom() >= frame.getSlowDimension()) rect.setBottom(frame.getSlowDimension() - 1);
+    if (rect.bottom() >= frame.getSlowDimension()) rect.setBottom(frame.getSlowDimension());
 
+    image->setSelection(rect);
     selection = rect;
 
     emit selectionChanged(selection);
@@ -230,8 +236,12 @@ double ImagePreviewWorker::integrate(QString path, QRectF rect)
     
 //    qDebug() << "integrate()" << rect;
     
-    if (path != frame.getPath()) setImageFromPath(path);
-    
+    if (path != frame.getPath())
+    {
+        setImageFromPath(path);
+//        emit render();
+        emit refresh();
+    }
     // Copy a chunk of GPU memory for further calculations. 
     rect = rect.normalized();
     
@@ -357,7 +367,7 @@ double ImagePreviewWorker::integrate(QString path, QRectF rect)
     err = clReleaseMemObject(selection_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    emit integrationCompleted(sum, 0);
+//    emit integrationCompleted(sum, 0);
 //    QCoreApplication::processEvents();
 
     return sum;
@@ -534,6 +544,7 @@ void ImagePreviewWorker::update(size_t w, size_t h)
         err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
+        
     //    err = clFinish(*context_cl->getCommandQueue());
     //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
@@ -1318,6 +1329,7 @@ void ImagePreviewWindow::initializeWorker()
         // Set up worker thread
         gl_worker->moveToThread(worker_thread);
         connect(this, SIGNAL(render()), gl_worker, SLOT(process()));
+//        connect(gl_worker, SIGNAL(refresh()), this, SLOT(renderNow()));
         connect(this, SIGNAL(stopRendering()), worker_thread, SLOT(quit()));
         connect(gl_worker, SIGNAL(finished()), this, SLOT(setSwapState()));
 
@@ -1336,24 +1348,23 @@ void ImagePreviewWindow::initializeWorker()
 
 void ImagePreviewWindow::renderNow()
 {
+    
     if (!isExposed())
     {
+//        qDebug() << "Not exposed";
         emit stopRendering();
         return;
     }
-    if (isWorkerBusy)
+    if (!isWorkerBusy)
     {
-        if (isAnimating) renderLater();
-        return;
-    }
-    else
-    {
+//        qDebug() << "Worker is busy";
         if (!isInitialized) initializeWorker();
 
         if (gl_worker)
         {
             if (isThreaded)
             {
+//                qDebug() << "Activate the thread and render";
                 isWorkerBusy = true;
                 worker_thread->start();
                 emit render();
@@ -1366,8 +1377,15 @@ void ImagePreviewWindow::renderNow()
             }
 
         }
+        
+//        renderLater();
+//        return;
     }
-    if (isAnimating) renderLater();
+//    else
+//    {
+        
+//    }
+    renderLater();
 }
 
 

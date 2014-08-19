@@ -22,9 +22,11 @@ public:
 
 signals:
     void selectionChanged(QRectF rect);
-    void integrationCompleted(double value, int error);
+//    void integrationCompleted(double value, int error);
 
+    void pathChanged(QString str);
     void resultFinished(QString str);
+    void refresh();
     
 public slots:
     void setMode(int value);
@@ -48,7 +50,7 @@ public slots:
     void setSelection(QRectF rect);
     void setSelectionActive(bool value);
     void centerImage();
-    double integrate(QString path, QRectF rect);
+    double integrate(Image *image);
     
     void integrateSingle(Image image);
     void integrateFolder(ImageFolder folder);

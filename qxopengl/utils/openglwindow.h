@@ -88,7 +88,7 @@ public:
     explicit OpenGLWindow(QWindow *parent = 0, QOpenGLContext * shareContext = 0);
     ~OpenGLWindow();
     virtual void initializeWorker();
-    void setAnimating(bool animating);
+//    void setAnimating(bool animating);
     void setMultiThreading(bool value);
     QOpenGLContext * getGLContext();
     OpenCLContext * getCLContext();
@@ -105,8 +105,8 @@ signals:
     void render();
 
 public slots:
-    void startAnimating();
-    void stopAnimating();
+//    void startAnimating();
+//    void stopAnimating();
     void setSwapState();
     void setOpenCLContext(OpenCLContext * context);
     virtual void renderNow();
@@ -133,7 +133,7 @@ protected:
     QOpenGLContext *context_gl;
     OpenCLContext *context_cl;
     
-    bool isUpdatePending;
+//    bool isUpdatePending;
     bool isWorkerBusy;
     bool isAnimating;
     bool isThreaded;

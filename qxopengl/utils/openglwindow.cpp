@@ -212,7 +212,7 @@ OpenCLContext * OpenGLWindow::getCLContext()
 OpenGLWindow::OpenGLWindow(QWindow *parent, QOpenGLContext * shareContext)
     : QWindow(parent)
     , context_gl(0)
-    , isUpdatePending(false)
+//    , isUpdatePending(false)
     , isWorkerBusy(false)
     , isAnimating(false)
     , isThreaded(false)
@@ -334,17 +334,20 @@ double OpenGLWorker::getFps()
 
 void OpenGLWindow::renderLater()
 {
-    if (!isUpdatePending) {
-        isUpdatePending = true;
+//    if (!isUpdatePending) {
+//        isUpdatePending = true;
         QCoreApplication::postEvent(this, new QEvent(QEvent::UpdateRequest));
-    }
+//    }
 }
 
 bool OpenGLWindow::event(QEvent *event)
 {
-    switch (event->type()) {
+//    qDebug() << "Exposed";
+    switch (event->type()) 
+    {
     case QEvent::UpdateRequest:
-        isUpdatePending = false;
+//        qDebug() << "UpdateRequest";
+//        isUpdatePending = false;
         renderNow();
         return true;
     default:
@@ -383,23 +386,23 @@ void OpenGLWindow::renderNow()
 
 }
 
-void OpenGLWindow::setAnimating(bool animating)
-{
-    isAnimating = animating;
+//void OpenGLWindow::setAnimating(bool animating)
+//{
+//    isAnimating = animating;
 
-    if (isAnimating)
-        renderLater();
-}
+//    if (isAnimating)
+//        renderLater();
+//}
 
-void OpenGLWindow::startAnimating()
-{
-    setAnimating(true);
-}
+//void OpenGLWindow::startAnimating()
+//{
+//    setAnimating(true);
+//}
 
-void OpenGLWindow::stopAnimating()
-{
-    setAnimating(false);
-}
+//void OpenGLWindow::stopAnimating()
+//{
+//    setAnimating(false);
+//}
 
 const char * gl_error_cstring(GLenum err)
 {
