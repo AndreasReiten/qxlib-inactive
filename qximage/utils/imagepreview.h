@@ -42,6 +42,8 @@ public slots:
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
+//    void keyPressEvent(QKeyEvent ev);
+//    void keyReleaseEvent(QKeyEvent *ev);
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
     void setImageFromPath(QString path);
@@ -138,6 +140,9 @@ class ImagePreviewWindow : public OpenGLWindow
 {
     Q_OBJECT
 
+signals:
+    void selectionActiveChanged(bool value);
+    
 public:
     ImagePreviewWindow();
     ~ImagePreviewWindow();
@@ -149,6 +154,8 @@ public:
 
 public slots:
     void renderNow();
+    void keyPressEvent(QKeyEvent *ev);
+    void keyReleaseEvent(QKeyEvent *ev);
 
 private:
     bool isInitialized;

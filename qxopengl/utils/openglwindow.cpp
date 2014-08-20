@@ -56,6 +56,16 @@ void OpenGLWorker::wheelEvent(QWheelEvent* ev)
     Q_UNUSED(ev);
 }
 
+//void OpenGLWorker::keyPressEvent(QKeyEvent ev)
+//{
+//    Q_UNUSED(ev);
+//}
+
+//void OpenGLWorker::keyReleaseEvent(QKeyEvent * ev)
+//{
+//    Q_UNUSED(ev);
+//}
+
 void OpenGLWorker::resizeEvent(QResizeEvent * ev)
 {
     Q_UNUSED(ev);
@@ -255,6 +265,19 @@ void OpenGLWindow::resizeEvent(QResizeEvent * ev)
     renderLater();
 }
 
+
+void OpenGLWindow::keyPressEvent(QKeyEvent * ev)
+{
+//    qDebug() << ev->key();
+    
+//    emit keyPressEventCaught(*ev);
+}
+
+void OpenGLWindow::keyReleaseEvent(QKeyEvent * ev)
+{
+//    emit keyReleaseEventCaught(ev);
+}
+
 void OpenGLWindow::initializeGLContext()
 {
     if (!context_gl)
@@ -321,6 +344,14 @@ bool OpenGLWindow::event(QEvent *event)
     case QEvent::UpdateRequest:
         renderNow();
         return true;
+//    case QEvent::Leave:
+//        qDebug() << "leave";
+        
+//        return true;
+//    case QEvent::Enter:
+////        emit setFocus();
+//        qDebug() << "enter";
+//        return true;
     default:
         return QWindow::event(event);
     }

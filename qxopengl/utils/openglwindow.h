@@ -52,6 +52,8 @@ public slots:
     virtual void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     virtual void wheelEvent(QWheelEvent* ev);
     virtual void resizeEvent(QResizeEvent * ev);
+//    virtual void keyPressEvent(QKeyEvent ev);
+//    virtual void keyReleaseEvent(QKeyEvent * ev);
     void setFps();
 
 protected:
@@ -91,11 +93,14 @@ signals:
     void metaMouseMoveEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMouseReleaseEventCaught(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-    void mouseMoveEventCaught(QMouseEvent ev);
+//    void mouseMoveEventCaught(QMouseEvent ev);
+    void keyPressEventCaught(QKeyEvent ev);
+    void keyReleaseEventCaught(QKeyEvent * ev);
     void wheelEventCaught(QWheelEvent* ev);
     void resizeEventCaught(QResizeEvent* ev);
     void stopRendering();
     void render();
+    void setFocus();
 
 public slots:
     void setSwapState();
@@ -113,6 +118,8 @@ protected:
     void mousePressEvent(QMouseEvent* ev);
     void mouseReleaseEvent(QMouseEvent* ev);
     void wheelEvent(QWheelEvent* ev);
+    void keyPressEvent(QKeyEvent * ev);
+    void keyReleaseEvent(QKeyEvent * ev);
     void resizeEvent(QResizeEvent * ev);
     void exposeEvent(QExposeEvent *event);
 

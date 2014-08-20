@@ -163,16 +163,27 @@ void ImagePreviewWorker::integrateSingle(Image image)
 
 void ImagePreviewWorker::integrateFolder(ImageFolder folder)
 {
-    QString result;
+    double sum = 0;
     
+    QString frames;        
     for (int i = 0; i < folder.size(); i++)
     {
         double value = integrate(folder.current());
+        sum += value;
         
-        result += integrationFrameString(value, *folder.current());
+        frames += integrationFrameString(value, *folder.current());
     
         folder.next();
     }
+    
+    QString result;
+    
+    result += "# Integration of frames in folder "+folder.path()+"\n";
+    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+    result += "#\n";
+    result += "# Sum of total integrated area in folder\n"+QString::number(sum,'E')+"\n";
+    result += "# Integration of the individual frames (sum, origin x, origin y, width, height, path)\n";
+    result += frames;
     
     emit resultFinished(result);
 }
@@ -1004,8 +1015,8 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     Q_UNUSED(shift_button);
 
     float move_scaling = 1.0;
-    if(shift_button) move_scaling = 5.0;
-    else if(ctrl_button) move_scaling = 0.2;
+//    if(shift_button) move_scaling = 5.0;
+//    else if(ctrl_button) move_scaling = 0.2;
 
     if (left_button && !isSelectionActive)// && (isRendering == false))
     {
@@ -1020,8 +1031,6 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
         Matrix<int> pixel = getImagePixel(x, y);
         
         selection.setBottomRight(QPointF(pixel[0]+1, pixel[1]+1));
-        // QPointF(pixel[0] + (qreal) render_surface->width()*0.5, pixel[1] + (qreal) render_surface->height()*0.5);
-        
     }
 
     last_mouse_pos_x = x;
@@ -1063,12 +1072,29 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         
         emit selectionChanged(selection);
     }
-    
-//    qDebug() << "IP selection" << selection.normalized() << "left" << selection.normalized().left() << "top" << selection.normalized().top();
 }
+
+void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
+{
+    // This is an example of letting the QWindow take care of event handling. In all fairness, only swapbuffers and heavy work (OpenCL and calculations) need to be done in a separate thread.
+    qDebug() << "Press key " << ev->key();
+    if (ev->key() == Qt::Key_Shift) 
+    {
+        emit selectionActiveChanged(true);
+    }
+}
+
+void ImagePreviewWindow::keyReleaseEvent(QKeyEvent *ev)
+{
+    qDebug() << "Release key " << ev->key();
+    if (ev->key() == Qt::Key_Shift) 
+    {
+        emit selectionActiveChanged(false);
+    }
+}
+
 void ImagePreviewWorker::wheelEvent(QWheelEvent* ev)
 {
-    Q_UNUSED(ev);
 
     float move_scaling = 1.0;
     if(ev->modifiers() & Qt::ShiftModifier) move_scaling = 5.0;
@@ -1158,6 +1184,8 @@ void ImagePreviewWindow::initializeWorker()
         connect(this, SIGNAL(metaMouseMoveEventCaught(int, int, int, int, int, int, int)), gl_worker, SLOT(metaMouseMoveEvent(int, int, int, int, int, int, int)));
         connect(this, SIGNAL(metaMousePressEventCaught(int, int, int, int, int, int, int)), gl_worker, SLOT(metaMousePressEvent(int, int, int, int, int, int, int)));
         connect(this, SIGNAL(metaMouseReleaseEventCaught(int, int, int, int, int, int, int)), gl_worker, SLOT(metaMouseReleaseEvent(int, int, int, int, int, int, int)));
+//        connect(this, SIGNAL(keyPressEventCaught(QKeyEvent)), gl_worker, SLOT(keyPressEvent(QKeyEvent)));
+//        connect(this, SIGNAL(keyReleaseEventCaught(QKeyEvent*)), gl_worker, SLOT(keyReleaseEvent(QKeyEvent*)));
         connect(this, SIGNAL(resizeEventCaught(QResizeEvent*)), gl_worker, SLOT(resizeEvent(QResizeEvent*)));
         connect(this, SIGNAL(wheelEventCaught(QWheelEvent*)), gl_worker, SLOT(wheelEvent(QWheelEvent*)), Qt::DirectConnection);
         
