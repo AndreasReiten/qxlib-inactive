@@ -91,6 +91,8 @@ public:
 
     QStringList paths();
 
+    void rememberCurrent();
+    void restoreMemory();
     void clear();
     void append(ImageFolder image_folder);
     void removeCurrent();

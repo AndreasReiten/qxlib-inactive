@@ -259,6 +259,19 @@ void FolderSet::setFolders(QList<ImageFolder> list)
     p_folders = list;
 }
 
+void FolderSet::rememberCurrent()
+{
+    p_i_memory = p_i;
+}
+
+void FolderSet::restoreMemory()
+{
+    if (p_i_memory < folders().size())
+    {
+        p_i = p_i_memory;
+    }
+}
+
 void FolderSet::clear()
 {
     p_folders.clear();
