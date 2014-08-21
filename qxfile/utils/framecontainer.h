@@ -87,6 +87,7 @@ public:
     ImageFolder * current();
     ImageFolder * next();
     ImageFolder * previous();
+    ImageFolder * begin();
 
     QStringList paths();
 

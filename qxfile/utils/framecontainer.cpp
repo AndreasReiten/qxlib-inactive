@@ -248,6 +248,12 @@ ImageFolder * FolderSet::previous()
     return &p_folders[p_i];
 }
 
+ImageFolder * FolderSet::begin()
+{
+    p_i = 0;
+    return &p_folders[p_i];
+}
+
 void FolderSet::setFolders(QList<ImageFolder> list)
 {
     p_folders = list;

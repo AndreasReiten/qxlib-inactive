@@ -190,20 +190,48 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
 
 void ImagePreviewWorker::integrateSet(FolderSet set)
 {
-    QString result;
+    double sum = 0;
+    QStringList folder_sum;
+    QStringList folder_frames;
+    QString str;
     
     for (int i = 0; i < set.size(); i++)
     {
         for (int j = 0; j < set.current()->size(); j++)
         {
             double value = integrate(set.current()->current());
+            sum += value;
             
-            result += integrationFrameString(value, *set.current()->current());
+            str += integrationFrameString(value, *set.current()->current());
         
             set.current()->next(); 
         }
         
+        folder_sum << QString(QString::number(sum,'E')+" "+set.current()->path()+"\n");
+        sum = 0;
+        
+        folder_frames << str;
+        str.clear();
+        
         set.next();
+    }
+    
+    QString result;
+    
+    result += "# Integration of frames in several folders\n";
+    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+    result += "#\n";
+    result += "# Sum of total integrated area in folders\n";
+    foreach(const QString &str, folder_sum)
+    {
+        result += str;
+    }
+    
+    result += "# Integration of the individual frames for each folder (sum, origin x, origin y, width, height, path)\n";
+    for (int i = 0; i < folder_sum.size(); i++)
+    {
+        result += "# Folder "+folder_sum.at(i);
+        result += folder_frames.at(i);
     }
     
     emit resultFinished(result);
@@ -1076,8 +1104,9 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
 
 void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
 {
-    // This is an example of letting the QWindow take care of event handling. In all fairness, only swapbuffers and heavy work (OpenCL and calculations) need to be done in a separate thread.
-    qDebug() << "Press key " << ev->key();
+    // This is an example of letting the QWindow take care of event handling. In all fairness, only swapbuffers and heavy work (OpenCL and calculations) need to be done in a separate thread. 
+    //Currently bugged somehow. A signal to the worker appears to block further key events.
+//    qDebug() << "Press key " << ev->key();
     if (ev->key() == Qt::Key_Shift) 
     {
         emit selectionActiveChanged(true);
@@ -1086,7 +1115,7 @@ void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
 
 void ImagePreviewWindow::keyReleaseEvent(QKeyEvent *ev)
 {
-    qDebug() << "Release key " << ev->key();
+//    qDebug() << "Release key " << ev->key();
     if (ev->key() == Qt::Key_Shift) 
     {
         emit selectionActiveChanged(false);
