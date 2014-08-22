@@ -26,10 +26,10 @@ __kernel void imagePreview(
     //       (slow)
 
     // Thresholds and other parameters essential to the file
-    float th_a_low = parameter[0];
-    float th_a_high = parameter[1];
-    float th_b_low = parameter[2];
-    float th_b_high = parameter[3];
+    float noise_low = parameter[0];
+    float noise_high = parameter[1];
+    float pct_low = parameter[2]; // Post correction threshold
+    float pct_high = parameter[3];
     float flux = parameter[4];
     float exp_time = parameter[5];
     float wavelength = parameter[6];
@@ -52,16 +52,18 @@ __kernel void imagePreview(
         float intensity = read_imagef(source, intensity_sampler, id_glb).w; /* DANGER */
 
         // Flat min/max filter (threshold_one)
-        if (((intensity < th_a_low) || (intensity > th_a_high)))
-        {
-            intensity = 0.0f; // A bit too specific
-        }
+//        if (((intensity < noise_low) || (intensity > noise_high)))
+//        {
+//            intensity = 0.0f; // A bit too specific
+//        }
+        intensity = clamp(intensity, noise_low, noise_high);
+        
 
         if (correction == 1)
         {
             float4 Q = (float4)(0.0f);
-            if (intensity > 0.0f)
-            {
+//            if (intensity > 0.0f)
+//            {
                 float k = 1.0f/wavelength; // Multiply with 2pi if desired
 
                 float3 k_i = (float3)(-k,0,0);
@@ -85,13 +87,14 @@ __kernel void imagePreview(
                 }
 
                 // Flat min/max filter (threshold_two)
-                if (((Q.w < th_b_low) || (Q.w > th_b_high)))
-                {
-                    Q.w = 0.0f;
-                }
+//                if (((Q.w < pct_low) || (Q.w > pct_high)))
+//                {
+//                    Q.w = 0.0f; // A bit too specific
+//                }
+                Q.w = clamp(Q.w, pct_low, pct_high);
 
                 intensity = Q.w;
-            }
+//            }
         }
 
         // Write the intensity value to a normal floating point buffer. The value can then be used later without doing all of this.

@@ -38,6 +38,7 @@ public slots:
     void setCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
+    void setImage(DetectorFile & file);
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);

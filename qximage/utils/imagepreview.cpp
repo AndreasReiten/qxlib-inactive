@@ -44,6 +44,95 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
     this->shared_window = window;
 }
 
+void ImagePreviewWorker::setImage(DetectorFile & file)
+{
+    if (isImageTexInitialized){
+        err = clReleaseMemObject(image_tex_cl);
+        err |= clReleaseMemObject(source_cl);
+        err |= clReleaseMemObject(frame_cl);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        glDeleteTextures(1, &image_tex_gl);
+    }
+
+    Matrix<size_t> image_tex_dim(1,2);
+    image_tex_dim[0] = file.getFastDimension();
+    image_tex_dim[1] = file.getSlowDimension();
+    
+    context_gl->makeCurrent(render_surface);
+    
+    glGenTextures(1, &image_tex_gl);
+    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_RGBA32F,
+        image_tex_dim[0],
+        image_tex_dim[1],
+        0,
+        GL_RGBA,
+        GL_FLOAT,
+        NULL);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    isImageTexInitialized = true;
+
+    // Share the texture with the OpenCL runtime
+    image_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    // Pass texture to CL kernel
+    err = clSetKernelArg(cl_image_preview, 0, sizeof(cl_mem), (void *) &image_tex_cl);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    // Load data into a CL texture
+    cl_image_format source_format;
+    source_format.image_channel_order = CL_INTENSITY;
+    source_format.image_channel_data_type = CL_FLOAT;
+
+    source_cl = clCreateImage2D ( *context_cl->getContext(),
+        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+        &source_format,
+        file.getFastDimension(),
+        file.getSlowDimension(),
+        0,
+        file.data().data(),
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    frame_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    err = clSetKernelArg(cl_image_preview, 1, sizeof(cl_mem), (void *) &source_cl);
+    err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &frame_cl);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    // Thresholds and other parameters essential to the file
+    parameter[4] = file.getFlux();
+    parameter[5] = file.getExpTime();
+    parameter[6] = file.getWavelength();
+    parameter[7] = file.getDetectorDist();
+    parameter[8] = file.getBeamX();
+    parameter[9] = file.getBeamY();
+    parameter[10] = file.getPixSizeX();
+    parameter[11] = file.getPixSizeY();
+    
+    setParameter(parameter);
+    err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
+    err |= clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
+    err |= clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    update(file.getFastDimension(), file.getSlowDimension());
+    
+    emit pathChanged(file.getPath());
+}
+
 void ImagePreviewWorker::setImageFromPath(QString path)
 {
     if (frame.set(path))
@@ -51,92 +140,8 @@ void ImagePreviewWorker::setImageFromPath(QString path)
         if(frame.readData())
         {
             isFrameValid = true;
-
-            if (isImageTexInitialized){
-                err = clReleaseMemObject(image_tex_cl);
-                err |= clReleaseMemObject(source_cl);
-                err |= clReleaseMemObject(frame_cl);
-                if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-                glDeleteTextures(1, &image_tex_gl);
-            }
-
-            Matrix<size_t> image_tex_dim(1,2);
-            image_tex_dim[0] = frame.getFastDimension();
-            image_tex_dim[1] = frame.getSlowDimension();
             
-            context_gl->makeCurrent(render_surface);
-            
-            glGenTextures(1, &image_tex_gl);
-            glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-            glTexImage2D(
-                GL_TEXTURE_2D,
-                0,
-                GL_RGBA32F,
-                image_tex_dim[0],
-                image_tex_dim[1],
-                0,
-                GL_RGBA,
-                GL_FLOAT,
-                NULL);
-            glBindTexture(GL_TEXTURE_2D, 0);
-            
-            isImageTexInitialized = true;
-
-            // Share the texture with the OpenCL runtime
-            image_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-            
-            // Pass texture to CL kernel
-            err = clSetKernelArg(cl_image_preview, 0, sizeof(cl_mem), (void *) &image_tex_cl);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-            // Load data into a CL texture
-            cl_image_format source_format;
-            source_format.image_channel_order = CL_INTENSITY;
-            source_format.image_channel_data_type = CL_FLOAT;
-
-            source_cl = clCreateImage2D ( *context_cl->getContext(),
-                CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                &source_format,
-                frame.getFastDimension(),
-                frame.getSlowDimension(),
-                0,
-                frame.data().data(),
-                &err);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-            frame_cl = clCreateBuffer( *context_cl->getContext(),
-                CL_MEM_ALLOC_HOST_PTR,
-                frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
-                NULL,
-                &err);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-            
-            err = clSetKernelArg(cl_image_preview, 1, sizeof(cl_mem), (void *) &source_cl);
-            err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &frame_cl);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-            // Thresholds and other parameters essential to the file
-            parameter[4] = frame.getFlux();
-            parameter[5] = frame.getExpTime();
-            parameter[6] = frame.getWavelength();
-            parameter[7] = frame.getDetectorDist();
-            parameter[8] = frame.getBeamX();
-            parameter[9] = frame.getBeamY();
-            parameter[10] = frame.getPixSizeX();
-            parameter[11] = frame.getPixSizeY();
-            
-            setParameter(parameter);
-            err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
-            err |= clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
-            err |= clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
-            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-            
-            update(frame.getFastDimension(), frame.getSlowDimension());
-            
-            emit pathChanged(frame.getPath());
+            setImage(frame);
         }
     }
 }
@@ -257,11 +262,11 @@ double ImagePreviewWorker::integrate(Image * image)
     if (path != frame.getPath())
     {
         setImageFromPath(path);
-            {
-                QPainter painter(paint_device_gl);
-                render(&painter);
-            }
-            context_gl->swapBuffers(render_surface);
+        {
+            QPainter painter(paint_device_gl);
+            render(&painter);
+        }
+        context_gl->swapBuffers(render_surface);
     }
     // Copy a chunk of GPU memory for further calculations. 
     rect = rect.normalized();
@@ -574,8 +579,15 @@ void ImagePreviewWorker::initialize()
 
     glGenBuffers(2, texel_line_vbo);
     glGenBuffers(1, &selection_lines_vbo);
-
+    
     isInitialized = true;
+    
+//    setTsfTexture(rgb_style);
+    
+//    DetectorFile welcome_image;
+//    welcome_image.setNaive();
+    
+//    setImage(welcome_image);
 }
 
 
