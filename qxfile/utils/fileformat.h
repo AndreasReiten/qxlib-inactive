@@ -37,6 +37,8 @@ class DetectorFile
         int readData();
 
         void setNaive();
+        
+        float intensity(int x, int y);
 
         Matrix<float> & data();
         int getFastDimension() const;

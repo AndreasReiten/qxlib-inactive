@@ -24,7 +24,9 @@ DetectorFile::~DetectorFile()
 
 }
 DetectorFile::DetectorFile() :
-    active_angle(2)
+    active_angle(2),
+    fast_dimension(0),
+    slow_dimension(0)
 {
     srchrad_sugg_low = std::numeric_limits<float>::max();
     srchrad_sugg_high = std::numeric_limits<float>::min();
@@ -90,6 +92,15 @@ void DetectorFile::setNaive()
 //    }
 
     STATUS_OK = 1;
+}
+
+float DetectorFile::intensity(int x, int y)
+{
+    if ((x >= 0) && (x < fast_dimension) && (y >= 0) && (y < slow_dimension))
+    {
+        return data_buf[x + y*fast_dimension];
+    }
+    else return 0;
 }
 
 float DetectorFile::getWavelength()

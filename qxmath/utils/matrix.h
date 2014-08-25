@@ -50,6 +50,7 @@ class Matrix {
 
         T sum();
         QVector<T> toQVector() const;
+        void normalize();
         void setIdentity(size_t n);
         void set(size_t m, size_t n, T value);
         void setDeep(size_t m, size_t n, T * buffer);
@@ -327,6 +328,23 @@ Matrix<float> Matrix<T>::toFloat() const
     }
 
     return buf;
+}
+
+template <class T>
+void Matrix<T>::normalize()
+{
+    T sum = 0;
+    for (size_t i = 0; i < m*n; i++)
+    {
+        sum += buffer[i]*buffer[i];
+    }
+    
+    sum = sqrt(sum);
+    
+    for (size_t i = 0; i < m*n; i++)
+    {
+        buffer[i] /= sum;
+    }
 }
 
 template <class T>

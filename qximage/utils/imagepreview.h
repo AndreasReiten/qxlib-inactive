@@ -96,6 +96,7 @@ private:
     void drawImage(QPainter *painter);
     void drawTexelOverlay(QPainter *painter);
     void drawSelection(QPainter *painter);
+    void drawToolTip(QPainter * painter);
 
     // Vertice buffer objects
     GLuint texel_line_vbo[2];
@@ -107,16 +108,18 @@ private:
     bool isCLInitialized;
     bool isFrameValid;
 
-    Matrix<double> texture_view_matrix;
-    Matrix<double> texel_view_matrix;
+    Matrix<double> texture_view_matrix; // Used to draw main texture
     Matrix<double> translation_matrix;
     Matrix<double> zoom_matrix;
-//    Matrix<double> cursor_translation_matrix;
+    
+    Matrix<double> texel_view_matrix; // Used for texel overlay
     Matrix<double> texel_offset_matrix;
 
     // Mouse
-    int last_mouse_pos_x;
-    int last_mouse_pos_y;
+    QPoint pos;
+    QPoint prev_pos;
+//    int last_mouse_pos_x;
+//    int last_mouse_pos_y;
 
     // Display
     int isLog;

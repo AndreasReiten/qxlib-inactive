@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QDateTime>
 #include <QCoreApplication>
+#include <QFontMetrics>
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isInitialized(false),
@@ -704,10 +705,11 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawImage(painter);
     
+    drawToolTip(painter);
     
     // Fps
-    QString fps_string("Fps: "+QString::number(getFps(), 'f', 0));
-    painter->drawText(QPointF(5,render_surface->height()-5), fps_string);
+//    QString fps_string("Fps: "+QString::number(getFps(), 'f', 0));
+//    painter->drawText(QPointF(5,render_surface->height()-5), fps_string);
 }
 
 void ImagePreviewWorker::drawImage(QPainter * painter)
@@ -843,6 +845,98 @@ void ImagePreviewWorker::drawSelection(QPainter *painter)
 
     endRawGLCalls(painter);
 }
+
+void ImagePreviewWorker::drawToolTip(QPainter *painter)
+{
+    if (isFrameValid == false) return;
+    
+    // The tooltip text
+    
+    //Position
+    Matrix<double> screen_pixel_pos(4,1,0); // Uses GL coordinates
+    screen_pixel_pos[0] = 2.0 * (double) pos.x()/(double) render_surface->width() - 1.0;
+    screen_pixel_pos[1] = 2.0 * (1.0 - (double) pos.y()/(double) render_surface->height()) - 1.0;
+    screen_pixel_pos[2] = 0;
+    screen_pixel_pos[3] = 1.0;
+    
+    Matrix<double> image_pixel_pos(4,1); // Uses GL coordinates
+    
+    image_pixel_pos = texture_view_matrix.getInverse4x4() * screen_pixel_pos;
+    
+    int pixel_x = image_pixel_pos[0] * render_surface->width() * 0.5;
+    int pixel_y = - image_pixel_pos[1] * render_surface->height() * 0.5;
+    
+    if (pixel_x < 0) pixel_x = 0;
+    if (pixel_y < 0) pixel_y = 0;
+    if (pixel_x >= frame.getFastDimension()) pixel_x = frame.getFastDimension()-1;
+    if (pixel_y >= frame.getSlowDimension()) pixel_y = frame.getSlowDimension()-1;
+    
+    QString tip;
+    tip += "Pixel (x,y) "+QString::number(pixel_x)+" "+QString::number(pixel_y)+"\n";
+    
+    // Intensity
+    tip += "Intensity "+QString::number(frame.intensity(pixel_x,pixel_y))+"\n";
+    
+    // Theta and phi
+    float k = 1.0f/frame.wavelength; // Multiply with 2pi if desired
+
+    Matrix<float> k_i(1,3,0);
+    k_i[0] = -k;
+    
+    Matrix<float> k_f(1,3,0);
+    k_f[0] =    -frame.detector_distance;
+    k_f[1] =    frame.pixel_size_x * ((float) (frame.getSlowDimension() - pixel_y) - frame.beam_x);
+    k_f[2] =    frame.pixel_size_y * ((float) pixel_x - frame.beam_y);
+    k_f.normalize();
+//    k_f.print(2,"k_f");
+    k_f = k*k_f;
+    
+//    k_f.print(2,"k_f");
+//    k_i.print(2,"k_i");
+    
+
+    Matrix<float> Q(1,3,0);
+    Q = k_f - k_i;
+
+//    Q.print(2,"Q");
+    
+    float lab_theta = 180*asin(Q[1] / k)/pi*0.5;
+//    float lab_phi = 180*atan2(Q[2],-Q[0])/pi;
+    
+    
+    tip += "Theta "+QString::number(lab_theta,'f',2)+"°\n";
+//    tip += "Phi "+QString::number(lab_phi,'f',2)+"°\n";
+    
+    
+    // Position
+    tip += "Position (x,y,z) "+QString::number(Q[0],'f',2)+" "+QString::number(Q[1],'f',2)+" "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")";
+    
+    QFont font("monospace", 10);
+    QFontMetrics fm(font);
+    
+    QBrush brush;
+    brush.setStyle(Qt::SolidPattern);
+    brush.setColor(QColor(255,255,255,155));
+            
+    painter->setFont(font);
+    painter->setBrush(brush);
+    
+    
+    
+    // Define the area assigned to displaying the tooltip
+    QRect area = fm.boundingRect (render_surface->geometry(), Qt::AlignLeft, tip);
+    
+    area.moveBottomLeft(QPoint(5,render_surface->height()-5));
+    
+    area += QMargins(2,2,2,2);
+    painter->drawRoundedRect(area,5,5);
+    area -= QMargins(2,2,2,2);
+    
+    // Draw tooltip
+    painter->drawText(area, Qt::AlignLeft, tip);
+
+}
+
 
 void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
 {
@@ -1057,11 +1151,13 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     float move_scaling = 1.0;
 //    if(shift_button) move_scaling = 5.0;
 //    else if(ctrl_button) move_scaling = 0.2;
+    
+    pos = QPoint(x,y);
 
     if (left_button && !isSelectionActive)// && (isRendering == false))
     {
-        double dx = (x - last_mouse_pos_x)*2.0/(render_surface->width()*zoom_matrix[0]);
-        double dy = -(y - last_mouse_pos_y)*2.0/(render_surface->height()*zoom_matrix[0]);
+        double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
+        double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
 
         translation_matrix[3] += dx*move_scaling;
         translation_matrix[7] += dy*move_scaling;
@@ -1073,22 +1169,21 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
         selection.setBottomRight(QPointF(pixel[0]+1, pixel[1]+1));
     }
 
-    last_mouse_pos_x = x;
-    last_mouse_pos_y = y;
+    prev_pos = pos;
 }
 
 void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
-    Q_UNUSED(x);
-    Q_UNUSED(y);
     Q_UNUSED(mid_button);
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
 
+    pos = QPoint(x,y);
+    
     if (isSelectionActive && left_button)
     {
-        Matrix<int> pixel = getImagePixel(x, y);
+        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
         
         selection.setTopLeft(QPointF(pixel[0], pixel[1]));
         selection.setBottomRight(QPointF(pixel[0], pixel[1]));
@@ -1097,16 +1192,16 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
 
 void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
 {
-    Q_UNUSED(x);
-    Q_UNUSED(y);
     Q_UNUSED(mid_button);
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
 
+    pos = QPoint(x,y);
+    
     if (isSelectionActive)
     {
-        Matrix<int> pixel = getImagePixel(x, y);
+        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
         
         selection.setBottomRight(QPointF(pixel[0]+1, pixel[1]+1));
         
