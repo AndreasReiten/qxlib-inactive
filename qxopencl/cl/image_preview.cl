@@ -1,3 +1,148 @@
+__kernel void imageDisplay(
+    __write_only image2d_t frame_image,
+    __read_only image2d_t tsf_image,
+    __global float * data_buf,
+    float2 data_limit,
+    sampler_t tsf_sampler,
+    int log
+    )
+{
+    int2 id_glb = (int2)(get_global_id(0),get_global_id(1));
+    int2 image_dim = get_image_dim(frame_image);
+
+    if ((id_glb.x < image_dim.x) && (id_glb.y < image_dim.y))
+    {
+        float intensity = data_buf[id_glb.y * image_dim.x + id_glb.x];
+
+        float2 tsf_position;
+        float4 sample;
+
+        if (log)
+        {
+            if (data_limit.x <= 0.001) data_limit.x = 0.001;
+            if (intensity <= 0.001)
+            {
+                tsf_position = (float2)(1.0f, 0.5f);
+                sample = read_imagef(tsf_image, tsf_sampler, tsf_position) + (float4)(0.0,0.0,1.0,0.2);
+            }
+            else
+            {
+                tsf_position = (float2)(native_divide(log10(intensity) - log10(data_limit.x), log10(data_limit.y) - log10(data_limit.x)), 0.5f);
+                sample = read_imagef(tsf_image, tsf_sampler, tsf_position);
+            }
+        }
+        else
+        {
+            tsf_position = (float2)(native_divide(intensity - data_limit.x, data_limit.y - data_limit.x), 0.5f);
+            sample = read_imagef(tsf_image, tsf_sampler, tsf_position);
+        }
+
+        write_imagef(frame_image, id_glb, sample);
+    }
+}
+
+__kernel void imageCalculus(
+    __global float * data_buf,
+    __global float * out_buf,
+    __global float * display_buf,
+    __constant float * parameter,
+    int2 image_size,
+    int correction,
+    int task,
+    float mean,
+    float deviation
+    )
+{
+    // The frame has its axes like this, looking from the source to
+    // the detector in the zero rotation position. We use the
+    // cartiesian coordinate system described in
+    // doi:10.1107/S0021889899007347
+    //         y
+    //         ^
+    //         |
+    //         |
+    // z <-----x------ (fast)
+    //         |
+    //         |
+    //       (slow)
+
+    // Thresholds and other parameters essential to the file
+    float noise_low = parameter[0];
+    float noise_high = parameter[1];
+    float pct_low = parameter[2]; // Post correction threshold
+    float pct_high = parameter[3];
+    float flux = parameter[4];
+    float exp_time = parameter[5];
+    float wavelength = parameter[6];
+    float det_dist = parameter[7];
+    float beam_x = parameter[8];
+    float beam_y = parameter[9];
+    float pix_size_x = parameter[10];
+    float pix_size_y = parameter[11];
+    float intensity_min = parameter[12];
+    float intensity_max = parameter[13];
+
+
+    int2 id_glb = (int2)(get_global_id(0),get_global_id(1));
+
+    if ((id_glb.x < image_size.x) && (id_glb.y < image_size.y))
+    {
+        float value = data_buf[id_glb.y * image_size.x + id_glb.x];
+
+        if (task == 0)
+        {
+            // Find intensity
+            // Noise filter
+            value = clamp(value, noise_low, noise_high);
+
+            // Corrections
+            if (correction == 1)
+            {
+                float4 Q = (float4)(0.0f);
+                float k = 1.0f/wavelength; // Multiply with 2pi if desired
+
+                float3 k_i = (float3)(-k,0,0);
+                float3 k_f = k*normalize((float3)(
+                    -det_dist,
+                    pix_size_x * ((float) (image_size.y - id_glb.y) - beam_x), /* DANGER */
+                    pix_size_y * ((float) id_glb.x - beam_y))); /* DANGER */
+
+                Q.xyz = k_f - k_i;
+                {
+                    float lab_theta = asin(native_divide(Q.y, k)); // This is also 2theta, the scattering angle
+
+                    // Lorentz correction: Assuming rotation around the z-axis of the lab frame:
+                    float L = fabs(native_sin(lab_theta));
+
+                    value *= L;
+
+                    // Polarization correction begs implementation
+                }
+            }
+
+            // Post correction filter
+            value = clamp(value, pct_low, pct_high);
+
+            out_buf[id_glb.y * image_size.x + id_glb.x] = value;
+        }
+        else if (task == 1)
+        {
+            // Calculate variance, requires mean to be known
+            out_buf[id_glb.y * image_size.x + id_glb.x] = pow(value - mean, 2.0);
+        }
+        else if (task == 2)
+        {
+            // Calculate skewness, requires deviation and mean to be known
+            out_buf[id_glb.y * image_size.x + id_glb.x] = pow((value - mean) / deviation, 3.0);
+        }
+        else
+        {
+            // Should not happen
+        }
+
+    }
+}
+
 __kernel void imagePreview(
     __write_only image2d_t preview,
     __read_only image2d_t source,

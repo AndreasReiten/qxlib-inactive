@@ -20,3 +20,6 @@ __kernel void rectCopyFloat(
         copy[copy_id.y*copy_row_pitch + copy_id.x] = buffer[buffer_id.y*buffer_row_pitch + buffer_id.x];
     }
 }
+
+
+

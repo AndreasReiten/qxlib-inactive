@@ -232,6 +232,72 @@ void ImagePreviewWorker::setFrame(Image image)
     }
 }
 
+void ImagePreviewWorker::setFrameNew(Image image)
+{
+    if (!frame.set(image.path())) return;
+    if(!frame.readData()) return;
+
+    isFrameValid = true;
+
+    qDebug() << mode;
+
+    if (mode == 0)
+    {
+        // Normal intensity
+
+        // imageCalculus mode 0
+
+        // displayImage
+
+        // selection calculus
+    }
+    if (mode == 1)
+    {
+        // Variance
+
+        // imageCalculus mode 0
+
+        // Copy and PR
+
+        // imageCalculus mode 1
+
+        // displayImage
+
+        // selection calculus
+    }
+    else if (mode == 2)
+    {
+        // Skewness
+
+        // imageCalculus mode 0
+
+        // Copy and PR
+
+        // imageCalculus mode 1
+
+        // Copy and PR
+
+        // imageCalculus mode 2
+
+        // displayImage
+
+        // selection calculus
+    }
+    else
+    {
+        // Should not happen
+    }
+
+
+
+
+
+
+    displayImage(frame);
+
+    copyAndReduce(image.selection());
+}
+
 QString ImagePreviewWorker::integrationFrameString(double value, Image & image)
 {
     QString str;
@@ -666,6 +732,12 @@ void ImagePreviewWorker::initResourcesCL()
 
     // Kernel handles
     cl_image_preview = clCreateKernel(program, "imagePreview", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    cl_image_display = clCreateKernel(program, "imageDisplay", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    cl_image_calculus = clCreateKernel(program, "imageCalculus", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Image sampler

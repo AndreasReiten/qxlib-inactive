@@ -85,6 +85,7 @@ public slots:
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
     void setFrame(Image image);
+    void setFrameNew(Image image);
     void setSelection(QRect rect);
     void setSelectionActive(bool value);
     void centerImage();
@@ -104,6 +105,8 @@ private:
     cl_int err;
     cl_program program;
     cl_kernel cl_image_preview;
+    cl_kernel cl_image_display;
+    cl_kernel cl_image_calculus;
     cl_mem image_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
