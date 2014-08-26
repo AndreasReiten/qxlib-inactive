@@ -5,7 +5,7 @@
 #include <QString>
 #include <QRect>
 #include <QDebug>
-#include <QRectF>
+#include <QRect>
 #include <QList>
 
 class Image
@@ -18,16 +18,15 @@ public:
     void setPath(QString str);
     const QString path() const;
 
-    void setSelection(QRectF rect);
-    const QRectF selection() const;
+    void setSelection(QRect rect);
+    const QRect selection() const;
 
 private:
     QString p_path;
-    QRectF p_selection;
+    QRect p_selection;
 };
 
 Q_DECLARE_METATYPE(Image);
-//qRegisterMetaType<Image>();
 
 QDebug operator<<(QDebug dbg, const Image &file);
 
@@ -99,6 +98,7 @@ public:
     void setFolders(QList<ImageFolder> list);
     const QList<ImageFolder> &folders() const;
     int size() const;
+    
 private:
     QList<ImageFolder> p_folders;
     int p_i;

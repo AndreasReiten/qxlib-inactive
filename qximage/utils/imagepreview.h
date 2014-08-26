@@ -12,6 +12,43 @@
 #include "../../qxfile/qxfilelib.h"
 #include "../../qxmath/qxmathlib.h"
 
+
+class Selection : public QObject, public QRect
+{
+    Q_OBJECT
+public:
+    explicit Selection(const QPoint & topLeft, const QPoint & bottomRight)
+                : QRect(topLeft, bottomRight) {}
+    explicit Selection(const QPoint & topLeft, const QSize & size)
+                : QRect(topLeft, size) {}
+    explicit Selection(int x, int y, int width, int height)
+                : QRect(x, y, width, height) {}
+    
+    Selection();
+    Selection(const Selection & other);
+    ~Selection();
+    
+    
+//    QRect area() const;
+    double sum() const;
+    double weighted_x() const;
+    double weighted_y() const;
+    
+//    void setArea(QRect rect);
+    void setSum(double value);
+    void setWeightedX(double value);
+    void setWeightedY(double value);
+    
+    Selection &operator =(QRect other);
+    
+private:
+//    QRect p_area;
+    double p_sum;
+    double p_weighted_x;
+    double p_weighted_y;
+};
+
+
 class ImagePreviewWorker : public OpenGLWorker
 {
     Q_OBJECT
@@ -21,7 +58,7 @@ public:
     void setSharedWindow(SharedContextWindow * window);
 
 signals:
-    void selectionChanged(QRectF rect);
+    void selectionChanged(QRect rect);
     void pathChanged(QString str);
     void resultFinished(QString str);
     void refresh();
@@ -38,7 +75,7 @@ public slots:
     void setCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
-    void setImage(DetectorFile & file);
+    void displayImage(DetectorFile & file);
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
@@ -47,11 +84,12 @@ public slots:
 //    void keyReleaseEvent(QKeyEvent *ev);
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
-    void setImageFromPath(QString path);
-    void setSelection(QRectF rect);
+    void setFrame(Image image);
+    void setSelection(QRect rect);
     void setSelectionActive(bool value);
     void centerImage();
-    double integrate(Image *image);
+    void copyAndReduce(QRect selection_rect);
+    void copyBufferRect(cl_mem cl_buffer, cl_mem cl_copy, Matrix<int> &buffer_size, Matrix<int> &buffer_origin, Matrix<int> &copy_size, Matrix<int> &copy_origin, size_t work_group_size);
     
     void integrateSingle(Image image);
     void integrateFolder(ImageFolder folder);
@@ -70,7 +108,9 @@ private:
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
-    cl_mem frame_cl;
+    cl_mem image_intensity_cl;
+    cl_mem image_pos_weight_x_cl;
+    cl_mem image_pos_weight_y_cl;
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
@@ -127,7 +167,7 @@ private:
     int mode;
 
     // Selection
-    QRectF selection;
+    Selection selection;
     GLuint selection_lines_vbo;
     bool isSelectionActive;
     Matrix<int> getImagePixel(int x, int y);

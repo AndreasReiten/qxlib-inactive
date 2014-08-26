@@ -4,12 +4,13 @@ __kernel void imagePreview(
     __read_only image2d_t tsf_source,
     __constant float * parameter,
     sampler_t tsf_sampler,
-    sampler_t intensity_sampler,
+    sampler_t source_sampler,
     int correction,
     int mode,
     int log,
-    __global float * target
-
+    __global float * intensity_buffer,
+    __global float * pos_weight_x,
+    __global float * pos_weight_y
     )
 {
     // The frame has its axes like this, looking from the source to
@@ -43,11 +44,11 @@ __kernel void imagePreview(
 
 
     int2 id_glb = (int2)(get_global_id(0),get_global_id(1));
-    int2 target_dim = get_image_dim(preview);
+    int2 image_dim = get_image_dim(preview);
 
-    if ((id_glb.x < target_dim.x) && (id_glb.y < target_dim.y))
+    if ((id_glb.x < image_dim.x) && (id_glb.y < image_dim.y))
     {
-        float intensity = read_imagef(source, intensity_sampler, id_glb).w; /* DANGER */
+        float intensity = read_imagef(source, source_sampler, id_glb).w; /* DANGER */
 
         // Noise filter
         intensity = clamp(intensity, noise_low, noise_high);
@@ -61,7 +62,7 @@ __kernel void imagePreview(
             float3 k_i = (float3)(-k,0,0);
             float3 k_f = k*normalize((float3)(
                 -det_dist,
-                pix_size_x * ((float) (target_dim.y - id_glb.y) - beam_x), /* DANGER */
+                pix_size_x * ((float) (image_dim.y - id_glb.y) - beam_x), /* DANGER */
                 pix_size_y * ((float) id_glb.x - beam_y))); /* DANGER */
 
             Q.xyz = k_f - k_i;
@@ -87,8 +88,12 @@ __kernel void imagePreview(
         }
 
         // Write the intensity value to a normal floating point buffer. The value can then be used later without doing all of this.
-        target[id_glb.y*target_dim.x + id_glb.x] = intensity;
-
+        intensity_buffer[id_glb.y*image_dim.x + id_glb.x] = intensity;
+        
+        // Also write the intensity value times the position to use later to find the pixel of maximum weight 
+        pos_weight_x[id_glb.y*image_dim.x + id_glb.x] = intensity*(float)id_glb.x;
+        pos_weight_y[id_glb.y*image_dim.x + id_glb.x] = intensity*(float)id_glb.y;
+        
 
         float2 tsf_position;
         float4 sample;

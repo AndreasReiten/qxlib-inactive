@@ -2,7 +2,7 @@
 
 Image::Image()
 {
-    p_selection = QRectF(0,0,5000,5000);
+    p_selection = QRect(0,0,5000,5000);
 }
 
 Image::Image(const Image & other)
@@ -26,12 +26,12 @@ const QString Image::path() const
     return p_path;
 }
 
-void Image::setSelection(QRectF rect)
+void Image::setSelection(QRect rect)
 {
     p_selection = rect;
 }
 
-const QRectF Image::selection() const
+const QRect Image::selection() const
 {
     return p_selection;
 }
@@ -52,7 +52,7 @@ QDataStream &operator<<(QDataStream &out, const Image &image)
 QDataStream &operator>>(QDataStream &in, Image &image)
 {
     QString path;
-    QRectF rect;
+    QRect rect;
 
     in >> path >> rect;
     image.setPath(path);
