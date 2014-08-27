@@ -11,7 +11,7 @@ void main(void)
  
     vec4 dark = vec4(0.0,0.0,0.0,1.0);
     vec4 blue = vec4(0.0,0.0,1.0,1.0);
-    vec4 purple = vec4(1.0,0.0,1.0,1.0);
+//    vec4 purple = vec4(1.0,0.0,1.0,1.0);
     
     // Width of inner border
     float border_width = min(f_bounds.z - f_bounds.x, f_bounds.w - f_bounds.y) * 0.05;
@@ -28,7 +28,7 @@ void main(void)
     // Draw center
     else if (((f_texpos.x < f_center.x + f_pixel_size*1.0) && (f_texpos.x > f_center.x - f_pixel_size*1.0)) || ((f_texpos.y < f_center.y + f_pixel_size*1.0) && (f_texpos.y > f_center.y - f_pixel_size*1.0)))
     {
-        color = purple;
+        color = dark;
     }
 
     // Else within bounds

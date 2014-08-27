@@ -89,23 +89,37 @@ public slots:
     void setSelection(QRect rect);
     void setSelectionActive(bool value);
     void centerImage();
-    void copyAndReduce(QRect selection_rect);
-    void copyBufferRect(cl_mem cl_buffer, cl_mem cl_copy, Matrix<int> &buffer_size, Matrix<int> &buffer_origin, Matrix<int> &copy_size, Matrix<int> &copy_origin, size_t work_group_size);
-    
     void integrateSingle(Image image);
     void integrateFolder(ImageFolder folder);
     void integrateSet(FolderSet set);
     
 private:
-    QString integrationFrameString(double value, Image &image);
     
+    // GPU functions
+    void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<int> & image_size, Matrix<size_t> &local_ws, int correction, float mean, float deviation, int task);
+    
+    void imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<int> & image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log);
+    
+    void copyBufferRect(cl_mem cl_buffer, cl_mem cl_copy, Matrix<int> &buffer_size, Matrix<int> &buffer_origin, Matrix<int> &copy_size, Matrix<int> &copy_origin, Matrix<size_t> &local_ws);
+    
+    float sumGpuArray(cl_mem cl_data, unsigned int read_size, Matrix<size_t> &local_ws);
+    
+    void selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<int> & image_size, Matrix<size_t> &local_ws, QRect selection_rect);
+    
+    // GPU buffer management
+    void maintainImageTexture(Matrix<int> &image_size);
+    
+    // Misc
+    void copyAndReduce(QRect selection_rect);
+    
+    QString integrationFrameString(double value, Image &image);
     
     SharedContextWindow * shared_window;
 
     cl_int err;
     cl_program program;
     cl_kernel cl_image_preview;
-    cl_kernel cl_image_display;
+    cl_kernel cl_display_image;
     cl_kernel cl_image_calculus;
     cl_mem image_tex_cl;
     cl_mem source_cl;
@@ -114,6 +128,7 @@ private:
     cl_mem image_intensity_cl;
     cl_mem image_pos_weight_x_cl;
     cl_mem image_pos_weight_y_cl;
+//    cl_mem image_data_raw_cl;
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
@@ -123,7 +138,8 @@ private:
 
     GLuint image_tex_gl;
     GLuint tsf_tex_gl;
-
+    Matrix<size_t> image_tex_size;
+    
     DetectorFile frame;
 
     void initResourcesCL();
@@ -174,9 +190,6 @@ private:
     GLuint selection_lines_vbo;
     bool isSelectionActive;
     Matrix<int> getImagePixel(int x, int y);
-
-    // Integration
-    float sumGpuArray(cl_mem cl_data, unsigned int read_size, size_t work_group_size);
 
 protected:
     void initialize();

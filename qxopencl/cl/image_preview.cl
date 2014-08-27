@@ -1,50 +1,49 @@
 __kernel void imageDisplay(
+    __global float * data_buf,
     __write_only image2d_t frame_image,
     __read_only image2d_t tsf_image,
-    __global float * data_buf,
-    float2 data_limit,
     sampler_t tsf_sampler,
+    float2 data_limit,
     int log
     )
 {
-    int2 id_glb = (int2)(get_global_id(0),get_global_id(1));
-    int2 image_dim = get_image_dim(frame_image);
+//    int2 id_glb = (int2)(get_global_id(0),get_global_id(1));
+//    int2 image_dim = get_image_dim(frame_image);
 
-    if ((id_glb.x < image_dim.x) && (id_glb.y < image_dim.y))
-    {
-        float intensity = data_buf[id_glb.y * image_dim.x + id_glb.x];
+//    if ((id_glb.x < image_dim.x) && (id_glb.y < image_dim.y))
+//    {
+//        float intensity = data_buf[id_glb.y * image_dim.x + id_glb.x];
 
-        float2 tsf_position;
-        float4 sample;
+//        float2 tsf_position;
+//        float4 sample;
 
-        if (log)
-        {
-            if (data_limit.x <= 0.001) data_limit.x = 0.001;
-            if (intensity <= 0.001)
-            {
-                tsf_position = (float2)(1.0f, 0.5f);
-                sample = read_imagef(tsf_image, tsf_sampler, tsf_position) + (float4)(0.0,0.0,1.0,0.2);
-            }
-            else
-            {
-                tsf_position = (float2)(native_divide(log10(intensity) - log10(data_limit.x), log10(data_limit.y) - log10(data_limit.x)), 0.5f);
-                sample = read_imagef(tsf_image, tsf_sampler, tsf_position);
-            }
-        }
-        else
-        {
-            tsf_position = (float2)(native_divide(intensity - data_limit.x, data_limit.y - data_limit.x), 0.5f);
-            sample = read_imagef(tsf_image, tsf_sampler, tsf_position);
-        }
+//        if (log)
+//        {
+//            if (data_limit.x <= 0.001) data_limit.x = 0.001;
+//            if (intensity <= 0.001)
+//            {
+//                tsf_position = (float2)(1.0f, 0.5f);
+//                sample = read_imagef(tsf_image, tsf_sampler, tsf_position) + (float4)(0.0,0.0,1.0,0.2);
+//            }
+//            else
+//            {
+//                tsf_position = (float2)(native_divide(log10(intensity) - log10(data_limit.x), log10(data_limit.y) - log10(data_limit.x)), 0.5f);
+//                sample = read_imagef(tsf_image, tsf_sampler, tsf_position);
+//            }
+//        }
+//        else
+//        {
+//            tsf_position = (float2)(native_divide(intensity - data_limit.x, data_limit.y - data_limit.x), 0.5f);
+//            sample = read_imagef(tsf_image, tsf_sampler, tsf_position);
+//        }
 
-        write_imagef(frame_image, id_glb, sample);
-    }
+//        write_imagef(frame_image, id_glb, sample);
+//    }
 }
 
 __kernel void imageCalculus(
     __global float * data_buf,
     __global float * out_buf,
-    __global float * display_buf,
     __constant float * parameter,
     int2 image_size,
     int correction,

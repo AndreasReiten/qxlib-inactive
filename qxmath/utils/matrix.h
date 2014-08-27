@@ -70,7 +70,7 @@ class Matrix {
         
         void print(int precision = 0, const char * id = "") const;
         
-        // Vector math friends
+        // Vector math friends. Declared as friends so that they can be called independently of an object
         template <class F>
         friend F vecLength(const Matrix<F> A);
         
