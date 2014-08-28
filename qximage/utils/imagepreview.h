@@ -61,7 +61,6 @@ signals:
     void selectionChanged(QRect rect);
     void pathChanged(QString str);
     void resultFinished(QString str);
-    void refresh();
     
 public slots:
     void setMode(int value);
@@ -76,6 +75,8 @@ public slots:
     void setDataMin(double value);
     void setDataMax(double value);
     void displayImage(DetectorFile & file);
+    void refresh();
+    void calculus();
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
@@ -96,18 +97,32 @@ public slots:
 private:
     
     // GPU functions
-    void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<int> & image_size, Matrix<size_t> &local_ws, int correction, float mean, float deviation, int task);
+    void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, int correction, float mean, float deviation, int task);
     
-    void imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<int> & image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log);
+    void imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log);
     
-    void copyBufferRect(cl_mem cl_buffer, cl_mem cl_copy, Matrix<int> &buffer_size, Matrix<int> &buffer_origin, Matrix<int> &copy_size, Matrix<int> &copy_origin, Matrix<size_t> &local_ws);
+    void copyBufferRect(cl_mem cl_buffer, cl_mem cl_copy, Matrix<size_t> &buffer_size, Matrix<size_t> &buffer_origin, Matrix<size_t> &copy_size, Matrix<size_t> &copy_origin, Matrix<size_t> &local_ws);
     
     float sumGpuArray(cl_mem cl_data, unsigned int read_size, Matrix<size_t> &local_ws);
     
-    void selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<int> & image_size, Matrix<size_t> &local_ws, QRect selection_rect);
+    void selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, QRect selection_rect);
+    
+    // Convenience 
+    void refreshDisplay(cl_mem data_cl);
+    void refreshSelection(cl_mem data_cl, cl_mem data_weight_x_cl, cl_mem data_weight_y_cl, QRect rect);
     
     // GPU buffer management
-    void maintainImageTexture(Matrix<int> &image_size);
+    void maintainImageTexture(Matrix<size_t> &image_size);
+    void clMaintainImageBuffers(Matrix<size_t> &image_size);
+    
+    // GPU buffers
+    cl_mem image_data_raw_cl;
+    cl_mem image_data_corrected_cl;
+    cl_mem image_data_variance_cl;
+    cl_mem image_data_skewness_cl;
+    cl_mem image_data_weight_x_cl;
+    cl_mem image_data_weight_y_cl;
+    cl_mem image_data_generic_cl;
     
     // Misc
     void copyAndReduce(QRect selection_rect);
@@ -128,6 +143,7 @@ private:
     cl_mem image_intensity_cl;
     cl_mem image_pos_weight_x_cl;
     cl_mem image_pos_weight_y_cl;
+    
 //    cl_mem image_data_raw_cl;
     
     cl_sampler tsf_sampler;
@@ -139,6 +155,7 @@ private:
     GLuint image_tex_gl;
     GLuint tsf_tex_gl;
     Matrix<size_t> image_tex_size;
+    Matrix<size_t> image_buffer_size;
     
     DetectorFile frame;
 

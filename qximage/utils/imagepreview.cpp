@@ -98,6 +98,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     setThresholdPostCorrectionHigh(1e99);
     
     image_tex_size.set(1,2,0);
+    image_buffer_size.set(1,2,2);
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
@@ -113,128 +114,128 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
 
 void ImagePreviewWorker::displayImage(DetectorFile & file)
 {
-    if (isImageTexInitialized){
-        err = clReleaseMemObject(image_tex_cl);
-        err |= clReleaseMemObject(source_cl);
-        err |= clReleaseMemObject(image_intensity_cl);
-        err |= clReleaseMemObject(image_pos_weight_x_cl);
-        err |= clReleaseMemObject(image_pos_weight_y_cl);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-        glDeleteTextures(1, &image_tex_gl);
-    }
+//    if (isImageTexInitialized){
+//        err = clReleaseMemObject(image_tex_cl);
+//        err |= clReleaseMemObject(source_cl);
+//        err |= clReleaseMemObject(image_intensity_cl);
+//        err |= clReleaseMemObject(image_pos_weight_x_cl);
+//        err |= clReleaseMemObject(image_pos_weight_y_cl);
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//        glDeleteTextures(1, &image_tex_gl);
+//    }
 
-    Matrix<size_t> image_tex_dim(1,2);
-    image_tex_dim[0] = file.getFastDimension();
-    image_tex_dim[1] = file.getSlowDimension();
+//    Matrix<size_t> image_tex_dim(1,2);
+//    image_tex_dim[0] = file.getFastDimension();
+//    image_tex_dim[1] = file.getSlowDimension();
     
-    context_gl->makeCurrent(render_surface);
+//    context_gl->makeCurrent(render_surface);
     
-    glGenTextures(1, &image_tex_gl);
-    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexImage2D(
-        GL_TEXTURE_2D,
-        0,
-        GL_RGBA32F,
-        image_tex_dim[0],
-        image_tex_dim[1],
-        0,
-        GL_RGBA,
-        GL_FLOAT,
-        NULL);
-    glBindTexture(GL_TEXTURE_2D, 0);
+//    glGenTextures(1, &image_tex_gl);
+//    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//    glTexImage2D(
+//        GL_TEXTURE_2D,
+//        0,
+//        GL_RGBA32F,
+//        image_tex_dim[0],
+//        image_tex_dim[1],
+//        0,
+//        GL_RGBA,
+//        GL_FLOAT,
+//        NULL);
+//    glBindTexture(GL_TEXTURE_2D, 0);
     
-    isImageTexInitialized = true;
+//    isImageTexInitialized = true;
 
-    // Share the texture with the OpenCL runtime
-    image_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    // Share the texture with the OpenCL runtime
+//    image_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    // Pass texture to CL kernel
-    err = clSetKernelArg(cl_image_preview, 0, sizeof(cl_mem), (void *) &image_tex_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    // Pass texture to CL kernel
+//    err = clSetKernelArg(cl_image_preview, 0, sizeof(cl_mem), (void *) &image_tex_cl);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    // Load data into a CL texture
-    cl_image_format source_format;
-    source_format.image_channel_order = CL_INTENSITY;
-    source_format.image_channel_data_type = CL_FLOAT;
+//    // Load data into a CL texture
+//    cl_image_format source_format;
+//    source_format.image_channel_order = CL_INTENSITY;
+//    source_format.image_channel_data_type = CL_FLOAT;
 
-    source_cl = clCreateImage2D ( *context_cl->getContext(),
-        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-        &source_format,
-        file.getFastDimension(),
-        file.getSlowDimension(),
-        0,
-        file.data().data(),
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    source_cl = clCreateImage2D ( *context_cl->getContext(),
+//        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+//        &source_format,
+//        file.getFastDimension(),
+//        file.getSlowDimension(),
+//        0,
+//        file.data().data(),
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    image_intensity_cl = clCreateBuffer( *context_cl->getContext(),
-        CL_MEM_ALLOC_HOST_PTR,
-        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
-        NULL,
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    image_intensity_cl = clCreateBuffer( *context_cl->getContext(),
+//        CL_MEM_ALLOC_HOST_PTR,
+//        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
+//        NULL,
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    image_pos_weight_x_cl = clCreateBuffer( *context_cl->getContext(),
-        CL_MEM_ALLOC_HOST_PTR,
-        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
-        NULL,
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    image_pos_weight_x_cl = clCreateBuffer( *context_cl->getContext(),
+//        CL_MEM_ALLOC_HOST_PTR,
+//        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
+//        NULL,
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-    image_pos_weight_y_cl = clCreateBuffer( *context_cl->getContext(),
-        CL_MEM_ALLOC_HOST_PTR,
-        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
-        NULL,
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    image_pos_weight_y_cl = clCreateBuffer( *context_cl->getContext(),
+//        CL_MEM_ALLOC_HOST_PTR,
+//        file.getFastDimension()*file.getSlowDimension()*sizeof(cl_float),
+//        NULL,
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
     
-    err = clSetKernelArg(cl_image_preview, 1, sizeof(cl_mem), (void *) &source_cl);
-    err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &image_intensity_cl);
-    err |= clSetKernelArg(cl_image_preview, 10, sizeof(cl_mem), (void *) &image_pos_weight_x_cl);
-    err |= clSetKernelArg(cl_image_preview, 11, sizeof(cl_mem), (void *) &image_pos_weight_y_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clSetKernelArg(cl_image_preview, 1, sizeof(cl_mem), (void *) &source_cl);
+//    err |= clSetKernelArg(cl_image_preview, 9, sizeof(cl_mem), (void *) &image_intensity_cl);
+//    err |= clSetKernelArg(cl_image_preview, 10, sizeof(cl_mem), (void *) &image_pos_weight_x_cl);
+//    err |= clSetKernelArg(cl_image_preview, 11, sizeof(cl_mem), (void *) &image_pos_weight_y_cl);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    // Thresholds and other parameters essential to the file
-    parameter[4] = file.getFlux();
-    parameter[5] = file.getExpTime();
-    parameter[6] = file.getWavelength();
-    parameter[7] = file.getDetectorDist();
-    parameter[8] = file.getBeamX();
-    parameter[9] = file.getBeamY();
-    parameter[10] = file.getPixSizeX();
-    parameter[11] = file.getPixSizeY();
+//    // Thresholds and other parameters essential to the file
+//    parameter[4] = file.getFlux();
+//    parameter[5] = file.getExpTime();
+//    parameter[6] = file.getWavelength();
+//    parameter[7] = file.getDetectorDist();
+//    parameter[8] = file.getBeamX();
+//    parameter[9] = file.getBeamY();
+//    parameter[10] = file.getPixSizeX();
+//    parameter[11] = file.getPixSizeY();
     
-    setParameter(parameter);
-    err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
-    err |= clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
-    err |= clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    setParameter(parameter);
+//    err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
+//    err |= clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
+//    err |= clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    update(file.getFastDimension(), file.getSlowDimension());
+//    update(file.getFastDimension(), file.getSlowDimension());
     
-    emit pathChanged(file.getPath());
+//    emit pathChanged(file.getPath());
 }
 
 void ImagePreviewWorker::setFrame(Image image)
 {
-    if (frame.set(image.path()))
-    {
-        if(frame.readData())
-        {
-            isFrameValid = true;
+//    if (frame.set(image.path()))
+//    {
+//        if(frame.readData())
+//        {
+//            isFrameValid = true;
             
-            displayImage(frame);
+//            displayImage(frame);
             
-            copyAndReduce(image.selection());
-        }
-    }
+//            copyAndReduce(image.selection());
+//        }
+//    }
 }
 
-void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> & param, Matrix<int> & image_size, Matrix<size_t> & local_ws, int correction, float mean, float deviation, int task)
+void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> & param, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, int correction, float mean, float deviation, int task)
 {
     // Prepare kernel parameters
     Matrix<size_t> global_ws(1,2);
@@ -244,8 +245,8 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     // Set kernel parameters
     err = clSetKernelArg(cl_image_calculus,  0, sizeof(cl_mem), (void *) &data_buf_cl);
     err |= clSetKernelArg(cl_image_calculus, 1, sizeof(cl_mem), (void *) &out_buf_cl);
-    err |= clSetKernelArg(cl_image_calculus, 2, sizeof(cl_mem), (void *) &parameter_cl);
-    err |= clSetKernelArg(cl_image_calculus, 3, sizeof(cl_int2), image_size.data());
+    err |= clSetKernelArg(cl_image_calculus, 2, sizeof(cl_mem), &parameter_cl);
+    err |= clSetKernelArg(cl_image_calculus, 3, sizeof(cl_int2), image_size.toInt().data());
     err |= clSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &correction);
     err |= clSetKernelArg(cl_image_calculus, 5, sizeof(cl_int), &task);
     err |= clSetKernelArg(cl_image_calculus, 6, sizeof(cl_float), &mean);
@@ -261,7 +262,7 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
-void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<int> & image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log)
+void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log)
 {
     if (!isFrameValid) return;
         
@@ -281,6 +282,7 @@ void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl,
     err |= clSetKernelArg(cl_display_image, 1, sizeof(cl_mem), (void *) &frame_image_cl);
     err |= clSetKernelArg(cl_display_image, 2, sizeof(cl_mem), (void *) &tsf_image_cl);
     err |= clSetKernelArg(cl_display_image, 3, sizeof(cl_sampler), &tsf_sampler);
+//    data_limit.print(2,"data_limit");
     err |= clSetKernelArg(cl_display_image, 4, sizeof(cl_float2), data_limit.data());
     err |= clSetKernelArg(cl_display_image, 5, sizeof(cl_int), &log);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -299,13 +301,12 @@ void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl,
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
-void ImagePreviewWorker::copyBufferRect(
-        cl_mem buffer_cl, 
+void ImagePreviewWorker::copyBufferRect(cl_mem buffer_cl, 
         cl_mem copy_cl, 
-        Matrix<int> & buffer_size,
-        Matrix<int> & buffer_origin,
-        Matrix<int> & copy_size,
-        Matrix<int> & copy_origin,
+        Matrix<size_t> &buffer_size,
+        Matrix<size_t> &buffer_origin,
+        Matrix<size_t> &copy_size,
+        Matrix<size_t> &copy_origin,
         Matrix<size_t> &local_ws)
 {
     // Prepare kernel parameters
@@ -318,14 +319,14 @@ void ImagePreviewWorker::copyBufferRect(
     
     // Set kernel parameters
     err = clSetKernelArg(context_cl->cl_rect_copy_float,  0, sizeof(cl_mem), (void *) &buffer_cl);
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 1, sizeof(cl_int2), buffer_size.data());
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 2, sizeof(cl_int2), buffer_origin.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 1, sizeof(cl_int2), buffer_size.toInt().data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 2, sizeof(cl_int2), buffer_origin.toInt().data());
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 3, sizeof(int), &buffer_row_pitch);
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 4, sizeof(cl_mem), (void *) &copy_cl);
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 5, sizeof(cl_int2), copy_size.data());
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 6, sizeof(cl_int2), copy_origin.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 5, sizeof(cl_int2), copy_size.toInt().data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 6, sizeof(cl_int2), copy_origin.toInt().data());
     err |= clSetKernelArg(context_cl->cl_rect_copy_float, 7, sizeof(int), &copy_row_pitch);
-    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 8, sizeof(cl_int2), copy_size.data());
+    err |= clSetKernelArg(context_cl->cl_rect_copy_float, 8, sizeof(cl_int2), copy_size.toInt().data());
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     
@@ -420,106 +421,158 @@ float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, Ma
     return sum;
 }
 
-
-void ImagePreviewWorker::setFrameNew(Image image)
+void ImagePreviewWorker::calculus()
 {
-    if (!frame.set(image.path())) return;
-    if(!frame.readData()) return;
-
+    Matrix<size_t> origin(2,1,0);
+    
+    Matrix<size_t> local_ws(1,2);
+    local_ws[0] = 8;
+    local_ws[1] = 8;
+    
+    Matrix<size_t> image_size(1,2);
+    image_size[0] = frame.getFastDimension();
+    image_size[1] = frame.getSlowDimension();
+    
     if (mode == 0)
     {
         // Normal intensity
-                
-        // imageCalculus mode 0
-        // Time can be saved by not reallocating memory to this extent for (clEnqueueWriteBuffer)
-        cl_mem image_data_raw_cl = clCreateBuffer( *context_cl->getContext(),
-            CL_MEM_COPY_HOST_PTR,
-            frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
-            frame.data().data(),
-            &err);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-        
-        cl_mem image_data_corrected_cl = clCreateBuffer( *context_cl->getContext(),
-            CL_MEM_COPY_HOST_PTR,
-            frame.getFastDimension()*frame.getSlowDimension()*sizeof(cl_float),
-            frame.data().data(),
-            &err);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         {
-            Matrix<size_t> local_ws(1,2);
-            local_ws[0] = 8;
-            local_ws[1] = 8;
-            
-            Matrix<int> image_size(1,2);
-            image_size[0] = frame.getFastDimension();
-            image_size[1] = frame.getSlowDimension();
-            
             imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 0);
-        }
-        
-        // displayImage
-        {
-            Matrix<size_t> local_ws(1,2);
-            local_ws[0] = 8;
-            local_ws[1] = 8;
             
-            Matrix<int> image_size(1,2);
-            image_size[0] = frame.getFastDimension();
-            image_size[1] = frame.getSlowDimension();
-            
-            Matrix<float> data_limit(1,2);
-            data_limit[0] = parameter[12];
-            data_limit[1] = parameter[13];
-            
-            maintainImageTexture(image_size);
-            
-            imageDisplay(image_data_raw_cl, tsf_tex_cl, image_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+            // Calculate the weighted intensity position
+            imageCalcuclus(image_data_corrected_cl, image_data_weight_x_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 3);
+            imageCalcuclus(image_data_corrected_cl, image_data_weight_y_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 4);
         }
 
-        // selection calculus
-//        selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<int> & image_size, QRect selection_rect)
-        
-        clReleaseMemObject(image_data_raw_cl);
-        clReleaseMemObject(image_data_corrected_cl);
     }
     if (mode == 1)
     {
         // Variance
-
-        // imageCalculus mode 0
-
-        // Copy and PR
-
-        // imageCalculus mode 1
-
-        // displayImage
-
-        // selection calculus
+        {
+            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 0);
+            
+            // Calculate the variance
+            copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
+            
+            float mean = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
+            
+            qDebug() << "mean" << mean;
+            
+            imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, isCorrected, mean, 0, 1);
+            
+            // Calculate the weighted intensity position
+            imageCalcuclus(image_data_variance_cl, image_data_weight_x_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 3);
+            imageCalcuclus(image_data_variance_cl, image_data_weight_y_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 4);
+        }
     }
     else if (mode == 2)
     {
         // Skewness
-
-        // imageCalculus mode 0
-
-        // Copy and PR
-
-        // imageCalculus mode 1
-
-        // Copy and PR
-
-        // imageCalculus mode 2
-
-        // displayImage
-
-        // selection calculus
+        {
+            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 0);
+            
+            // Calculate the variance
+            copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
+            
+            float mean = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
+            
+            qDebug() << "mean" << mean;
+            
+            imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, isCorrected, mean, 0, 1);
+            
+            // Calculate the skewness
+            copyBufferRect(image_data_variance_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
+            
+            float variance = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
+            
+            qDebug() << "variance" << variance;
+            
+            imageCalcuclus(image_data_variance_cl, image_data_skewness_cl, parameter, image_size, local_ws, isCorrected, mean, sqrt(variance), 2);
+            
+            
+            // Calculate the weighted intensity position
+            imageCalcuclus(image_data_skewness_cl, image_data_weight_x_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 3);
+            imageCalcuclus(image_data_skewness_cl, image_data_weight_y_cl, parameter, image_size, local_ws, isCorrected, 0, 0, 4);
+        }
     }
     else
     {
         // Should not happen
     }
+}
 
+void ImagePreviewWorker::refresh()
+{
+    Matrix<size_t> local_ws(1,2);
+    local_ws[0] = 8;
+    local_ws[1] = 8;
+    
+    if (mode == 0)
+    {
+        // Normal intensity
+        refreshDisplay(image_data_corrected_cl);
 
+        refreshSelection(image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, selection);
+    }
+    if (mode == 1)
+    {
+        // Variance
+        refreshDisplay(image_data_variance_cl);
+
+        refreshSelection(image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, selection);
+    }
+    else if (mode == 2)
+    {
+        // Skewness
+        refreshDisplay(image_data_skewness_cl);
+
+        refreshSelection(image_data_skewness_cl, image_data_weight_x_cl, image_data_weight_y_cl, selection);
+    }
+    else
+    {
+        // Should not happen
+    }
+}
+
+void ImagePreviewWorker::setFrameNew(Image image)
+{
+    // Set the frame
+    if (!frame.set(image.path())) return;
+    if(!frame.readData()) return;
+    
+    Matrix<size_t> image_size(1,2);
+    image_size[0] = frame.getFastDimension();
+    image_size[1] = frame.getSlowDimension();
+    
+    clMaintainImageBuffers(image_size);
+    
+    err = clEnqueueWriteBuffer(
+                *context_cl->getCommandQueue(), 
+                image_data_raw_cl,
+                CL_TRUE, 
+                0, 
+                frame.data().bytes(), 
+                frame.data().data(),
+                0,0,0);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    // Parameters essential to the frame
+    parameter[4] = frame.getFlux();
+    parameter[5] = frame.getExpTime();
+    parameter[6] = frame.getWavelength();
+    parameter[7] = frame.getDetectorDist();
+    parameter[8] = frame.getBeamX();
+    parameter[9] = frame.getBeamY();
+    parameter[10] = frame.getPixSizeX();
+    parameter[11] = frame.getPixSizeY();
+    
+    setParameter(parameter);
+    
+    // Do relevant calculations and render
+    calculus();
+    refresh();
+    
+    emit pathChanged(image.path());
 
     isFrameValid = true;
 
@@ -529,7 +582,105 @@ void ImagePreviewWorker::setFrameNew(Image image)
 //    copyAndReduce(image.selection());
 }
 
-void ImagePreviewWorker::maintainImageTexture(Matrix<int> &image_size)
+
+
+void ImagePreviewWorker::clMaintainImageBuffers(Matrix<size_t> &image_size)
+{
+    if ((image_size[0] != image_buffer_size[0]) || (image_size[1] != image_buffer_size[1]))
+    {
+        err = clReleaseMemObject(image_data_raw_cl);
+        err |= clReleaseMemObject(image_data_corrected_cl);
+        err |= clReleaseMemObject(image_data_weight_x_cl);
+        err |= clReleaseMemObject(image_data_weight_y_cl);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_raw_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_corrected_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_variance_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_skewness_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_weight_x_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_weight_y_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_data_generic_cl = clCreateBuffer( *context_cl->getContext(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float)*2, // *2 so it can be used for parallel reduction
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
+        image_buffer_size[0] = image_size[0];
+        image_buffer_size[1] = image_size[1];
+    }
+}
+
+void ImagePreviewWorker::refreshSelection(cl_mem data_cl, cl_mem data_weight_x_cl, cl_mem data_weight_y_cl, QRect rect)
+{
+    Matrix<size_t> local_ws(1,2);
+    local_ws[0] = 64;
+    local_ws[1] = 1;
+    
+    Matrix<size_t> image_size(1,2);
+    image_size[0] = frame.getFastDimension();
+    image_size[1] = frame.getSlowDimension();
+    
+    selectionCalculus(data_cl, data_weight_x_cl, data_weight_y_cl, image_size, local_ws, rect);
+}
+
+void ImagePreviewWorker::refreshDisplay(cl_mem data_cl)
+{
+    Matrix<size_t> local_ws(1,2);
+    local_ws[0] = 8;
+    local_ws[1] = 8;
+    
+    Matrix<size_t> image_size(1,2);
+    image_size[0] = frame.getFastDimension();
+    image_size[1] = frame.getSlowDimension();
+    
+    Matrix<float> data_limit(1,2);
+    data_limit[0] = parameter[12];
+    data_limit[1] = parameter[13];
+    
+    maintainImageTexture(image_size);
+    
+    imageDisplay(data_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+}
+
+void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
 {
     if ((image_size[0] != image_tex_size[0]) || (image_size[1] != image_tex_size[1]) || !isImageTexInitialized)
     {
@@ -539,6 +690,12 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<int> &image_size)
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             glDeleteTextures(1, &image_tex_gl);
         }
+        
+//        qDebug() << "Making new texture";
+//        image_size.print(2,"image_size");
+//        Matrix<size_t> image_size_t(1,2);
+//        image_size_t[0] = image_size[0];
+//        image_size_t[1] = image_size[1];
         
         context_gl->makeCurrent(render_surface);
         
@@ -709,100 +866,100 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
 
 void ImagePreviewWorker::copyAndReduce(QRect selection_rect)
 {
-    /*
-     * When an image is processed by the imagepreview kernel, it saves data into GPU buffers that can be used 
-     * for further calculations. This functions copies data from these buffers into smaller buffers depending
-     * on the selected area. The buffers are then summed, effectively doing operations such as integration
-     * */
+//    /*
+//     * When an image is processed by the imagepreview kernel, it saves data into GPU buffers that can be used 
+//     * for further calculations. This functions copies data from these buffers into smaller buffers depending
+//     * on the selected area. The buffers are then summed, effectively doing operations such as integration
+//     * */
     
-    // Restrict selection, this could be moved elsewhere and it would look better
-//    QRect selection_rect = image->selection();
+//    // Restrict selection, this could be moved elsewhere and it would look better
+////    QRect selection_rect = image->selection();
     
-    if (selection_rect.left() < 0) selection_rect.setLeft(0);
-    if (selection_rect.right() >= frame.getFastDimension()) selection_rect.setRight(frame.getFastDimension());
-    if (selection_rect.top() < 0) selection_rect.setTop(0);
-    if (selection_rect.bottom() >= frame.getSlowDimension()) selection_rect.setBottom(frame.getSlowDimension());
+//    if (selection_rect.left() < 0) selection_rect.setLeft(0);
+//    if (selection_rect.right() >= frame.getFastDimension()) selection_rect.setRight(frame.getFastDimension());
+//    if (selection_rect.top() < 0) selection_rect.setTop(0);
+//    if (selection_rect.bottom() >= frame.getSlowDimension()) selection_rect.setBottom(frame.getSlowDimension());
 
-//    image->setSelection(selection_rect);
-    selection = selection_rect;
+////    image->setSelection(selection_rect);
+//    selection = selection_rect;
 
-    emit selectionChanged(selection); // Can this be sent?
+//    emit selectionChanged(selection); // Can this be sent?
     
-    selection_rect = selection.normalized();
+//    selection_rect = selection.normalized();
     
-    // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequent parallel reduction
-    int selection_read_size = selection_rect.width()*selection_rect.height();
-    int selection_local_size = 64;
-    int selection_global_size = selection_read_size + (selection_read_size % selection_local_size ? selection_local_size - (selection_read_size % selection_local_size) : 0);
-    int selection_padded_size = selection_global_size + selection_global_size/selection_local_size;
+//    // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequent parallel reduction
+//    int selection_read_size = selection_rect.width()*selection_rect.height();
+//    int selection_local_size = 64;
+//    int selection_global_size = selection_read_size + (selection_read_size % selection_local_size ? selection_local_size - (selection_read_size % selection_local_size) : 0);
+//    int selection_padded_size = selection_global_size + selection_global_size/selection_local_size;
     
-    // Copy a chunk of GPU memory for further calculations
-    Matrix<size_t> local_ws(1,2);
-    local_ws[0] = 8;
-    local_ws[1] = 8;
-    
-    
-    // The memory area to be copied from
-    Matrix<int> buffer_size(1,2);
-    buffer_size[0] = frame.getFastDimension();
-    buffer_size[1] = frame.getSlowDimension();
-    
-    Matrix<int> buffer_origin(1,2);
-    buffer_origin[0] = selection_rect.left();
-    buffer_origin[1] = selection_rect.top();
-    
-    // The memory area to be copied into
-    Matrix<int> copy_size(1,2);
-    copy_size[0] = selection_rect.width();
-    copy_size[1] = selection_rect.height();
-    
-    Matrix<int> copy_origin(1,2);
-    copy_origin[0] = 0;
-    copy_origin[1] = 0;
+//    // Copy a chunk of GPU memory for further calculations
+//    Matrix<size_t> local_ws(1,2);
+//    local_ws[0] = 8;
+//    local_ws[1] = 8;
     
     
-    // Prepare buffers to put data into that coincides with the selected area
-    cl_mem selection_intensity_cl = clCreateBuffer( *context_cl->getContext(),
-        CL_MEM_ALLOC_HOST_PTR,
-        selection_padded_size*sizeof(cl_float),
-        NULL,
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    // The memory area to be copied from
+//    Matrix<int> buffer_size(1,2);
+//    buffer_size[0] = frame.getFastDimension();
+//    buffer_size[1] = frame.getSlowDimension();
     
-    cl_mem selection_pos_weight_x_cl = clCreateBuffer( *context_cl->getContext(),
-        CL_MEM_ALLOC_HOST_PTR,
-        selection_padded_size*sizeof(cl_float),
-        NULL,
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    Matrix<int> buffer_origin(1,2);
+//    buffer_origin[0] = selection_rect.left();
+//    buffer_origin[1] = selection_rect.top();
     
-    cl_mem selection_pos_weight_y_cl = clCreateBuffer( *context_cl->getContext(),
-        CL_MEM_ALLOC_HOST_PTR,
-        selection_padded_size*sizeof(cl_float),
-        NULL,
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    // The memory area to be copied into
+//    Matrix<int> copy_size(1,2);
+//    copy_size[0] = selection_rect.width();
+//    copy_size[1] = selection_rect.height();
     
-    // Transfer data to above buffers
-    copyBufferRect(image_intensity_cl, selection_intensity_cl, buffer_size, buffer_origin, copy_size, copy_origin, local_ws);
-    copyBufferRect(image_pos_weight_x_cl, selection_pos_weight_x_cl, buffer_size, buffer_origin, copy_size, copy_origin, local_ws);
-    copyBufferRect(image_pos_weight_y_cl, selection_pos_weight_y_cl, buffer_size, buffer_origin, copy_size, copy_origin, local_ws);
+//    Matrix<int> copy_origin(1,2);
+//    copy_origin[0] = 0;
+//    copy_origin[1] = 0;
     
-    local_ws[0] = 64;
-    local_ws[1] = 1;
+    
+//    // Prepare buffers to put data into that coincides with the selected area
+//    cl_mem selection_intensity_cl = clCreateBuffer( *context_cl->getContext(),
+//        CL_MEM_ALLOC_HOST_PTR,
+//        selection_padded_size*sizeof(cl_float),
+//        NULL,
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+//    cl_mem selection_pos_weight_x_cl = clCreateBuffer( *context_cl->getContext(),
+//        CL_MEM_ALLOC_HOST_PTR,
+//        selection_padded_size*sizeof(cl_float),
+//        NULL,
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+//    cl_mem selection_pos_weight_y_cl = clCreateBuffer( *context_cl->getContext(),
+//        CL_MEM_ALLOC_HOST_PTR,
+//        selection_padded_size*sizeof(cl_float),
+//        NULL,
+//        &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+//    // Transfer data to above buffers
+//    copyBufferRect(image_intensity_cl, selection_intensity_cl, buffer_size, buffer_origin, copy_size, copy_origin, local_ws);
+//    copyBufferRect(image_pos_weight_x_cl, selection_pos_weight_x_cl, buffer_size, buffer_origin, copy_size, copy_origin, local_ws);
+//    copyBufferRect(image_pos_weight_y_cl, selection_pos_weight_y_cl, buffer_size, buffer_origin, copy_size, copy_origin, local_ws);
+    
+//    local_ws[0] = 64;
+//    local_ws[1] = 1;
 
-    // Do parallel reduction of the chunks and save the results
-    selection.setSum(sumGpuArray(selection_intensity_cl, selection_read_size, local_ws));
-    selection.setWeightedX(sumGpuArray(selection_pos_weight_x_cl, selection_read_size, local_ws)/selection.sum());
-    selection.setWeightedY(sumGpuArray(selection_pos_weight_y_cl, selection_read_size, local_ws)/selection.sum());
+//    // Do parallel reduction of the chunks and save the results
+//    selection.setSum(sumGpuArray(selection_intensity_cl, selection_read_size, local_ws));
+//    selection.setWeightedX(sumGpuArray(selection_pos_weight_x_cl, selection_read_size, local_ws)/selection.sum());
+//    selection.setWeightedY(sumGpuArray(selection_pos_weight_y_cl, selection_read_size, local_ws)/selection.sum());
     
-    err = clReleaseMemObject(selection_intensity_cl);
-    err |= clReleaseMemObject(selection_pos_weight_x_cl);
-    err |= clReleaseMemObject(selection_pos_weight_y_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clReleaseMemObject(selection_intensity_cl);
+//    err |= clReleaseMemObject(selection_pos_weight_x_cl);
+//    err |= clReleaseMemObject(selection_pos_weight_y_cl);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
-void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<int> & image_size, Matrix<size_t> &local_ws, QRect selection_rect)
+void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, QRect selection_rect)
 {
     /*
      * When an image is processed by the imagepreview kernel, it saves data into GPU buffers that can be used 
@@ -822,7 +979,7 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
     
     // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequent parallel reduction
     int selection_read_size = selection_rect.width()*selection_rect.height();
-    int selection_local_size = local_ws[0];
+    int selection_local_size = local_ws[0]*local_ws[1];
     int selection_global_size = selection_read_size + (selection_read_size % selection_local_size ? selection_local_size - (selection_read_size % selection_local_size) : 0);
     int selection_padded_size = selection_global_size + selection_global_size/selection_local_size;
     
@@ -831,20 +988,20 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
     local_ws[1] = 8;
     
     // The memory area to be copied from
-    Matrix<int> buffer_size(1,2);
+    Matrix<size_t> buffer_size(1,2);
     buffer_size[0] = image_size[0];
     buffer_size[1] = image_size[1];
     
-    Matrix<int> buffer_origin(1,2);
+    Matrix<size_t> buffer_origin(1,2);
     buffer_origin[0] = selection_rect.left();
     buffer_origin[1] = selection_rect.top();
     
     // The memory area to be copied into
-    Matrix<int> copy_size(1,2);
+    Matrix<size_t> copy_size(1,2);
     copy_size[0] = selection_rect.width();
     copy_size[1] = selection_rect.height();
     
-    Matrix<int> copy_origin(1,2);
+    Matrix<size_t> copy_origin(1,2);
     copy_origin[0] = 0;
     copy_origin[1] = 0;
     
@@ -893,51 +1050,51 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
 
 void ImagePreviewWorker::update(size_t w, size_t h)
 {
-    if (isFrameValid)
-    {
-        // Aquire shared CL/GL objects
-        glFinish();
-        err = clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
-        err |= clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    if (isFrameValid)
+//    {
+//        // Aquire shared CL/GL objects
+//        glFinish();
+//        err = clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
+//        err |= clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-        // Launch rendering kernel
-        Matrix<size_t> local_ws(1,2);
-        local_ws[0] = 16;
-        local_ws[1] = 16;
+//        // Launch rendering kernel
+//        Matrix<size_t> local_ws(1,2);
+//        local_ws[0] = 16;
+//        local_ws[1] = 16;
         
-        Matrix<size_t> global_ws(1,2);
-        global_ws[0] = w + (local_ws[0] - w%local_ws[0]);
-        global_ws[1] = h + (local_ws[1] - h%local_ws[1]);
+//        Matrix<size_t> global_ws(1,2);
+//        global_ws[0] = w + (local_ws[0] - w%local_ws[0]);
+//        global_ws[1] = h + (local_ws[1] - h%local_ws[1]);
         
-        Matrix<size_t> area_per_call(1,2);
-        area_per_call[0] = 128;
-        area_per_call[1] = 128;
+//        Matrix<size_t> area_per_call(1,2);
+//        area_per_call[0] = 128;
+//        area_per_call[1] = 128;
     
-        Matrix<size_t> call_offset(1,2);
-        call_offset[0] = 0;
-        call_offset[1] = 0;
+//        Matrix<size_t> call_offset(1,2);
+//        call_offset[0] = 0;
+//        call_offset[1] = 0;
     
-        // Launch the kernel
-        for (size_t glb_x = 0; glb_x < global_ws[0]; glb_x += area_per_call[0])
-        {
-            for (size_t glb_y = 0; glb_y < global_ws[1]; glb_y += area_per_call[1])
-            {
-                call_offset[0] = glb_x;
-                call_offset[1] = glb_y;
+//        // Launch the kernel
+//        for (size_t glb_x = 0; glb_x < global_ws[0]; glb_x += area_per_call[0])
+//        {
+//            for (size_t glb_y = 0; glb_y < global_ws[1]; glb_y += area_per_call[1])
+//            {
+//                call_offset[0] = glb_x;
+//                call_offset[1] = glb_y;
     
-                err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), cl_image_preview, 2, call_offset.data(), area_per_call.data(), local_ws.data(), 0, NULL, NULL);
-                if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-            }
-        }
-        err = clFinish(*context_cl->getCommandQueue());
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//                err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), cl_image_preview, 2, call_offset.data(), area_per_call.data(), local_ws.data(), 0, NULL, NULL);
+//                if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//            }
+//        }
+//        err = clFinish(*context_cl->getCommandQueue());
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-        // Release shared CL/GL objects
-        err = clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
-        err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    }
+//        // Release shared CL/GL objects
+//        err = clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &image_tex_cl, 0, 0, 0);
+//        err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    }
 }
 
 void ImagePreviewWorker::initResourcesCL()
@@ -984,6 +1141,56 @@ void ImagePreviewWorker::initResourcesCL()
     err = clSetKernelArg(cl_image_preview, 3, sizeof(cl_mem), &parameter_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
+    // Image buffers
+    image_data_raw_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    image_data_corrected_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    image_data_variance_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    image_data_skewness_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    image_data_weight_x_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    image_data_weight_y_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    image_data_generic_cl = clCreateBuffer( *context_cl->getContext(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float)*2, // *2 so it can be used for parallel reduction
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
     isCLInitialized = true;
     
     setParameter(parameter);
@@ -997,7 +1204,9 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         glDeleteTextures(1, &tsf_tex_gl);
     }
-
+    
+//    qDebug() << "Setting tsf";
+    
     // Buffer for tsf_tex_gl
     glGenTextures(1, &tsf_tex_gl);
     glBindTexture(GL_TEXTURE_2D, tsf_tex_gl);
@@ -1052,6 +1261,8 @@ void ImagePreviewWorker::setTsfTexture(int value)
     tsf.setSpline(256);
 
     if (isInitialized) setTsf(tsf);
+    
+    
     update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setTsfAlpha(int value)
@@ -1344,7 +1555,44 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     tip += "Pixel (x,y) "+QString::number((int) pixel_x)+" "+QString::number((int) pixel_y)+"\n";
     
     // Intensity
-    tip += "Intensity "+QString::number(frame.intensity((int) pixel_x,(int) pixel_y))+"\n";
+    float value = 0;
+    
+    if (mode == 0)
+    {
+        err = clEnqueueReadBuffer ( *context_cl->getCommandQueue(),
+            image_data_corrected_cl,
+            CL_TRUE,
+            ((int) pixel_y * frame.getFastDimension() + (int) pixel_x)*sizeof(cl_float),
+            sizeof(cl_float),
+            &value,
+            0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
+    else if (mode == 1)
+    {
+        err = clEnqueueReadBuffer ( *context_cl->getCommandQueue(),
+            image_data_variance_cl,
+            CL_TRUE,
+            ((int) pixel_y * frame.getFastDimension() + (int) pixel_x)*sizeof(cl_float),
+            sizeof(cl_float),
+            &value,
+            0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
+    else if (mode == 2)
+    {
+        err = clEnqueueReadBuffer ( *context_cl->getCommandQueue(),
+            image_data_skewness_cl,
+            CL_TRUE,
+            ((int) pixel_y * frame.getFastDimension() + (int) pixel_x)*sizeof(cl_float),
+            sizeof(cl_float),
+            &value,
+            0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
+    
+    
+    tip += "Intensity "+QString::number(value)+"\n";
     
     // Theta and phi
     float k = 1.0f/frame.wavelength; // Multiply with 2pi if desired
@@ -1357,25 +1605,15 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     k_f[1] =    frame.pixel_size_x * ((float) (frame.getSlowDimension() - pixel_y) - frame.beam_x);
     k_f[2] =    frame.pixel_size_y * ((float) pixel_x - frame.beam_y);
     k_f.normalize();
-//    k_f.print(2,"k_f");
     k_f = k*k_f;
-    
-//    k_f.print(2,"k_f");
-//    k_i.print(2,"k_i");
     
 
     Matrix<float> Q(1,3,0);
     Q = k_f - k_i;
-
-//    Q.print(2,"Q");
     
     float lab_theta = 180*asin(Q[1] / k)/pi*0.5;
-//    float lab_phi = 180*atan2(Q[2],-Q[0])/pi;
-    
     
     tip += "Theta "+QString::number(lab_theta,'f',2)+"°\n";
-//    tip += "Phi "+QString::number(lab_phi,'f',2)+"°\n";
-    
     
     // Position
     tip += "Position (x,y,z) "+QString::number(Q[0],'f',2)+" "+QString::number(Q[1],'f',2)+" "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")\n";
@@ -1557,20 +1795,20 @@ void ImagePreviewWorker::setParameter(Matrix<float> & data)
 {
     if (0)
     {
-        qDebug() << "th_a_low" << parameter[0];
-        qDebug() << "th_a_high" << parameter[1];
-        qDebug() << "th_b_low" << parameter[2];
-        qDebug() << "th_b_high" << parameter[3];
-        qDebug() << "flux" << parameter[4];
-        qDebug() << "exp_time" << parameter[5];
-        qDebug() << "wavelength" << parameter[6];
-        qDebug() << "det_dist" << parameter[7];
-        qDebug() << "beam_x" << parameter[8];
-        qDebug() << "beam_y" << parameter[9];
-        qDebug() << "pix_size_x" << parameter[10];
-        qDebug() << "pix_size_y" << parameter[11];
-        qDebug() << "intensity_min" << parameter[12];
-        qDebug() << "intensity_max" << parameter[13];
+        qDebug() << "th_a_low" << data[0];
+        qDebug() << "th_a_high" << data[1];
+        qDebug() << "th_b_low" << data[2];
+        qDebug() << "th_b_high" << data[3];
+        qDebug() << "flux" << data[4];
+        qDebug() << "exp_time" << data[5];
+        qDebug() << "wavelength" << data[6];
+        qDebug() << "det_dist" << data[7];
+        qDebug() << "beam_x" << data[8];
+        qDebug() << "beam_y" << data[9];
+        qDebug() << "pix_size_x" << data[10];
+        qDebug() << "pix_size_y" << data[11];
+        qDebug() << "intensity_min" << data[12];
+        qDebug() << "intensity_max" << data[13];
     }
 
     if (isCLInitialized)

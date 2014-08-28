@@ -47,6 +47,7 @@ class Matrix {
         Matrix<T> getInverse4x4(int verbose = false) const;
         Matrix<T> getColMajor() const;
         Matrix<float> toFloat() const;
+        Matrix<int> toInt() const;
 
         T sum();
         QVector<T> toQVector() const;
@@ -325,6 +326,19 @@ Matrix<float> Matrix<T>::toFloat() const
     for (size_t i = 0; i < this->m*this->n; i++)
     {
         buf[i] = (float) this->buffer[i];
+    }
+
+    return buf;
+}
+
+template <class T>
+Matrix<int> Matrix<T>::toInt() const
+{
+    Matrix<int> buf(this->m, this->n);
+
+    for (size_t i = 0; i < this->m*this->n; i++)
+    {
+        buf[i] = (int) this->buffer[i];
     }
 
     return buf;
