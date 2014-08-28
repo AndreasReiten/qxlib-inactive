@@ -112,8 +112,8 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
     this->shared_window = window;
 }
 
-void ImagePreviewWorker::displayImage(DetectorFile & file)
-{
+//void ImagePreviewWorker::displayImage(DetectorFile & file)
+//{
 //    if (isImageTexInitialized){
 //        err = clReleaseMemObject(image_tex_cl);
 //        err |= clReleaseMemObject(source_cl);
@@ -218,10 +218,10 @@ void ImagePreviewWorker::displayImage(DetectorFile & file)
 //    update(file.getFastDimension(), file.getSlowDimension());
     
 //    emit pathChanged(file.getPath());
-}
+//}
 
-void ImagePreviewWorker::setFrame(Image image)
-{
+//void ImagePreviewWorker::setFrame(Image image)
+//{
 //    if (frame.set(image.path()))
 //    {
 //        if(frame.readData())
@@ -233,7 +233,7 @@ void ImagePreviewWorker::setFrame(Image image)
 //            copyAndReduce(image.selection());
 //        }
 //    }
-}
+//}
 
 void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> & param, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, int correction, float mean, float deviation, int task)
 {
@@ -244,10 +244,13 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     
     // Set kernel parameters
     err = clSetKernelArg(cl_image_calculus,  0, sizeof(cl_mem), (void *) &data_buf_cl);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     err |= clSetKernelArg(cl_image_calculus, 1, sizeof(cl_mem), (void *) &out_buf_cl);
     err |= clSetKernelArg(cl_image_calculus, 2, sizeof(cl_mem), &parameter_cl);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     err |= clSetKernelArg(cl_image_calculus, 3, sizeof(cl_int2), image_size.toInt().data());
     err |= clSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &correction);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     err |= clSetKernelArg(cl_image_calculus, 5, sizeof(cl_int), &task);
     err |= clSetKernelArg(cl_image_calculus, 6, sizeof(cl_float), &mean);
     err |= clSetKernelArg(cl_image_calculus, 7, sizeof(cl_float), &deviation);
@@ -423,11 +426,13 @@ float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, Ma
 
 void ImagePreviewWorker::calculus()
 {
+    if (!isFrameValid) return;
+
     Matrix<size_t> origin(2,1,0);
     
     Matrix<size_t> local_ws(1,2);
-    local_ws[0] = 8;
-    local_ws[1] = 8;
+    local_ws[0] = 64;
+    local_ws[1] = 1;
     
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
@@ -501,38 +506,34 @@ void ImagePreviewWorker::calculus()
     }
 }
 
-void ImagePreviewWorker::refresh()
-{
-    Matrix<size_t> local_ws(1,2);
-    local_ws[0] = 8;
-    local_ws[1] = 8;
-    
-    if (mode == 0)
-    {
-        // Normal intensity
-        refreshDisplay(image_data_corrected_cl);
+//void ImagePreviewWorker::refresh()
+//{
+//    if (mode == 0)
+//    {
+//        // Normal intensity
+//        refreshDisplay();
 
-        refreshSelection(image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, selection);
-    }
-    if (mode == 1)
-    {
-        // Variance
-        refreshDisplay(image_data_variance_cl);
+//        refreshSelection();
+//    }
+//    if (mode == 1)
+//    {
+//        // Variance
+//        refreshDisplay();
 
-        refreshSelection(image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, selection);
-    }
-    else if (mode == 2)
-    {
-        // Skewness
-        refreshDisplay(image_data_skewness_cl);
+//        refreshSelection();
+//    }
+//    else if (mode == 2)
+//    {
+//        // Skewness
+//        refreshDisplay();
 
-        refreshSelection(image_data_skewness_cl, image_data_weight_x_cl, image_data_weight_y_cl, selection);
-    }
-    else
-    {
-        // Should not happen
-    }
-}
+//        refreshSelection();
+//    }
+//    else
+//    {
+//        // Should not happen
+//    }
+//}
 
 void ImagePreviewWorker::setFrameNew(Image image)
 {
@@ -540,12 +541,27 @@ void ImagePreviewWorker::setFrameNew(Image image)
     if (!frame.set(image.path())) return;
     if(!frame.readData()) return;
     
+    selection = image.selection().normalized();
+
+//    qDebug() << selection << frame.getFastDimension() << frame.getSlowDimension();
+
+    // Restrict selection, this could be moved elsewhere and it would look better
+    if (selection.left() < 0) selection.setLeft(0);
+    if (selection.right() >= frame.getFastDimension()) selection.setRight(frame.getFastDimension()-1);
+    if (selection.top() < 0) selection.setTop(0);
+    if (selection.bottom() >= frame.getSlowDimension()) selection.setBottom(frame.getSlowDimension()-1);
+
+//    qDebug() << selection << selection.normalized();
+
+    emit selectionChanged(selection); // Can this be sent?
+
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
     image_size[1] = frame.getSlowDimension();
     
     clMaintainImageBuffers(image_size);
-    
+
+    // Write the frame data to the GPU
     err = clEnqueueWriteBuffer(
                 *context_cl->getCommandQueue(), 
                 image_data_raw_cl,
@@ -570,7 +586,8 @@ void ImagePreviewWorker::setFrameNew(Image image)
     
     // Do relevant calculations and render
     calculus();
-    refresh();
+    refreshDisplay();
+    refreshSelection();
     
     emit pathChanged(image.path());
 
@@ -648,7 +665,7 @@ void ImagePreviewWorker::clMaintainImageBuffers(Matrix<size_t> &image_size)
     }
 }
 
-void ImagePreviewWorker::refreshSelection(cl_mem data_cl, cl_mem data_weight_x_cl, cl_mem data_weight_y_cl, QRect rect)
+void ImagePreviewWorker::refreshSelection()
 {
     Matrix<size_t> local_ws(1,2);
     local_ws[0] = 64;
@@ -657,11 +674,31 @@ void ImagePreviewWorker::refreshSelection(cl_mem data_cl, cl_mem data_weight_x_c
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
     image_size[1] = frame.getSlowDimension();
+
+    if (mode == 0)
+    {
+        // Normal intensity
+        selectionCalculus(image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+    }
+    if (mode == 1)
+    {
+        // Variance
+        selectionCalculus(image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+    }
+    else if (mode == 2)
+    {
+        // Skewness
+        selectionCalculus(image_data_skewness_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+    }
+    else
+    {
+        // Should not happen
+    }
     
-    selectionCalculus(data_cl, data_weight_x_cl, data_weight_y_cl, image_size, local_ws, rect);
+
 }
 
-void ImagePreviewWorker::refreshDisplay(cl_mem data_cl)
+void ImagePreviewWorker::refreshDisplay()
 {
     Matrix<size_t> local_ws(1,2);
     local_ws[0] = 8;
@@ -675,9 +712,27 @@ void ImagePreviewWorker::refreshDisplay(cl_mem data_cl)
     data_limit[0] = parameter[12];
     data_limit[1] = parameter[13];
     
-    maintainImageTexture(image_size);
+    if (isFrameValid) maintainImageTexture(image_size);
     
-    imageDisplay(data_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+    if (mode == 0)
+    {
+        // Normal intensity
+        imageDisplay(image_data_corrected_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+    }
+    if (mode == 1)
+    {
+        // Variance
+        imageDisplay(image_data_variance_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+    }
+    else if (mode == 2)
+    {
+        // Skewness
+        imageDisplay(image_data_skewness_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+    }
+    else
+    {
+        // Should not happen
+    }
 }
 
 void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
@@ -744,7 +799,7 @@ void ImagePreviewWorker::integrateSingle(Image image)
 //    if (image.path() != frame.getPath())
 //    {
 //    qDebug() << "blol";
-        setFrame(image);
+        setFrameNew(image);
         {
             QPainter painter(paint_device_gl);
             render(&painter);
@@ -771,7 +826,7 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
         // Draw the frame and update the intensity OpenCL buffer prior to further operations 
 //        if (folder.current()->path() != frame.getPath())
 //        {
-            setFrame(*folder.current());
+            setFrameNew(*folder.current());
             {
                 QPainter painter(paint_device_gl);
                 render(&painter);
@@ -815,7 +870,7 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
             // Draw the frame and update the intensity OpenCL buffer prior to further operations 
 //            if (set.current()->current()->path() != frame.getPath())
 //            {
-                setFrame(*set.current()->current());
+                setFrameNew(*set.current()->current());
                 {
                     QPainter painter(paint_device_gl);
                     render(&painter);
@@ -864,8 +919,8 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
 }
 
 
-void ImagePreviewWorker::copyAndReduce(QRect selection_rect)
-{
+//void ImagePreviewWorker::copyAndReduce(QRect selection_rect)
+//{
 //    /*
 //     * When an image is processed by the imagepreview kernel, it saves data into GPU buffers that can be used 
 //     * for further calculations. This functions copies data from these buffers into smaller buffers depending
@@ -957,9 +1012,9 @@ void ImagePreviewWorker::copyAndReduce(QRect selection_rect)
 //    err |= clReleaseMemObject(selection_pos_weight_x_cl);
 //    err |= clReleaseMemObject(selection_pos_weight_y_cl);
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-}
+//}
 
-void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, QRect selection_rect)
+void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws)
 {
     /*
      * When an image is processed by the imagepreview kernel, it saves data into GPU buffers that can be used 
@@ -967,25 +1022,26 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
      * on the selected area. The buffers are then summed, effectively doing operations such as integration
      * */
     
-    // Restrict selection, this could be moved elsewhere and it would look better
-    if (selection_rect.left() < 0) selection_rect.setLeft(0);
-    if (selection_rect.right() >= frame.getFastDimension()) selection_rect.setRight(frame.getFastDimension());
-    if (selection_rect.top() < 0) selection_rect.setTop(0);
-    if (selection_rect.bottom() >= frame.getSlowDimension()) selection_rect.setBottom(frame.getSlowDimension());
-
-    selection = selection_rect;
-    selection_rect = selection.normalized();
-    emit selectionChanged(selection); // Can this be sent?
-    
     // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequent parallel reduction
-    int selection_read_size = selection_rect.width()*selection_rect.height();
+    int selection_read_size = selection.normalized().width()*selection.normalized().height();
     int selection_local_size = local_ws[0]*local_ws[1];
     int selection_global_size = selection_read_size + (selection_read_size % selection_local_size ? selection_local_size - (selection_read_size % selection_local_size) : 0);
     int selection_padded_size = selection_global_size + selection_global_size/selection_local_size;
     
+    if (selection_read_size <= 0) return;
+
+    if (0)
+    {
+        qDebug() << selection.normalized();
+        qDebug() << selection_read_size;
+        qDebug() << selection_local_size;
+        qDebug() << selection_global_size;
+        qDebug() << selection_padded_size;
+    }
+
     // Copy a chunk of GPU memory for further calculations
-    local_ws[0] = 8;
-    local_ws[1] = 8;
+    local_ws[0] = 64;
+    local_ws[1] = 1;
     
     // The memory area to be copied from
     Matrix<size_t> buffer_size(1,2);
@@ -993,13 +1049,13 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
     buffer_size[1] = image_size[1];
     
     Matrix<size_t> buffer_origin(1,2);
-    buffer_origin[0] = selection_rect.left();
-    buffer_origin[1] = selection_rect.top();
+    buffer_origin[0] = selection.normalized().left();
+    buffer_origin[1] = selection.normalized().top();
     
     // The memory area to be copied into
     Matrix<size_t> copy_size(1,2);
-    copy_size[0] = selection_rect.width();
-    copy_size[1] = selection_rect.height();
+    copy_size[0] = selection.normalized().width();
+    copy_size[1] = selection.normalized().height();
     
     Matrix<size_t> copy_origin(1,2);
     copy_origin[0] = 0;
@@ -1048,8 +1104,8 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
 }
 
 
-void ImagePreviewWorker::update(size_t w, size_t h)
-{
+//void ImagePreviewWorker::update(size_t w, size_t h)
+//{
 //    if (isFrameValid)
 //    {
 //        // Aquire shared CL/GL objects
@@ -1095,7 +1151,7 @@ void ImagePreviewWorker::update(size_t w, size_t h)
 //        err |= clEnqueueReleaseGLObjects(*context_cl->getCommandQueue(), 1, &tsf_tex_cl, 0, 0, 0);
 //        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 //    }
-}
+//}
 
 void ImagePreviewWorker::initResourcesCL()
 {
@@ -1109,8 +1165,8 @@ void ImagePreviewWorker::initResourcesCL()
     context_cl->buildProgram(&program, "-Werror");
 
     // Kernel handles
-    cl_image_preview = clCreateKernel(program, "imagePreview", &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    cl_image_preview = clCreateKernel(program, "imagePreview", &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     cl_display_image = clCreateKernel(program, "imageDisplay", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -1122,14 +1178,14 @@ void ImagePreviewWorker::initResourcesCL()
     image_sampler = clCreateSampler(*context_cl->getContext(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    err = clSetKernelArg(cl_image_preview, 5, sizeof(cl_sampler), &image_sampler);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clSetKernelArg(cl_image_preview, 5, sizeof(cl_sampler), &image_sampler);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     // Tsf sampler
     tsf_sampler = clCreateSampler(*context_cl->getContext(), true, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
 
-    err = clSetKernelArg(cl_image_preview, 4, sizeof(cl_sampler), &tsf_sampler);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clSetKernelArg(cl_image_preview, 4, sizeof(cl_sampler), &tsf_sampler);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     // Parameters
     parameter_cl = clCreateBuffer(*context_cl->getContext(),
@@ -1138,8 +1194,8 @@ void ImagePreviewWorker::initResourcesCL()
         NULL, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    err = clSetKernelArg(cl_image_preview, 3, sizeof(cl_mem), &parameter_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clSetKernelArg(cl_image_preview, 3, sizeof(cl_mem), &parameter_cl);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Image buffers
     image_data_raw_cl = clCreateBuffer( *context_cl->getContext(),
@@ -1231,8 +1287,8 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
     tsf_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, tsf_tex_gl, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    err = clSetKernelArg(cl_image_preview, 2, sizeof(cl_mem), (void *) &tsf_tex_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    err = clSetKernelArg(cl_image_preview, 2, sizeof(cl_mem), (void *) &tsf_tex_cl);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
 void ImagePreviewWorker::initialize()
@@ -1262,8 +1318,8 @@ void ImagePreviewWorker::setTsfTexture(int value)
 
     if (isInitialized) setTsf(tsf);
     
-    
-    update(frame.getFastDimension(), frame.getSlowDimension());
+    refreshDisplay();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setTsfAlpha(int value)
 {
@@ -1273,36 +1329,45 @@ void ImagePreviewWorker::setTsfAlpha(int value)
     tsf.setSpline(256);
 
     if (isInitialized) setTsf(tsf);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+    refreshDisplay();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setLog(bool value)
 {
     isLog = (int) value;
 
-    if (isInitialized)
-    {
-        err = clSetKernelArg(cl_image_preview, 8, sizeof(cl_int), &isLog);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    }
+//    if (isInitialized)
+//    {
+//        err = clSetKernelArg(cl_display_image, 5, sizeof(cl_int), &isLog);
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    }
 
-    update(frame.getFastDimension(), frame.getSlowDimension());
+    refreshDisplay();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setDataMin(double value)
 {
-    if (0) qDebug() << value;
+//    if (0) qDebug() << value;
     
     parameter[12] = value;
     setParameter(parameter);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+    refreshDisplay();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setDataMax(double value)
 {
-    if (0) qDebug() << value;
+//    if (0) qDebug() << value;
     
     parameter[13] = value;
     setParameter(parameter);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+//    calculus();
+    refreshDisplay();
+//    refreshSelection();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setSelection(QRect rect)
@@ -1311,14 +1376,20 @@ void ImagePreviewWorker::setSelection(QRect rect)
 //    qDebug() << "Rect" << rect;
     selection = rect;
 //    qDebug() << "Selection" << selection.topLeft() << selection.size();
-    
+//    calculus();
+//    refreshDisplay();
+//    refreshSelection();
 }
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)
 {
     parameter[0] = value;
     setParameter(parameter);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+    calculus();
+    refreshDisplay();
+    refreshSelection();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 
@@ -1327,19 +1398,31 @@ void ImagePreviewWorker::setThresholdNoiseHigh(double value)
 {
     parameter[1] = value;
     setParameter(parameter);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+    calculus();
+    refreshDisplay();
+    refreshSelection();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
 {
     parameter[2] = value;
     setParameter(parameter);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+    calculus();
+    refreshDisplay();
+    refreshSelection();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
 {
     parameter[3] = value;
     setParameter(parameter);
-    update(frame.getFastDimension(), frame.getSlowDimension());
+
+    calculus();
+    refreshDisplay();
+    refreshSelection();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::beginRawGLCalls(QPainter * painter)
@@ -1592,7 +1675,7 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     }
     
     
-    tip += "Intensity "+QString::number(value)+"\n";
+    tip += "Intensity "+QString::number(value,'g',4)+"\n";
     
     // Theta and phi
     float k = 1.0f/frame.wavelength; // Multiply with 2pi if desired
@@ -1769,26 +1852,31 @@ void ImagePreviewWorker::setMode(int value)
 {
     mode = value;
 
-    if (isInitialized)
-    {
-        err = clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    }
-
-    update(frame.getFastDimension(), frame.getSlowDimension());
+//    if (isInitialized)
+//    {
+//        err = clSetKernelArg(cl_image_preview, 7, sizeof(cl_int), &mode);
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    }
+    calculus();
+    refreshDisplay();
+    refreshSelection();
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setCorrection(bool value)
 {
     isCorrected = (int) value;
 
-    if (isInitialized)
-    {
-        err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    }
+//    if (isInitialized)
+//    {
+//        err = clSetKernelArg(cl_image_preview, 6, sizeof(cl_int), &isCorrected);
+//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    }
+    calculus();
+    refreshDisplay();
+    refreshSelection();
 
-    update(frame.getFastDimension(), frame.getSlowDimension());
+//    update(frame.getFastDimension(), frame.getSlowDimension());
 }
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)
@@ -1920,7 +2008,8 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         
         selection.setBottomRight(QPoint(pixel[0]+1, pixel[1]+1));
 
-        copyAndReduce(selection);
+//        copyAndReduce(selection);
+        refreshSelection();
         
         emit selectionChanged(selection);
     }

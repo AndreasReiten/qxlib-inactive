@@ -74,8 +74,8 @@ public slots:
     void setCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
-    void displayImage(DetectorFile & file);
-    void refresh();
+//    void displayImage(DetectorFile & file);
+//    void refresh();
     void calculus();
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
@@ -85,7 +85,7 @@ public slots:
 //    void keyReleaseEvent(QKeyEvent *ev);
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
-    void setFrame(Image image);
+//    void setFrame(Image image);
     void setFrameNew(Image image);
     void setSelection(QRect rect);
     void setSelectionActive(bool value);
@@ -105,11 +105,11 @@ private:
     
     float sumGpuArray(cl_mem cl_data, unsigned int read_size, Matrix<size_t> &local_ws);
     
-    void selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, QRect selection_rect);
+    void selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws);
     
     // Convenience 
-    void refreshDisplay(cl_mem data_cl);
-    void refreshSelection(cl_mem data_cl, cl_mem data_weight_x_cl, cl_mem data_weight_y_cl, QRect rect);
+    void refreshDisplay();
+    void refreshSelection();
     
     // GPU buffer management
     void maintainImageTexture(Matrix<size_t> &image_size);
@@ -125,7 +125,7 @@ private:
     cl_mem image_data_generic_cl;
     
     // Misc
-    void copyAndReduce(QRect selection_rect);
+//    void copyAndReduce(QRect selection_rect);
     
     QString integrationFrameString(double value, Image &image);
     
@@ -133,7 +133,7 @@ private:
 
     cl_int err;
     cl_program program;
-    cl_kernel cl_image_preview;
+//    cl_kernel cl_image_preview;
     cl_kernel cl_display_image;
     cl_kernel cl_image_calculus;
     cl_mem image_tex_cl;
@@ -160,7 +160,7 @@ private:
     DetectorFile frame;
 
     void initResourcesCL();
-    void update(size_t w, size_t h);
+//    void update(size_t w, size_t h);
     void setParameter(Matrix<float> &data);
     void setTsf(TransferFunction & tsf);
     Matrix<float> parameter;
