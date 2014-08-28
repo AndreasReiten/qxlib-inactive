@@ -93,6 +93,7 @@ public slots:
     void integrateSingle(Image image);
     void integrateFolder(ImageFolder folder);
     void integrateSet(FolderSet set);
+    void showWeightCenter(bool value);
     
 private:
     
@@ -183,6 +184,7 @@ private:
     bool isTsfTexInitialized;
     bool isCLInitialized;
     bool isFrameValid;
+    bool isWeightCenterActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
     Matrix<double> translation_matrix;
