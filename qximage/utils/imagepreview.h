@@ -93,6 +93,11 @@ public slots:
     void integrateSingle(Image image);
     void integrateFolder(ImageFolder folder);
     void integrateSet(FolderSet set);
+    
+    void peakHuntSingle(Image image);
+    void peakHuntFolder(ImageFolder folder);
+    void peakHuntSet(FolderSet set);
+    
     void showWeightCenter(bool value);
     
 private:
@@ -128,7 +133,7 @@ private:
     // Misc
 //    void copyAndReduce(QRect selection_rect);
     
-    QString integrationFrameString(double value, Image &image);
+    QString integrationFrameString(DetectorFile &f, Selection &s, Image &image);
     
     SharedContextWindow * shared_window;
 
@@ -164,6 +169,7 @@ private:
 //    void update(size_t w, size_t h);
     void setParameter(Matrix<float> &data);
     void setTsf(TransferFunction & tsf);
+    Matrix<double> getScatteringVector(DetectorFile & f, double x, double y);
     Matrix<float> parameter;
     
     void beginRawGLCalls(QPainter * painter);

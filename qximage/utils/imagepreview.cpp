@@ -598,16 +598,37 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
     }
 }
 
-QString ImagePreviewWorker::integrationFrameString(double value, Image & image)
+QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, Selection & s, Image & image)
 {
+    Matrix<double> Q = getScatteringVector(f, s.weighted_x(), s.weighted_y());
+    
     QString str;
-    str += QString::number(value,'E')+" "
+    str += QString::number(s.sum(),'E')+" "
             +QString::number(image.selection().left())+" "
             +QString::number(image.selection().top())+" "
             +QString::number(image.selection().width())+" "
             +QString::number(image.selection().height())+" "
+            +QString::number(s.weighted_x(),'E')+" "
+            +QString::number(s.weighted_y(),'E')+" "
+            +QString::number(Q[0],'E')+" "
+            +QString::number(Q[1],'E')+" "
+            +QString::number(Q[2],'E')+" "
+            +QString::number(vecLength(Q),'E')+" "
             +image.path()+"\n";
     return str;
+}
+
+
+void ImagePreviewWorker::peakHuntSingle(Image image)
+{
+}
+
+void ImagePreviewWorker::peakHuntFolder(ImageFolder folder)
+{
+}
+
+void ImagePreviewWorker::peakHuntSet(FolderSet set)
+{
 }
 
 void ImagePreviewWorker::integrateSingle(Image image)
@@ -622,7 +643,7 @@ void ImagePreviewWorker::integrateSingle(Image image)
     context_gl->swapBuffers(render_surface);
 
     QString result;
-    result += integrationFrameString(selection.sum(),image);
+    result += integrationFrameString(frame, selection,image);
     emit resultFinished(result);
 }
 
@@ -644,7 +665,7 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
 
         sum += selection.sum();
         
-        frames += integrationFrameString(selection.sum(), *folder.current());
+        frames += integrationFrameString(frame, selection, *folder.current());
     
         folder.next();
     }
@@ -659,11 +680,6 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
     result += frames;
     
     emit resultFinished(result);
-}
-
-void ImagePreviewWorker::showWeightCenter(bool value)
-{
-    isWeightCenterActive = value;
 }
 
 void ImagePreviewWorker::integrateSet(FolderSet set)
@@ -688,7 +704,7 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
 
             sum += selection.sum();
             
-            str += integrationFrameString(selection.sum(), *set.current()->current());
+            str += integrationFrameString(frame, selection, *set.current()->current());
         
             set.current()->next(); 
         }
@@ -723,6 +739,11 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
     emit resultFinished(result);
 }
 
+
+void ImagePreviewWorker::showWeightCenter(bool value)
+{
+    isWeightCenterActive = value;
+}
 
 void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws)
 {
@@ -1214,6 +1235,27 @@ void ImagePreviewWorker::drawSelection(QPainter *painter)
     endRawGLCalls(painter);
 }
 
+Matrix<double> ImagePreviewWorker::getScatteringVector(DetectorFile & f, double x, double y)
+{
+    double k = 1.0f/f.wavelength; // Multiply with 2pi if desired
+
+    Matrix<double> k_i(1,3,0);
+    k_i[0] = -k;
+    
+    Matrix<double> k_f(1,3,0);
+    k_f[0] =    -f.detector_distance;
+    k_f[1] =    f.pixel_size_x * ((double) (f.getSlowDimension() - y) - f.beam_x);
+    k_f[2] =    f.pixel_size_y * ((double) x - f.beam_y);
+    k_f.normalize();
+    k_f = k*k_f;
+    
+
+    Matrix<double> Q(1,3,0);
+    Q = k_f - k_i;
+    
+    return Q;
+}
+
 void ImagePreviewWorker::drawToolTip(QPainter *painter)
 {
     if (isFrameValid == false) return;
@@ -1283,23 +1325,11 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     tip += "Intensity "+QString::number(value,'g',4)+"\n";
     
     // Theta and phi
-    float k = 1.0f/frame.wavelength; // Multiply with 2pi if desired
-
-    Matrix<float> k_i(1,3,0);
-    k_i[0] = -k;
     
-    Matrix<float> k_f(1,3,0);
-    k_f[0] =    -frame.detector_distance;
-    k_f[1] =    frame.pixel_size_x * ((float) (frame.getSlowDimension() - pixel_y) - frame.beam_x);
-    k_f[2] =    frame.pixel_size_y * ((float) pixel_x - frame.beam_y);
-    k_f.normalize();
-    k_f = k*k_f;
+    Matrix<double> Q(1,3);
+    Q = getScatteringVector(frame, pixel_x, pixel_y);
     
-
-    Matrix<float> Q(1,3,0);
-    Q = k_f - k_i;
-    
-    float lab_theta = 180*asin(Q[1] / k)/pi*0.5;
+    float lab_theta = 180*asin(Q[1] / (1.0/frame.wavelength))/pi*0.5;
     
     tip += "Theta "+QString::number(lab_theta,'f',2)+"°\n";
     
