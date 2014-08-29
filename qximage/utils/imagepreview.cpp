@@ -82,10 +82,10 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     texel_view_matrix.setIdentity(4);
     texel_offset_matrix.setIdentity(4);
 
-    setThresholdNoiseLow(-1e99);
-    setThresholdNoiseHigh(1e99);
-    setThresholdPostCorrectionLow(-1e99);
-    setThresholdPostCorrectionHigh(1e99);
+//    setThresholdNoiseLow(-1e99);
+//    setThresholdNoiseHigh(1e99);
+//    setThresholdPostCorrectionLow(-1e99);
+//    setThresholdPostCorrectionHigh(1e99);
     
     image_tex_size.set(1,2,0);
     image_buffer_size.set(1,2,2);
@@ -328,8 +328,6 @@ void ImagePreviewWorker::calculus()
             
             float mean = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
             
-            qDebug() << "mean" << mean;
-            
             imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, isCorrected, mean, 0, 1);
             
             // Calculate the weighted intensity position
@@ -348,16 +346,12 @@ void ImagePreviewWorker::calculus()
             
             float mean = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
             
-            qDebug() << "mean" << mean;
-            
             imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, isCorrected, mean, 0, 1);
             
             // Calculate the skewness
             copyBufferRect(image_data_variance_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
             
             float variance = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
-            
-            qDebug() << "variance" << variance;
             
             imageCalcuclus(image_data_variance_cl, image_data_skewness_cl, parameter, image_size, local_ws, isCorrected, mean, sqrt(variance), 2);
             
