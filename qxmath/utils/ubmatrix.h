@@ -109,7 +109,7 @@ void UBMatrix<T>::setUMatrix(RotationMatrix<T> mat)
 template <class T>
 Matrix<T> UBMatrix<T>::getUMatrix()
 {
-    U = (*this) * getBMatrix().getInverse();
+    U = (*this) * getBMatrix().inverse();
 
     return U;
 }

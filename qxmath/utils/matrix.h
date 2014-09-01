@@ -23,8 +23,8 @@ template <class T>
 class Matrix {
     public:
         Matrix();
-        Matrix(size_t m, size_t n, T value);
-        Matrix(size_t m, size_t n);
+        Matrix(size_t p_m, size_t p_n, T value);
+        Matrix(size_t p_m, size_t p_n);
         Matrix(const Matrix & other);
         Matrix(Matrix && other);
         ~Matrix();
@@ -32,10 +32,13 @@ class Matrix {
         // Operators
         const Matrix operator * (const Matrix&) const;
         const Matrix operator * (const T&) const;
+//        const Matrix operator * (const T&, const Matrix&) const;
         const Matrix operator - (const Matrix&) const;
         const Matrix operator - (const T&) const;
+        const Matrix operator - () const;
         const Matrix operator + (const Matrix&) const;
         const Matrix operator + (const T&) const;
+        const Matrix operator + () const;
         
         T& operator[] (const size_t index);
         const T& operator[] (const size_t index) const;
@@ -43,30 +46,31 @@ class Matrix {
         
 
         // Utility
-        Matrix<T> getInverse(int verbose = false) const;
-        Matrix<T> getInverse4x4(int verbose = false) const;
-        Matrix<T> getColMajor() const;
+        Matrix<T> inverse(int verbose = false) const;
+        Matrix<T> inverse4x4(int verbose = false) const;
+        Matrix<T> colmajor() const;
         Matrix<float> toFloat() const;
         Matrix<int> toInt() const;
+        QVector<T> toQVector() const;
 
         T sum();
-        QVector<T> toQVector() const;
-        void normalize();
-        void setIdentity(size_t n);
-        void set(size_t m, size_t n, T value);
-        void setDeep(size_t m, size_t n, T * buffer);
-        void reserve(size_t m, size_t n);
-        void resize(size_t m, size_t n);
+
+//        void normalize();
+        void setIdentity(size_t p_n);
+        void set(size_t p_m, size_t p_n, T value);
+        void setDeep(size_t p_m, size_t p_n, T * p_buffer);
+        void reserve(size_t p_m, size_t p_n);
+        void resize(size_t p_m, size_t p_n);
         void clear();
 
         const T *data() const;
         T * data();
         T at(size_t index);
 
-        size_t getM() const;
-        size_t getN() const;
+        size_t m() const;
+        size_t n() const;
         size_t size() const;
-        size_t bsize() const;
+//        size_t bsize() const;
         size_t bytes() const;
         
         void print(int precision = 0, const char * id = "") const;
@@ -91,41 +95,57 @@ class Matrix {
         friend F eta(const Matrix<F> A);
         
         // Other friends
-        template <class F>
-        friend Matrix<F> operator*(F factor, const Matrix<F> B);
+//        template <class F>
+//        friend Matrix<F> operator*(F factor, const Matrix<F> B);
         
         template <class F>
         friend std::ostream & operator << (std::ostream & stream, const Matrix<F> M);
 
     protected:
-        size_t m;
-        size_t n;
-        std::vector<T> buffer;
+        size_t p_m;
+        size_t p_n;
+        std::vector<T> p_buffer;
 
         /* Swap function as per C++11 idiom */
         void swap(Matrix &first, Matrix &second);
 };
 
+template<class T> Matrix<T> operator* (const T& factor, const Matrix<T> &M)
+{
+    return M * factor;
+}
+
+template<class T> Matrix<T> operator- (const T& value, const Matrix<T> &M)
+{
+    return - M + value;
+}
+
+
+template<class T> Matrix<T> operator+ (const T& value, const Matrix<T> &M)
+{
+    return M + value;
+}
+
 template <class T>
 Matrix<T>::Matrix(size_t m, size_t n, T value)
 {
-    this->m = 0;
-    this->n = 0;
+    this->p_m = 0;
+    this->p_n = 0;
     this->set(m, n, value);
 }
 template <class T>
 Matrix<T>::Matrix(size_t m, size_t n)
 {
-    this->m = 0;
-    this->n = 0;
+    this->p_m = 0;
+    this->p_n = 0;
     this->reserve(m, n);
 }
 
 template <class T>
 Matrix<T>::Matrix()
 {
-    this->m = 0;
-    this->n = 0;
+    this->p_m = 0;
+    this->p_n = 0;
 }
 
 
@@ -135,9 +155,9 @@ Matrix<F> vecCross(const Matrix<F> A, const Matrix<F> B)
 {
     Matrix<F> C(1,3,0);
 
-    if ((A.getM()*A.getN() != 3) || (B.getM()*B.getN() != 3))
+    if ((A.m()*A.n() != 3) || (B.m()*B.n() != 3))
     {
-        qWarning() << "Attempt to take cross product of vectors with dimensions" << A.getM() << "x" << A.getN() << "and" << B.getM() << "x" << B.getN();
+        qWarning() << "Attempt to take cross product of vectors with dimensions" << A.m() << "x" << A.n() << "and" << B.m() << "x" << B.n();
     }
     else
     {
@@ -161,18 +181,18 @@ F vecDot(const Matrix<F> A, const Matrix<F> B)
     return value;
 }
 
-template <class F>
-Matrix<F> operator*(F factor, const Matrix<F> A)
-{
-    return A*factor;
-}
+//template <class F>
+//Matrix<F> operator*(F factor, const Matrix<F> A)
+//{
+//    return A*factor;
+//}
 
 template <class F>
 F vecLength(const Matrix<F> A)
 {
     F sum = 0;
 
-    for (size_t i = 0; i < A.getM()*A.getN(); i++)
+    for (size_t i = 0; i < A.m()*A.n(); i++)
     {
         sum += A[i]*A[i];
     }
@@ -206,19 +226,19 @@ std::ostream & operator << (std::ostream & stream, const Matrix<F> M)
     std::stringstream ss;
     ss << std::endl;
 
-    ss << "("<< M.getM() << ", " << M.getN() << "):"<<std::endl;
-    for (size_t i = 0; i < M.getM(); i++)
+    ss << "("<< M.m() << ", " << M.n() << "):"<<std::endl;
+    for (size_t i = 0; i < M.m(); i++)
     {
         if (i == 0) ss << "{{ ";
         else ss << " { ";
 
-        for (size_t j = 0; j < M.getN(); j++)
+        for (size_t j = 0; j < M.n(); j++)
         {
-            ss << std::setprecision(2) << std::fixed << M.data()[i*M.getN()+j];
-            if (j != M.getN()-1) ss << ", ";
+            ss << std::setprecision(2) << std::fixed << M.data()[i*M.n()+j];
+            if (j != M.n()-1) ss << ", ";
         }
 
-        if (i == M.getM()-1) ss << " }}" << std::endl;
+        if (i == M.m()-1) ss << " }}" << std::endl;
         else ss << " }," << std::endl;
     }
     stream << ss.str();
@@ -234,7 +254,7 @@ QVector<T> Matrix<T>::toQVector() const
 
     for (size_t i = 0; i < this->size(); i++)
     {
-        buf[i] = this->buffer[i];
+        buf[i] = this->p_buffer[i];
     }
 
     return buf;
@@ -243,12 +263,12 @@ QVector<T> Matrix<T>::toQVector() const
 template <class T>
 Matrix<T>::Matrix(const Matrix & other)
 {
-    this->m = other.getM();
-    this->n = other.getN();
-    this->buffer.resize(m*n);
-    for (size_t i = 0; i < m*n; i++)
+    this->p_m = other.m();
+    this->p_n = other.n();
+    this->p_buffer.resize(p_m*p_n);
+    for (size_t i = 0; i < p_m*p_n; i++)
     {
-        this->buffer[i] = other[i];
+        this->p_buffer[i] = other[i];
     }
 }
 
@@ -262,10 +282,10 @@ Matrix<T>::Matrix(Matrix && other)
 template <class T>
 Matrix<T>::~Matrix()
 {
-    if (m*n > 0)
+    if (p_m*p_n > 0)
     {
-        m = 0;
-        n = 0;
+        p_m = 0;
+        p_n = 0;
     }
 }
 
@@ -279,9 +299,9 @@ void Matrix<T>::resize(size_t m, size_t n)
     {
         for (size_t j = 0; j < n; j++)
         {
-            if ((i < this->m) && (j < this->n))
+            if ((i < this->p_m) && (j < this->p_n))
             {
-                temp[n*i+j] = buffer[n*i+j];    
+                temp[n*i+j] = p_buffer[n*i+j];
             }
             else 
             {
@@ -298,11 +318,11 @@ template <class T>
 T Matrix<T>::sum()
 {
     T sum = 0;
-    for (size_t i = 0; i < n; i++)
+    for (size_t i = 0; i < p_n; i++)
     {
-        for (size_t j = 0; j < m; j++)
+        for (size_t j = 0; j < p_m; j++)
         {
-            sum += buffer[i*m + j];
+            sum += p_buffer[i*p_m + j];
         }
     }
 
@@ -313,19 +333,19 @@ T Matrix<T>::sum()
 template <class T>
 void Matrix<T>::swap(Matrix &first, Matrix &second)
 {
-    std::swap(first.m, second.m);
-    std::swap(first.n, second.n);
-    std::swap(first.buffer, second.buffer);
+    std::swap(first.p_m, second.p_m);
+    std::swap(first.p_n, second.p_n);
+    std::swap(first.p_buffer, second.p_buffer);
 }
 
 template <class T>
 Matrix<float> Matrix<T>::toFloat() const
 {
-    Matrix<float> buf(this->m, this->n);
+    Matrix<float> buf(this->p_m, this->p_n);
 
-    for (size_t i = 0; i < this->m*this->n; i++)
+    for (size_t i = 0; i < this->p_m*this->p_n; i++)
     {
-        buf[i] = (float) this->buffer[i];
+        buf[i] = (float) this->p_buffer[i];
     }
 
     return buf;
@@ -334,32 +354,32 @@ Matrix<float> Matrix<T>::toFloat() const
 template <class T>
 Matrix<int> Matrix<T>::toInt() const
 {
-    Matrix<int> buf(this->m, this->n);
+    Matrix<int> buf(this->p_m, this->p_n);
 
-    for (size_t i = 0; i < this->m*this->n; i++)
+    for (size_t i = 0; i < this->p_m*this->p_n; i++)
     {
-        buf[i] = (int) this->buffer[i];
+        buf[i] = (int) this->p_buffer[i];
     }
 
     return buf;
 }
 
-template <class T>
-void Matrix<T>::normalize()
-{
-    T sum = 0;
-    for (size_t i = 0; i < m*n; i++)
-    {
-        sum += buffer[i]*buffer[i];
-    }
+//template <class T>
+//void Matrix<T>::normalize()
+//{
+//    T sum = 0;
+//    for (size_t i = 0; i < p_m*p_n; i++)
+//    {
+//        sum += p_buffer[i]*p_buffer[i];
+//    }
     
-    sum = sqrt(sum);
+//    sum = sqrt(sum);
     
-    for (size_t i = 0; i < m*n; i++)
-    {
-        buffer[i] /= sum;
-    }
-}
+//    for (size_t i = 0; i < p_m*p_n; i++)
+//    {
+//        p_buffer[i] /= sum;
+//    }
+//}
 
 template <class T>
 void Matrix<T>::setIdentity(size_t n)
@@ -367,28 +387,28 @@ void Matrix<T>::setIdentity(size_t n)
     this->set(n, n, 0);
     for (size_t i = 0, j = 0; i < n; i++, j++)
     {
-        buffer[i*n+j] = 1;
+        p_buffer[i*n+j] = 1;
     }
 }
 
 template <class T>
 size_t Matrix<T>::bytes() const
 {
-    return m*n*sizeof(T);
+    return p_m*p_n*sizeof(T);
 }
 
 template <class T>
-Matrix<T> Matrix<T>::getColMajor()  const
+Matrix<T> Matrix<T>::colmajor()  const
 {
     Matrix<T> ColMajor;
-    ColMajor.reserve(this->getN(), this->getM());
+    ColMajor.reserve(this->n(), this->m());
     size_t count = 0;
 
-    for (size_t i = 0; i < this->getM(); i++)
+    for (size_t i = 0; i < this->m(); i++)
     {
-        for (size_t j = 0; j < this->getN(); j++)
+        for (size_t j = 0; j < this->n(); j++)
         {
-            ColMajor[i*this->getN()+j] = this->data()[(count%this->getM())*this->getN() + (count/this->getM())%this->getN()];
+            ColMajor[i*this->n()+j] = this->data()[(count%this->m())*this->n() + (count/this->m())%this->n()];
             count++;
         }
     }
@@ -397,14 +417,14 @@ Matrix<T> Matrix<T>::getColMajor()  const
 }
 
 template <class T>
-Matrix<T> Matrix<T>::getInverse4x4(int verbose)  const
+Matrix<T> Matrix<T>::inverse4x4(int verbose)  const
 {
     Q_UNUSED(verbose);
 
-    if((m != 4) || (n != 4)) qWarning() << "Matrix is can not be inverted: m (= " << m  << ") != n (=" << n << ")";
+    if((p_m != 4) || (p_n != 4)) qWarning() << "Matrix is can not be inverted: m (= " << p_m  << ") != n (=" << p_n << ")";
 
     Matrix<T> INV(4,4);
-    Matrix<T> M = this->getColMajor();
+    Matrix<T> M = this->colmajor();
 
     T det;
     INV[0] = M[5]  * M[10] * M[15] -
@@ -527,25 +547,25 @@ Matrix<T> Matrix<T>::getInverse4x4(int verbose)  const
 
     INV = INV * det;
 
-    return INV.getColMajor();
+    return INV.colmajor();
 //        for (i = 0; i < 16; i++)
 //            INVOut[i] = INV[i] * det;
 }
 
 
 template <class T>
-Matrix<T> Matrix<T>::getInverse(int verbose)  const
+Matrix<T> Matrix<T>::inverse(int verbose)  const
 {
 //    qDebug() << "LU decomp" << m << n;
 
-    if(m != n) qDebug() << "Matrix is can not be inverted: m (= " << m  << ") != n (=" << n << ")";
+    if(p_m != p_n) qDebug() << "Matrix is can not be inverted: m (= " << p_m  << ") != n (=" << p_n << ")";
     Matrix<T> L, y, I, U, x;
-    L.set(n, n, 0);
-    y.set(n, n, 0);
-    I.setIdentity(n);
+    L.set(p_n, p_n, 0);
+    y.set(p_n, p_n, 0);
+    I.setIdentity(p_n);
     
-    U.set(n, n, 0);
-    x.set(n, n, 0);
+    U.set(p_n, p_n, 0);
+    x.set(p_n, p_n, 0);
 
     /* Ax = LUx = I method */
     
@@ -558,28 +578,28 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
         this->print(3,"M");
     }
 
-    for (i = 0; i < (int) n; i++) {
-        U[i*n+i] = 1;
+    for (i = 0; i < (int) p_n; i++) {
+        U[i*p_n+i] = 1;
     }
 
-    for (j = 0; j < (int) n; j++) {
-        for(i = j; i < (int) n; i++) {
+    for (j = 0; j < (int) p_n; j++) {
+        for(i = j; i < (int) p_n; i++) {
             sum = 0;
             for(k = 0; k < j; k++) {
-                sum += L[i*n+k] * U[k*n+j];
+                sum += L[i*p_n+k] * U[k*p_n+j];
             }
-            L[i*n+j] = buffer[i*n+j] - sum;
+            L[i*p_n+j] = p_buffer[i*p_n+j] - sum;
         }
 
-        for(i = j; i < (int) n; i++){
+        for(i = j; i < (int) p_n; i++){
             sum = 0;
             for(k = 0; k < j; k++){
-                sum +=  L[j*n+k]*U[k*n+i];
+                sum +=  L[j*p_n+k]*U[k*p_n+i];
             }
-            if(L[j*n+j] == 0) {
+            if(L[j*p_n+j] == 0) {
                 qFatal("det(L) close to 0!\n Can't divide by 0...");
             }
-            U[j*n+i] = (buffer[j*n+i]-sum)/L[j*n+j];
+            U[j*p_n+i] = (p_buffer[j*p_n+i]-sum)/L[j*p_n+j];
         }
     }
 
@@ -592,18 +612,18 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
     }
 
     /* Solve LY = I for Y (= UX) */
-    for(i = 0; i < (int) n; i++)
+    for(i = 0; i < (int) p_n; i++)
     {
-        for(j = 0; j < (int) n; j++)
+        for(j = 0; j < (int) p_n; j++)
         {
             T sum = 0;
             
-            for (k = 0; k < (int) n; k++)
+            for (k = 0; k < (int) p_n; k++)
             {
-                if (k != i) sum += y[k*n+j] * L[i*n+k];
+                if (k != i) sum += y[k*p_n+j] * L[i*p_n+k];
             }
             
-            y[i*n+j] = (I[i*n+j] - sum)/L[i*n+i];
+            y[i*p_n+j] = (I[i*p_n+j] - sum)/L[i*p_n+i];
         }
     }
     
@@ -615,18 +635,18 @@ Matrix<T> Matrix<T>::getInverse(int verbose)  const
     }
 
     /* Solve UX = Y for X */
-    for(i = n-1; i >= 0; --i)
+    for(i = p_n-1; i >= 0; --i)
     {
-        for(j = n-1; j >= 0; --j)
+        for(j = p_n-1; j >= 0; --j)
         {
             T sum = 0;
             
-            for (k = 0; k < (int) n; k++)
+            for (k = 0; k < (int) p_n; k++)
             {
-                if (k != i) sum += x[k*n+j] * U[i*n+k];
+                if (k != i) sum += x[k*p_n+j] * U[i*p_n+k];
             }
             
-            x[i*n+j] = (y[i*n+j] - sum)/U[i*n+i];
+            x[i*p_n+j] = (y[i*p_n+j] - sum)/U[i*p_n+i];
         }
     }
 
@@ -647,17 +667,17 @@ const Matrix<T> Matrix<T>::operator + (const Matrix& M) const
 {
     Matrix<T> c(*this);
 
-    if ((this->n != M.getN()) || (this->m != M.getM()))
+    if ((this->p_n != M.n()) || (this->p_m != M.m()))
     {
         qWarning("Matrix dimesions do not agree!");
         return c;
     }
 
-    for (size_t i = 0; i < c.getM(); i++)
+    for (size_t i = 0; i < c.m(); i++)
     {
-        for (size_t j = 0; j < c.getN(); j++)
+        for (size_t j = 0; j < c.n(); j++)
         {
-            c[i*c.getN() + j] += M[i*c.getN() + j];
+            c[i*c.n() + j] += M[i*c.n() + j];
         }
     }
 
@@ -670,11 +690,11 @@ const Matrix<T> Matrix<T>::operator + (const T& value) const
 {
     Matrix<T> c(*this);
 
-    for (size_t i = 0; i < c.getM(); i++)
+    for (size_t i = 0; i < c.m(); i++)
     {
-        for (size_t j = 0; j < c.getN(); j++)
+        for (size_t j = 0; j < c.n(); j++)
         {
-            c[i*c.getN() + j] += value;
+            c[i*c.n() + j] += value;
         }
     }
 
@@ -687,17 +707,17 @@ const Matrix<T> Matrix<T>::operator - (const Matrix& M) const
 {
     Matrix<T> c(*this);
 
-    if ((this->n != M.getN()) || (this->m != M.getM()))
+    if ((this->p_n != M.n()) || (this->p_m != M.m()))
     {
         qWarning("Matrix dimesions do not agree!");
         return c;
     }
 
-    for (size_t i = 0; i < c.getM(); i++)
+    for (size_t i = 0; i < c.m(); i++)
     {
-        for (size_t j = 0; j < c.getN(); j++)
+        for (size_t j = 0; j < c.n(); j++)
         {
-            c[i*c.getN() + j] -= M[i*c.getN() + j];
+            c[i*c.n() + j] -= M[i*c.n() + j];
         }
     }
 
@@ -710,11 +730,43 @@ const Matrix<T> Matrix<T>::operator - (const T& value) const
 {
     Matrix<T> c(*this);
 
-    for (size_t i = 0; i < c.getM(); i++)
+    for (size_t i = 0; i < c.m(); i++)
     {
-        for (size_t j = 0; j < c.getN(); j++)
+        for (size_t j = 0; j < c.n(); j++)
         {
-            c[i*c.getN() + j] -= value;
+            c[i*c.n() + j] -= value;
+        }
+    }
+
+    return c;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator - () const
+{
+    Matrix<T> c(*this);
+
+    for (size_t i = 0; i < c.m(); i++)
+    {
+        for (size_t j = 0; j < c.n(); j++)
+        {
+            c[i*c.n() + j] = -c[i*c.n() + j];
+        }
+    }
+
+    return c;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator + () const
+{
+    Matrix<T> c(*this);
+
+    for (size_t i = 0; i < c.m(); i++)
+    {
+        for (size_t j = 0; j < c.n(); j++)
+        {
+            c[i*c.n() + j] = +c[i*c.n() + j];
         }
     }
 
@@ -725,37 +777,42 @@ template <class T>
 const Matrix<T> Matrix<T>::operator * (const T& factor) const
 {
     Matrix<T> c(*this);
-    for (size_t i = 0; i < c.getM(); i++)
+    for (size_t i = 0; i < c.m(); i++)
     {
-        for (size_t j = 0; j < c.getN(); j++)
+        for (size_t j = 0; j < c.n(); j++)
         {
-            c[i*c.getN() + j] = c[i*c.getN() + j] * factor;
+            c[i*c.n() + j] = c[i*c.n() + j] * factor;
         }
     }
     return c;
 }
 
+//template <class T>
+//const Matrix<T> Matrix<T>::operator * (const T& factor, const Matrix& M) const
+//{
+//    return M * factor;
+//}
 
 template <class T>
 const Matrix<T> Matrix<T>::operator * (const Matrix& M) const
 {
     Matrix<T> c;
 
-    if (this->n != M.getM())
+    if (this->p_n != M.m())
     {
         qWarning("Matrix dimesions do not agree!");
         return c;
     }
 
-    c.set(this->m, M.getN(), 0.0f);
+    c.set(this->p_m, M.n(), 0.0f);
 
-    for (size_t i = 0; i < c.getM(); i++)
+    for (size_t i = 0; i < c.m(); i++)
     {
-        for (size_t j = 0; j < c.getN(); j++)
+        for (size_t j = 0; j < c.n(); j++)
         {
-            for (size_t k = 0; k < this->n; k++)
+            for (size_t k = 0; k < this->p_n; k++)
             {
-                c[i*c.getN()+j] += this->buffer[i*this->n+k] * M[k*c.getN()+j];
+                c[i*c.n()+j] += this->p_buffer[i*this->p_n+k] * M[k*c.n()+j];
             }
         }
     }
@@ -769,19 +826,19 @@ void Matrix<T>::print(int precision, const char * id) const
     std::stringstream ss;
     ss << std::endl;
 
-    if (strlen(id) > 0) ss << id << "("<< this->m << ", " << this->n << "):"<<std::endl;
-    for (size_t i = 0; i < m; i++)
+    if (strlen(id) > 0) ss << id << "("<< this->p_m << ", " << this->p_n << "):"<<std::endl;
+    for (size_t i = 0; i < p_m; i++)
     {
         if (i == 0) ss << " [ ";
         else ss << " [ ";
 
-        for (size_t j = 0; j < n; j++)
+        for (size_t j = 0; j < p_n; j++)
         {
-            ss << std::setprecision(precision) << std::fixed << this->buffer[i*n+j];
-            if (j != n-1) ss << ", ";
+            ss << std::setprecision(precision) << std::fixed << this->p_buffer[i*p_n+j];
+            if (j != p_n-1) ss << ", ";
         }
 
-        if (i == m-1) ss << " ]" << std::endl;
+        if (i == p_m-1) ss << " ]" << std::endl;
         else ss << " ]" << std::endl;
     }
 
@@ -801,12 +858,12 @@ template <class T>
 void Matrix<T>::set(size_t m, size_t n, T value)
 {
     this->clear();
-    this->m = m;
-    this->n = n;
-    this->buffer.resize(m*n);
+    this->p_m = m;
+    this->p_n = n;
+    this->p_buffer.resize(m*n);
     for (size_t i = 0; i < m*n; i++)
     {
-        this->buffer[i] = value;
+        this->p_buffer[i] = value;
     }
 }
 
@@ -814,12 +871,12 @@ template <class T>
 void Matrix<T>::setDeep(size_t m, size_t n, T * buffer)
 {
     this->clear();
-    this->m = m;
-    this->n = n;
-    this->buffer.resize(m*n);
+    this->p_m = m;
+    this->p_n = n;
+    this->p_buffer.resize(m*n);
     for (size_t i = 0; i < m*n; i++)
     {
-        this->buffer[i] = buffer[i];
+        this->p_buffer[i] = buffer[i];
     }
 }
 
@@ -827,89 +884,89 @@ template <class T>
 void Matrix<T>::reserve(size_t m, size_t n)
 {
     this->clear();
-    this->m = m;
-    this->n = n;
-    this->buffer.resize(m*n);
+    this->p_m = m;
+    this->p_n = n;
+    this->p_buffer.resize(m*n);
 }
 
 template <class T>
 T& Matrix<T>::operator[] (const size_t index)
 {
-    if (index >= m*n) qDebug() << index << ">=" << m << "x" << n;
+    if (index >= p_m*p_n) qDebug() << index << ">=" << p_m << "x" << p_n;
     
-    assert(index < m*n);
+    assert(index < p_m*p_n);
 
-    return buffer[index];
+    return p_buffer[index];
 }
 
 template <class T>
 const T& Matrix<T>::operator[] (const size_t index) const
 {
-    if (index >= m*n) qDebug() << index << ">=" << m << "x" << n;
+    if (index >= p_m*p_n) qDebug() << index << ">=" << p_m << "x" << p_n;
     
-    assert(index < m*n);
+    assert(index < p_m*p_n);
 
-    return buffer[index];
+    return p_buffer[index];
 }
 
 template <class T>
 void Matrix<T>::clear()
 {
-    if (m*n > 0)
+    if (p_m*p_n > 0)
     {
         // Since C++ vectors are optimized for speed, calling clear will not always free up the associated memory. It will be freed if the destructor is called, though. Here we swap the vector data over to a decoy which is destroyed when the function returns.
         std::vector<T> decoy;
-        std::vector<T> (decoy).swap(buffer);
-        this->buffer.clear();
-        this->m = 0;
-        this->n = 0;
+        std::vector<T> (decoy).swap(p_buffer);
+        this->p_buffer.clear();
+        this->p_m = 0;
+        this->p_n = 0;
     }
 }
 
 template <class T>
 T * Matrix<T>::data()
 {
-    return this->buffer.data();
+    return this->p_buffer.data();
 }
 
 template <class T>
 const T * Matrix<T>::data() const
 {
-    return this->buffer.data();
+    return this->p_buffer.data();
 }
 
 template <class T>
 T Matrix<T>::at(size_t index)
 {
-    assert(index < m*n);
+    assert(index < p_m*p_n);
 
-    return buffer[index];
+    return p_buffer[index];
 }
 
 template <class T>
-size_t Matrix<T>::getM() const
+size_t Matrix<T>::m() const
 {
-    return this->m;
+    return this->p_m;
 }
 
 template <class T>
-size_t Matrix<T>::getN() const
+size_t Matrix<T>::n() const
 {
-    return this->n;
+    return this->p_n;
 }
 
 template <class T>
 size_t Matrix<T>::size() const
 {
-    return m*n;
+    return p_m*p_n;
 }
 
 
-template <class T>
-size_t Matrix<T>::bsize() const
-{
-    return m*n*sizeof(T);
-}
+//template <class T>
+//size_t Matrix<T>::bsize() const
+//{
+//    return p_m*p_n*sizeof(T);
+//}
 
 
 

@@ -170,6 +170,7 @@ private:
     void setParameter(Matrix<float> &data);
     void setTsf(TransferFunction & tsf);
     Matrix<double> getScatteringVector(DetectorFile & f, double x, double y);
+    double getScatteringAngle(DetectorFile & f, double x, double y);
     Matrix<float> parameter;
     
     void beginRawGLCalls(QPainter * painter);

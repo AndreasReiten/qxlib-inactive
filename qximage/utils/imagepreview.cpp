@@ -372,6 +372,8 @@ void ImagePreviewWorker::setFrameNew(Image image)
     // Set the frame
     if (!frame.set(image.path())) return;
     if(!frame.readData()) return;
+
+    frame.setNaive();
     
     selection = image.selection().normalized();
 
@@ -601,6 +603,7 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
 QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, Selection & s, Image & image)
 {
     Matrix<double> Q = getScatteringVector(f, s.weighted_x(), s.weighted_y());
+    double value = 180*getScatteringAngle(f, s.weighted_x(), s.weighted_y())/pi;
     
     QString str;
     str += QString::number(s.sum(),'E')+" "
@@ -614,6 +617,7 @@ QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, Selection & 
             +QString::number(Q[1],'E')+" "
             +QString::number(Q[2],'E')+" "
             +QString::number(vecLength(Q),'E')+" "
+            +QString::number(value,'E')+" "
             +image.path()+"\n";
     return str;
 }
@@ -643,6 +647,11 @@ void ImagePreviewWorker::integrateSingle(Image image)
     context_gl->swapBuffers(render_surface);
 
     QString result;
+    result += "# Analysis of single frame\n";
+    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+    result += "#\n";
+    result += "# (sum, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
+
     result += integrationFrameString(frame, selection,image);
     emit resultFinished(result);
 }
@@ -671,12 +680,12 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
     }
     
     QString result;
-    
-    result += "# Integration of frames in folder "+folder.path()+"\n";
+    result += "# Analysis of frames in folder "+folder.path()+"\n";
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
-    result += "# Sum of total integrated area in folder\n"+QString::number(sum,'E')+"\n";
-    result += "# Integration of the individual frames (sum, origin x, origin y, width, height, path)\n";
+    result += "# Sum of total integrated area in folder "+QString::number(sum,'E')+"\n";
+    result += "# Weightpoint xyz placeholder\n";
+    result += "# Analysis of the individual frames (sum, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
     result += frames;
     
     emit resultFinished(result);
@@ -720,7 +729,7 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
     
     QString result;
     
-    result += "# Integration of frames in several folders\n";
+    result += "# Analysis of frames in several folders\n";
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
     result += "# Sum of total integrated area in folders\n";
@@ -728,11 +737,16 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
     {
         result += str;
     }
+    result += "# Weightpoint xyz in folders\n";
+    foreach(const QString &str, folder_sum)
+    {
+        result += "placeholder";
+    }
     
-    result += "# Integration of the individual frames for each folder (sum, origin x, origin y, width, height, path)\n";
+    result += "# Analysis of the individual frames for each folder (sum, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
     for (int i = 0; i < folder_sum.size(); i++)
     {
-        result += "# Folder "+folder_sum.at(i);
+        result += "# Folder sum "+folder_sum.at(i);
         result += folder_frames.at(i);
     }
     
@@ -942,12 +956,12 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
         GL_TEXTURE_2D,
         0,
         GL_RGBA32F,
-        tsf.getSplined()->getN(),
+        tsf.getSplined()->n(),
         1,
         0,
         GL_RGBA,
         GL_FLOAT,
-        tsf.getSplined()->getColMajor().toFloat().data());
+        tsf.getSplined()->colmajor().toFloat().data());
     glBindTexture(GL_TEXTURE_2D, 0);
 
     isTsfTexInitialized = true;
@@ -1118,15 +1132,17 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     texture_view_matrix = zoom_matrix*translation_matrix;
 
-    glUniformMatrix4fv(shared_window->rect_hl_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
+    glUniformMatrix4fv(shared_window->rect_hl_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
     if ( glGetError() != GL_NO_ERROR) qFatal(gl_error_cstring(glGetError()));
     
     // The bounds that enclose the highlighted area of the texture are passed to the shader
     Matrix<double> bounds(1,4); // left, top, right, bottom
     
+//    qDebug() << selection << selection.normalized().right();
+
     bounds[0] = (double) selection.normalized().left() / (double) frame.getFastDimension();
-    bounds[1] = 1.0 - (double) (selection.normalized().bottom()) / (double) frame.getSlowDimension();
-    bounds[2] = (double) selection.normalized().right() / (double) frame.getFastDimension();
+    bounds[1] = 1.0 - (double) (selection.normalized().y()+selection.normalized().height()) / (double) frame.getSlowDimension();
+    bounds[2] = (double) (selection.normalized().x()+selection.normalized().width()) / (double) frame.getFastDimension();
     bounds[3] = 1.0 - (double) (selection.normalized().top()) / (double) frame.getSlowDimension();
     
     glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
@@ -1224,7 +1240,7 @@ void ImagePreviewWorker::drawSelection(QPainter *painter)
 
     texture_view_matrix = zoom_matrix*translation_matrix;
 
-    glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.getColMajor().toFloat().data());
+    glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
 
     glDrawArrays(GL_LINES,  0, 8);
 
@@ -1237,6 +1253,8 @@ void ImagePreviewWorker::drawSelection(QPainter *painter)
 
 Matrix<double> ImagePreviewWorker::getScatteringVector(DetectorFile & f, double x, double y)
 {
+    // Assumes that the incoming ray is parallel to the z axis.
+
     double k = 1.0f/f.wavelength; // Multiply with 2pi if desired
 
     Matrix<double> k_i(1,3,0);
@@ -1246,7 +1264,7 @@ Matrix<double> ImagePreviewWorker::getScatteringVector(DetectorFile & f, double 
     k_f[0] =    -f.detector_distance;
     k_f[1] =    f.pixel_size_x * ((double) (f.getSlowDimension() - y) - f.beam_x);
     k_f[2] =    f.pixel_size_y * ((double) x - f.beam_y);
-    k_f.normalize();
+    k_f = vecNormalize(k_f);
     k_f = k*k_f;
     
 
@@ -1254,6 +1272,30 @@ Matrix<double> ImagePreviewWorker::getScatteringVector(DetectorFile & f, double 
     Q = k_f - k_i;
     
     return Q;
+}
+
+double ImagePreviewWorker::getScatteringAngle(DetectorFile & f, double x, double y)
+{
+    // Assumes that the incoming ray is parallel to the z axis.
+
+    double k = 1.0f/f.wavelength; // Multiply with 2pi if desired
+
+    Matrix<double> k_i(1,3,0);
+    k_i[0] = -k;
+
+    Matrix<double> k_f(1,3,0);
+    k_f[0] =    -f.detector_distance;
+    k_f[1] =    f.pixel_size_x * ((double) (f.getSlowDimension() - y) - f.beam_x);
+    k_f[2] =    f.pixel_size_y * ((double) x - f.beam_y);
+    k_f = vecNormalize(k_f);
+    k_f = k*k_f;
+
+
+//    k_i.print(2,"k_i");
+//    k_f.print(2,"k_f");
+//    qDebug() << vecDot(k_f, k_i) << vecDot(k_f, k_i)/(2*k) << acos(vecDot(k_f, k_i)/(k*k));
+
+    return acos(vecDot(k_f, k_i)/(k*k));
 }
 
 void ImagePreviewWorker::drawToolTip(QPainter *painter)
@@ -1271,7 +1313,7 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     
     Matrix<double> image_pixel_pos(4,1); // Uses GL coordinates
     
-    image_pixel_pos = texture_view_matrix.getInverse4x4() * screen_pixel_pos;
+    image_pixel_pos = texture_view_matrix.inverse4x4() * screen_pixel_pos;
     
     double pixel_x = image_pixel_pos[0] * render_surface->width() * 0.5;
     double pixel_y = - image_pixel_pos[1] * render_surface->height() * 0.5;
@@ -1325,16 +1367,14 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     tip += "Intensity "+QString::number(value,'g',4)+"\n";
     
     // The scattering angle 2-theta
-    Matrix<double> Q(1,3);
-    Q = getScatteringVector(frame, pixel_x, pixel_y);
+//    float lab_theta = 180*asin(Q[1] / (1.0/frame.wavelength))/pi*0.5;
     
-    // The current implementation is wrong. The scattering angle is the actual angle between the incident and the exiting ray!
-    error
-    float lab_theta = 180*asin(Q[1] / (1.0/frame.wavelength))/pi*0.5;
-    
-    tip += "Theta "+QString::number(lab_theta,'f',2)+"°\n";
+    tip += "Scattering angle (2ϴ) "+QString::number(180*getScatteringAngle(frame, pixel_x, pixel_y)/pi,'f',2)+"°\n";
     
     // Position
+    Matrix<double> Q(1,3);
+    Q = getScatteringVector(frame, pixel_x, pixel_y);
+
     tip += "Position (x,y,z) "+QString::number(Q[0],'f',2)+" "+QString::number(Q[1],'f',2)+" "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")\n";
     
     
@@ -1396,22 +1436,22 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
 
         // Move to resize event
             Matrix<float> vertical_lines_buf(65,4);
-            for (int i = 0; i < vertical_lines_buf.getM(); i++)
+            for (int i = 0; i < vertical_lines_buf.m(); i++)
             {
-                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
+                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
                 vertical_lines_buf[i*4+1] = 1;
-                vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.getM()/2)) * 2.0 / (float) render_surface->width();
+                vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
                 vertical_lines_buf[i*4+3] = -1;
             }
             setVbo(texel_line_vbo[0], vertical_lines_buf.data(), vertical_lines_buf.size(), GL_DYNAMIC_DRAW);
 
             Matrix<float> horizontal_lines_buf(65,4);
-            for (int i = 0; i < horizontal_lines_buf.getM(); i++)
+            for (int i = 0; i < horizontal_lines_buf.m(); i++)
             {
                 horizontal_lines_buf[i*4+0] = 1.0;
-                horizontal_lines_buf[i*4+1] = ((float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
+                horizontal_lines_buf[i*4+1] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
                 horizontal_lines_buf[i*4+2] = -1.0;
-                horizontal_lines_buf[i*4+3] = ((float) (i - (int) horizontal_lines_buf.getM()/2)) * 2.0 / (float) render_surface->height();
+                horizontal_lines_buf[i*4+3] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
             }
             setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
 
@@ -1434,9 +1474,9 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.getColMajor().toFloat().data());
+        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
 
-        glDrawArrays(GL_LINES,  0, vertical_lines_buf.getM()*2);
+        glDrawArrays(GL_LINES,  0, vertical_lines_buf.m()*2);
 
         // Horizontal
         texel_offset_matrix[3] = 0;
@@ -1447,9 +1487,9 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
         glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.getColMajor().toFloat().data());
+        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
 
-        glDrawArrays(GL_LINES,  0, horizontal_lines_buf.getM()*2);
+        glDrawArrays(GL_LINES,  0, horizontal_lines_buf.m()*2);
 
 
         glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
@@ -1461,12 +1501,12 @@ void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
         // Draw intensity numbers over each texel
 
         // For each visible vertical line
-        for (int i = 0; i < vertical_lines_buf.getM(); i++)
+        for (int i = 0; i < vertical_lines_buf.m(); i++)
         {
             if ((vertical_lines_buf[i*4] >= -1) && (vertical_lines_buf[i*4] <= 1))
             {
                 // For each visible horizontal line
-                for (int j = 0; j < horizontal_lines_buf.getM(); j++)
+                for (int j = 0; j < horizontal_lines_buf.m(); j++)
                 {
                     if ((horizontal_lines_buf[j*4+1] >= -1) && (horizontal_lines_buf[j*4+1] <= 1))
                     {
@@ -1551,7 +1591,7 @@ Matrix<int> ImagePreviewWorker::getImagePixel(int x, int y)
     
     // Use the inverse transform to find the corresponding image pixel, rounding to nearest
     Matrix<double> image_pos_gl(4,1); 
-    image_pos_gl = texture_view_matrix.getInverse4x4()*screen_pos_gl;
+    image_pos_gl = texture_view_matrix.inverse4x4()*screen_pos_gl;
     
     Matrix<int> image_pixel(2,1);
     
@@ -1590,7 +1630,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     {
         Matrix<int> pixel = getImagePixel(x, y);
         
-        selection.setBottomRight(QPoint(pixel[0]+1, pixel[1]+1));
+        selection.setBottomRight(QPoint(pixel[0], pixel[1]));
     }
 
     prev_pos = pos;
@@ -1627,7 +1667,7 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     {
         Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
         
-        selection.setBottomRight(QPoint(pixel[0]+1, pixel[1]+1));
+        selection.setBottomRight(QPoint(pixel[0], pixel[1]));
 
 //        copyAndReduce(selection);
         refreshSelection();

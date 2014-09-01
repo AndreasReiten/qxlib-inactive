@@ -98,25 +98,25 @@ void TransferFunction::setColorScheme(int color_style, int alpha_style)
     switch (color_style)
     {
         case 0:
-            choice = rainbow.getColMajor();
+            choice = rainbow.colmajor();
             break;
         case 1:
-            choice = hot.getColMajor();
+            choice = hot.colmajor();
             break;
         case 2:
-            choice = hsv.getColMajor();
+            choice = hsv.colmajor();
             break;
         case 3:
-            choice = galaxy.getColMajor();
+            choice = galaxy.colmajor();
             break;
         case 4:
-            choice = binary.getColMajor();
+            choice = binary.colmajor();
             break;
         case 5:
-            choice = yranib.getColMajor();
+            choice = yranib.colmajor();
             break;
         default:
-            choice = rainbow.getColMajor();
+            choice = rainbow.colmajor();
             break;
     }
 
@@ -125,39 +125,39 @@ void TransferFunction::setColorScheme(int color_style, int alpha_style)
     {
         case 0:
             // Linearly increasing alpha
-            for (size_t i = 0; i < choice.getN(); i++)
+            for (size_t i = 0; i < choice.n(); i++)
             {
-                choice[i+choice.getN()*4] = choice[i] / choice[choice.getN()-1];
+                choice[i+choice.n()*4] = choice[i] / choice[choice.n()-1];
             }
             break;
         case 1:
             // Exponentially increasing data
-            for (size_t i = 0; i < choice.getN(); i++)
+            for (size_t i = 0; i < choice.n(); i++)
             {
-                choice[i+choice.getN()*4] = std::exp(-(1.0 - choice[i] / choice[choice.getN()-1])*3.0);
+                choice[i+choice.n()*4] = std::exp(-(1.0 - choice[i] / choice[choice.n()-1])*3.0);
             }
-            choice[choice.getN()*4] = 0;
+            choice[choice.n()*4] = 0;
             break;
         case 2:
             // Uniform alpha except for the first vertex
-            for (size_t i = 0; i < choice.getN(); i++)
+            for (size_t i = 0; i < choice.n(); i++)
             {
-                choice[i+choice.getN()*4] = 1.0;
+                choice[i+choice.n()*4] = 1.0;
             }
-            choice[choice.getN()*4] = 0;
+            choice[choice.n()*4] = 0;
             break;
         case 3:
             // Opaque
-            for (size_t i = 0; i < choice.getN(); i++)
+            for (size_t i = 0; i < choice.n(); i++)
             {
-                choice[i+choice.getN()*4] = 1.0;
+                choice[i+choice.n()*4] = 1.0;
             }
             break;
     }
 
-    x_position.setDeep(1, choice.getN(), choice.data());
-    tsf_base.setDeep(choice.getM()-1, choice.getN(), choice.data() + choice.getN());
-    tsf_thumb.setDeep(choice.getM()-2, choice.getN(), choice.data() + choice.getN());
+    x_position.setDeep(1, choice.n(), choice.data());
+    tsf_base.setDeep(choice.m()-1, choice.n(), choice.data() + choice.n());
+    tsf_thumb.setDeep(choice.m()-2, choice.n(), choice.data() + choice.n());
 }
 
 Matrix<double> *TransferFunction::getThumb()
@@ -173,50 +173,50 @@ void TransferFunction::setSpline(size_t resolution)
      * the intervals and at the interpolating nodes. */
 
     // Calculate the second derivative for the function in all points
-    Matrix<double> secondDerivatives(tsf_base.getM(), tsf_base.getN());
+    Matrix<double> secondDerivatives(tsf_base.m(), tsf_base.n());
 
-    for (size_t i = 0; i < tsf_base.getM(); i++)
+    for (size_t i = 0; i < tsf_base.m(); i++)
     {
-        Matrix<double> A(tsf_base.getN(), tsf_base.getN(), 0.0);
-        Matrix<double> X(tsf_base.getN(), 1, 0.0);
-        Matrix<double> B(tsf_base.getN(), 1, 0.0);
+        Matrix<double> A(tsf_base.n(), tsf_base.n(), 0.0);
+        Matrix<double> X(tsf_base.n(), 1, 0.0);
+        Matrix<double> B(tsf_base.n(), 1, 0.0);
 
         // Set the boundary conditions
         A[0] = 1.0;
-        A[(tsf_base.getN())*(tsf_base.getN())-1] = 1.0;
+        A[(tsf_base.n())*(tsf_base.n())-1] = 1.0;
         B[0] = 0.0;
-        B[tsf_base.getN()-1] = 0.0;
-        for (size_t j = 1; j < tsf_base.getN() - 1; j++)
+        B[tsf_base.n()-1] = 0.0;
+        for (size_t j = 1; j < tsf_base.n() - 1; j++)
         {
             double x_prev = x_position[j-1];
             double x = x_position[j];
             double x_next = x_position[j+1];
 
-            double f_prev = tsf_base[i*tsf_base.getN()+j-1];
-            double f = tsf_base[i*tsf_base.getN()+j];
-            double f_next = tsf_base[i*tsf_base.getN()+j+1];
+            double f_prev = tsf_base[i*tsf_base.n()+j-1];
+            double f = tsf_base[i*tsf_base.n()+j];
+            double f_next = tsf_base[i*tsf_base.n()+j+1];
 
             B[j] = ((f_next - f)/(x_next - x) - (f - f_prev)/(x - x_prev));
 
-            A[j*tsf_base.getN()+j-1] = (x - x_prev) / 6.0;
-            A[j*tsf_base.getN()+j] = (x_next - x_prev) / 3.0;
-            A[j*tsf_base.getN()+j+1] = (x_next - x) / 6.0;
+            A[j*tsf_base.n()+j-1] = (x - x_prev) / 6.0;
+            A[j*tsf_base.n()+j] = (x_next - x_prev) / 3.0;
+            A[j*tsf_base.n()+j+1] = (x_next - x) / 6.0;
         }
 
-        X = A.getInverse()*B;
+        X = A.inverse()*B;
 
-        for (size_t j = 0; j < tsf_base.getN(); j++)
+        for (size_t j = 0; j < tsf_base.n(); j++)
         {
-            secondDerivatives[i*tsf_base.getN()+j] = X[j];
+            secondDerivatives[i*tsf_base.n()+j] = X[j];
         }
 
     }
 
-    tsf_splined.reserve(tsf_base.getM(), resolution);
-    double interpolationStepLength = (x_position[x_position.getN() -1] - x_position[0])/((double) (resolution - 1));
+    tsf_splined.reserve(tsf_base.m(), resolution);
+    double interpolationStepLength = (x_position[x_position.n() -1] - x_position[0])/((double) (resolution - 1));
 
     // Calculate the interpolation values given the second derivatives
-    for (size_t i = 0; i < tsf_base.getM(); i++)
+    for (size_t i = 0; i < tsf_base.m(); i++)
     {
         for (size_t j = 0; j < resolution; j++)
         {
@@ -225,7 +225,7 @@ void TransferFunction::setSpline(size_t resolution)
 
             // k is the index of the data point succeeding the interpoaltion point in x
             size_t k = 0;
-            for (size_t l = 0; l < x_position.getN(); l++)
+            for (size_t l = 0; l < x_position.n(); l++)
             {
                 if (x <= x_position[l])
                 {
@@ -233,17 +233,17 @@ void TransferFunction::setSpline(size_t resolution)
                     break;
                 }
             }
-            if ( k >= tsf_base.getN()) k = tsf_base.getN() - 1;
+            if ( k >= tsf_base.n()) k = tsf_base.n() - 1;
             if (k <= 0) k = 1;
 
             double x_k = x_position[k-1];
             double x_k_next = x_position[k];
 
-            double f_k = tsf_base[i*tsf_base.getN()+k-1];
-            double f_k_next = tsf_base[i*tsf_base.getN()+k];
+            double f_k = tsf_base[i*tsf_base.n()+k-1];
+            double f_k_next = tsf_base[i*tsf_base.n()+k];
 
-            double f_dd_k = secondDerivatives[i*tsf_base.getN()+k-1];
-            double f_dd_k_next = secondDerivatives[i*tsf_base.getN()+k];
+            double f_dd_k = secondDerivatives[i*tsf_base.n()+k-1];
+            double f_dd_k_next = secondDerivatives[i*tsf_base.n()+k];
 
             double a = (x_k_next - x)/(x_k_next - x_k);
             double b = 1.0 - a;
@@ -260,9 +260,9 @@ void TransferFunction::setSpline(size_t resolution)
 
 void TransferFunction::setPreIntegrated()
 {
-    size_t resolution = tsf_splined.getN();
+    size_t resolution = tsf_splined.n();
 
-    tsf_preintegrated.set(tsf_splined.getM(), resolution, 0.0);
+    tsf_preintegrated.set(tsf_splined.m(), resolution, 0.0);
 
     double step_length = 1.0/((double) (resolution - 1));
 
