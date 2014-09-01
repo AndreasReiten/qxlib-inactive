@@ -1324,11 +1324,12 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     
     tip += "Intensity "+QString::number(value,'g',4)+"\n";
     
-    // Theta and phi
-    
+    // The scattering angle 2-theta
     Matrix<double> Q(1,3);
     Q = getScatteringVector(frame, pixel_x, pixel_y);
     
+    // The current implementation is wrong. The scattering angle is the actual angle between the incident and the exiting ray!
+    error
     float lab_theta = 180*asin(Q[1] / (1.0/frame.wavelength))/pi*0.5;
     
     tip += "Theta "+QString::number(lab_theta,'f',2)+"°\n";

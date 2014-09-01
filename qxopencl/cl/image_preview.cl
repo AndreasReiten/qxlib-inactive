@@ -105,7 +105,7 @@ __kernel void imageCalculus(
 
                 Q.xyz = k_f - k_i;
                 {
-                    float lab_theta = asin(native_divide(Q.y, k)); // This is also 2theta, the scattering angle
+                    float lab_theta = asin(native_divide(Q.y, k)); // Not to be confused with 2-theta, the scattering angle
 
                     // Lorentz correction: Assuming rotation around the z-axis of the lab frame:
                     float L = fabs(native_sin(lab_theta));
@@ -129,6 +129,12 @@ __kernel void imageCalculus(
         else if (task == 2)
         {
             // Calculate skewness, requires deviation and mean to be known
+//            float tmp = pow((value - mean) / deviation, 3.0);
+//            if (tmp <= 0.0001) out_buf[id_glb.y * image_size.x + id_glb.x] = 0;
+//            else out_buf[id_glb.y * image_size.x + id_glb.x] = 1;
+            
+            
+
             out_buf[id_glb.y * image_size.x + id_glb.x] = pow((value - mean) / deviation, 3.0);
         }
         else if (task == 3)
