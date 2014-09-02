@@ -26,10 +26,10 @@ void main(void)
         color = mix(color, dark, 1.0 - color.w*0.5);
     }
     // Draw center
-    else if (((f_texpos.x < f_center.x + f_pixel_size*1.0) && (f_texpos.x > f_center.x - f_pixel_size*1.0)) || ((f_texpos.y < f_center.y + f_pixel_size*1.0) && (f_texpos.y > f_center.y - f_pixel_size*1.0)))
-    {
-        color = dark;
-    }
+//    else if (((f_texpos.x < f_center.x + f_pixel_size*1.0) && (f_texpos.x > f_center.x - f_pixel_size*1.0)) || ((f_texpos.y < f_center.y + f_pixel_size*1.0) && (f_texpos.y > f_center.y - f_pixel_size*1.0)))
+//    {
+//        color = dark;
+//    }
 
     // Else within bounds
     if ((f_texpos.x > f_bounds.x - f_pixel_size) && (f_texpos.x < f_bounds.x))

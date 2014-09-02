@@ -9,7 +9,7 @@
 
 Selection::Selection()
 {
-    p_sum = 0;
+    p_integral = 0;
     p_weighted_x = 0;
     p_weighted_y = 0;   
 }
@@ -17,7 +17,7 @@ Selection::Selection()
 Selection::Selection(const Selection & other)
 {
     this->setRect(other.x(),other.y(),other.width(),other.height());
-    p_sum = other.sum();
+    p_integral = other.integral();
     p_weighted_x = other.weighted_x();
     p_weighted_y = other.weighted_y();
 }
@@ -27,9 +27,9 @@ Selection::~Selection()
 }
 
 
-double Selection::sum() const
+double Selection::integral() const
 {
-    return p_sum;
+    return p_integral;
 }
 
 double Selection::weighted_x() const
@@ -43,7 +43,7 @@ double Selection::weighted_y() const
 
 void Selection::setSum(double value)
 {
-    p_sum = value;
+    p_integral = value;
 }
 void Selection::setWeightedX(double value)
 {
@@ -373,17 +373,17 @@ void ImagePreviewWorker::setFrameNew(Image image)
     if (!frame.set(image.path())) return;
     if(!frame.readData()) return;
 
-    frame.setNaive();
+//    frame.setNaive();
     
-    selection = image.selection().normalized();
+    analysis_area = image.selection();
 
     // Restrict selection, this could be moved elsewhere and it would look better
-    if (selection.left() < 0) selection.setLeft(0);
-    if (selection.right() >= frame.getFastDimension()) selection.setRight(frame.getFastDimension()-1);
-    if (selection.top() < 0) selection.setTop(0);
-    if (selection.bottom() >= frame.getSlowDimension()) selection.setBottom(frame.getSlowDimension()-1);
+    if (analysis_area.left() < 0) analysis_area.setLeft(0);
+    if (analysis_area.right() >= frame.getFastDimension()) analysis_area.setRight(frame.getFastDimension()-1);
+    if (analysis_area.top() < 0) analysis_area.setTop(0);
+    if (analysis_area.bottom() >= frame.getSlowDimension()) analysis_area.setBottom(frame.getSlowDimension()-1);
 
-    emit selectionChanged(selection); // Can this be sent?
+    emit selectionChanged(analysis_area); // Can this be sent?
 
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
@@ -503,17 +503,17 @@ void ImagePreviewWorker::refreshSelection()
     if (mode == 0)
     {
         // Normal intensity
-        selectionCalculus(image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+        selectionCalculus(analysis_area ,image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
     }
     if (mode == 1)
     {
         // Variance
-        selectionCalculus(image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+        selectionCalculus(analysis_area,image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
     }
     else if (mode == 2)
     {
         // Skewness
-        selectionCalculus(image_data_skewness_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+        selectionCalculus(analysis_area, image_data_skewness_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
     }
     else
     {
@@ -606,7 +606,7 @@ QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, Selection & 
     double value = 180*getScatteringAngle(f, s.weighted_x(), s.weighted_y())/pi;
     
     QString str;
-    str += QString::number(s.sum(),'E')+" "
+    str += QString::number(s.integral(),'E')+" "
             +QString::number(image.selection().left())+" "
             +QString::number(image.selection().top())+" "
             +QString::number(image.selection().width())+" "
@@ -635,7 +635,7 @@ void ImagePreviewWorker::peakHuntSet(FolderSet set)
 {
 }
 
-void ImagePreviewWorker::integrateSingle(Image image)
+void ImagePreviewWorker::analyzeSingle(Image image)
 {
     // Draw the frame and update the intensity OpenCL buffer prior to further operations 
     setFrameNew(image);
@@ -652,13 +652,14 @@ void ImagePreviewWorker::integrateSingle(Image image)
     result += "#\n";
     result += "# (sum, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
 
-    result += integrationFrameString(frame, selection,image);
+    result += integrationFrameString(frame, analysis_area,image);
     emit resultFinished(result);
 }
 
-void ImagePreviewWorker::integrateFolder(ImageFolder folder)
+void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
 {
-    double sum = 0;
+    double integral = 0;
+    Matrix<double> weightpoint(1,3,0);
     
     QString frames;        
     for (int i = 0; i < folder.size(); i++)
@@ -672,34 +673,76 @@ void ImagePreviewWorker::integrateFolder(ImageFolder folder)
         // Force a buffer swap
         context_gl->swapBuffers(render_surface);
 
-        sum += selection.sum();
+        // Math
+        Matrix<double> Q = getScatteringVector(frame, analysis_area.weighted_x(), analysis_area.weighted_y());
         
-        frames += integrationFrameString(frame, selection, *folder.current());
+//        qDebug() << "i =" << i;
+        
+//        Q.print(2,"Q");
+//        (analysis_area.integral()*Q).print(2,"i*Q");
+        
+        weightpoint += analysis_area.integral()*Q;
+        
+//        weightpoint.print(2,"wtptmid");
+        
+        integral += analysis_area.integral();
+        
+        frames += integrationFrameString(frame, analysis_area, *folder.current());
     
         folder.next();
     }
+    
+    if (integral > 0)
+    {
+//        weightpoint.print(2,"wtpt");
+        
+//        qDebug() << "Integral " << integral;
+        
+        weightpoint = weightpoint / integral;
+    }
+    else
+    {
+        weightpoint.set(1,3,0);
+    }
+    
+    Matrix<double> a(1,3,0);
+    a[0] = 2;
+    a[1] = 3;
+    
+    Matrix<double> b(1,3,0);
+    b[0] = 2;
+    b[1] = 5;
+    b[2] = 5;
+    
+    a += b;
+    
+    a.print(2,"a");
+    
     
     QString result;
     result += "# Analysis of frames in folder "+folder.path()+"\n";
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
-    result += "# Sum of total integrated area in folder "+QString::number(sum,'E')+"\n";
-    result += "# Weightpoint xyz placeholder\n";
-    result += "# Analysis of the individual frames (sum, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
+    result += "# Sum of total integrated area in folder "+QString::number(integral,'E')+"\n";
+    result += "# Weightpoint xyz "+QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+    result += "# Analysis of the individual frames (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
     result += frames;
     
     emit resultFinished(result);
 }
 
-void ImagePreviewWorker::integrateSet(FolderSet set)
+void ImagePreviewWorker::analyzeSet(FolderSet set)
 {
-    double sum = 0;
-    QStringList folder_sum;
+    double integral = 0;
+    QStringList folder_integral;
+    QStringList folder_weightpoint;
     QStringList folder_frames;
     QString str;
     
     for (int i = 0; i < set.size(); i++)
     {
+        Matrix<double> weightpoint(1,3,0);
+        
         for (int j = 0; j < set.current()->size(); j++)
         {
             // Draw the frame and update the intensity OpenCL buffer prior to further operations 
@@ -711,15 +754,32 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
             // Force a buffer swap
             context_gl->swapBuffers(render_surface);
 
-            sum += selection.sum();
             
-            str += integrationFrameString(frame, selection, *set.current()->current());
+            // Math
+            Matrix<double> Q = getScatteringVector(frame, analysis_area.weighted_x(), analysis_area.weighted_y());
+            
+            weightpoint += analysis_area.integral()*Q;
+            
+            integral += analysis_area.integral();
+            
+            str += integrationFrameString(frame, analysis_area, *set.current()->current());
         
             set.current()->next(); 
         }
         
-        folder_sum << QString(QString::number(sum,'E')+" "+set.current()->path()+"\n");
-        sum = 0;
+        if (integral > 0)
+        {
+            weightpoint = weightpoint / integral;
+        }
+        else
+        {
+            weightpoint.set(1,3,0);
+        }
+        
+        folder_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+        
+        folder_integral << QString(QString::number(integral,'E')+" "+set.current()->path()+"\n");
+        integral = 0;
         
         folder_frames << str;
         str.clear();
@@ -733,20 +793,20 @@ void ImagePreviewWorker::integrateSet(FolderSet set)
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
     result += "# Sum of total integrated area in folders\n";
-    foreach(const QString &str, folder_sum)
+    foreach(const QString &str, folder_integral)
     {
         result += str;
     }
-    result += "# Weightpoint xyz in folders\n";
-    foreach(const QString &str, folder_sum)
+    result += "# Weightpoints in folders (Qx, Qy, Qz, |Q|)\n";
+    foreach(const QString &str, folder_weightpoint)
     {
-        result += "placeholder";
+        result += str;
     }
     
-    result += "# Analysis of the individual frames for each folder (sum, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
-    for (int i = 0; i < folder_sum.size(); i++)
+    result += "# Analysis of the individual frames for each folder (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, path)\n";
+    for (int i = 0; i < folder_integral.size(); i++)
     {
-        result += "# Folder sum "+folder_sum.at(i);
+        result += "# Folder integral "+folder_integral.at(i);
         result += folder_frames.at(i);
     }
     
@@ -759,7 +819,7 @@ void ImagePreviewWorker::showWeightCenter(bool value)
     isWeightCenterActive = value;
 }
 
-void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws)
+void ImagePreviewWorker::selectionCalculus(Selection & area, cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws)
 {
     /*
      * When an image is processed by the imagepreview kernel, it saves data into GPU buffers that can be used 
@@ -768,7 +828,7 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
      * */
     
     // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequent parallel reduction
-    int selection_read_size = selection.normalized().width()*selection.normalized().height();
+    int selection_read_size = area.width()*area.height();
     int selection_local_size = local_ws[0]*local_ws[1];
     int selection_global_size = selection_read_size + (selection_read_size % selection_local_size ? selection_local_size - (selection_read_size % selection_local_size) : 0);
     int selection_padded_size = selection_global_size + selection_global_size/selection_local_size;
@@ -777,7 +837,7 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
 
     if (0)
     {
-        qDebug() << selection.normalized();
+        qDebug() << area;
         qDebug() << selection_read_size;
         qDebug() << selection_local_size;
         qDebug() << selection_global_size;
@@ -794,13 +854,13 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
     buffer_size[1] = image_size[1];
     
     Matrix<size_t> buffer_origin(1,2);
-    buffer_origin[0] = selection.normalized().left();
-    buffer_origin[1] = selection.normalized().top();
+    buffer_origin[0] = area.left();
+    buffer_origin[1] = area.top();
     
     // The memory area to be copied into
     Matrix<size_t> copy_size(1,2);
-    copy_size[0] = selection.normalized().width();
-    copy_size[1] = selection.normalized().height();
+    copy_size[0] = area.width();
+    copy_size[1] = area.height();
     
     Matrix<size_t> copy_origin(1,2);
     copy_origin[0] = 0;
@@ -838,9 +898,19 @@ void ImagePreviewWorker::selectionCalculus(cl_mem image_data_cl, cl_mem image_po
     local_ws[1] = 1;
     
     // Do parallel reduction of the chunks and save the results
-    selection.setSum(sumGpuArray(selection_intensity_cl, selection_read_size, local_ws));
-    selection.setWeightedX(sumGpuArray(selection_pos_weight_x_cl, selection_read_size, local_ws)/selection.sum());
-    selection.setWeightedY(sumGpuArray(selection_pos_weight_y_cl, selection_read_size, local_ws)/selection.sum());
+    area.setSum(sumGpuArray(selection_intensity_cl, selection_read_size, local_ws));
+    
+    if (area.integral() > 0)
+    {
+        area.setWeightedX(sumGpuArray(selection_pos_weight_x_cl, selection_read_size, local_ws)/area.integral());
+        area.setWeightedY(sumGpuArray(selection_pos_weight_y_cl, selection_read_size, local_ws)/area.integral());
+    }
+    else
+    {
+        area.setWeightedX(0);
+        area.setWeightedY(0);
+    }
+//    qDebug() << area.integral() << area.weighted_x() << area.weighted_y(); 
     
     err = clReleaseMemObject(selection_intensity_cl);
     err |= clReleaseMemObject(selection_pos_weight_x_cl);
@@ -1006,7 +1076,7 @@ void ImagePreviewWorker::setTsfAlpha(int value)
 void ImagePreviewWorker::setLog(bool value)
 {
     isLog = (int) value;
-
+    
     refreshDisplay();
 }
 
@@ -1027,7 +1097,7 @@ void ImagePreviewWorker::setDataMax(double value)
 
 void ImagePreviewWorker::setSelection(QRect rect)
 {
-    selection = rect;
+    analysis_area = rect;
 }
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)
@@ -1100,6 +1170,12 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawImage(painter);
     
+    ColorMatrix<float> analysis_area_color(1.0,0,0,0.8);
+    ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
+    
+    drawSelection(analysis_area, painter, analysis_area_color);
+    drawWeightpoint(analysis_area, painter, analysis_wp_color);
+    
     drawToolTip(painter);
     
     // Fps
@@ -1138,20 +1214,20 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     // The bounds that enclose the highlighted area of the texture are passed to the shader
     Matrix<double> bounds(1,4); // left, top, right, bottom
     
-//    qDebug() << selection << selection.normalized().right();
+//    qDebug() << selection << selection.right();
 
-    bounds[0] = (double) selection.normalized().left() / (double) frame.getFastDimension();
-    bounds[1] = 1.0 - (double) (selection.normalized().y()+selection.normalized().height()) / (double) frame.getSlowDimension();
-    bounds[2] = (double) (selection.normalized().x()+selection.normalized().width()) / (double) frame.getFastDimension();
-    bounds[3] = 1.0 - (double) (selection.normalized().top()) / (double) frame.getSlowDimension();
+    bounds[0] = (double) analysis_area.left() / (double) frame.getFastDimension();
+    bounds[1] = 1.0 - (double) (analysis_area.y()+analysis_area.height()) / (double) frame.getSlowDimension();
+    bounds[2] = (double) (analysis_area.x()+analysis_area.width()) / (double) frame.getFastDimension();
+    bounds[3] = 1.0 - (double) (analysis_area.top()) / (double) frame.getSlowDimension();
     
     glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
     
     // The center of the intensity maximum
     Matrix<double> center(1,4); // left, top, right, bottom
     
-    center[0] = selection.weighted_x() / (double) frame.getFastDimension();
-    center[1] = 1.0 - selection.weighted_y() / (double) frame.getSlowDimension();
+    center[0] = analysis_area.weighted_x() / (double) frame.getFastDimension();
+    center[1] = 1.0 - analysis_area.weighted_y() / (double) frame.getSlowDimension();
     
     glUniform2fv(shared_window->rect_hl_2d_tex_center, 1, center.toFloat().data());
     
@@ -1181,46 +1257,49 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
 void ImagePreviewWorker::centerImage()
 {
-    translation_matrix[3] = (qreal) -frame.getFastDimension()/( (qreal) render_surface->width());
-    translation_matrix[7] = (qreal) frame.getSlowDimension()/( (qreal) render_surface->height());
+//    translation_matrix[3] = (qreal) -frame.getFastDimension()/( (qreal) render_surface->width());
+//    translation_matrix[7] = (qreal) frame.getSlowDimension()/( (qreal) render_surface->height());
     
-    zoom_matrix[0] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
-    zoom_matrix[5] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
-    zoom_matrix[10] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
+//    zoom_matrix[0] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
+//    zoom_matrix[5] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
+//    zoom_matrix[10] = (qreal) render_surface->width() / (qreal) frame.getFastDimension();
 }
 
 
-void ImagePreviewWorker::drawSelection(QPainter *painter)
+
+
+void ImagePreviewWorker::drawSelection(Selection &area, QPainter *painter, Matrix<float> &color)
 {
     // Change to draw a faded polygon
     ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
     
-    glLineWidth(2.0);
+    glLineWidth(1.0);
 
-    float x0 = (((qreal) selection.normalized().left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0;
-    float y0 = (1.0 - (qreal) (selection.bottom())/ (qreal) render_surface->height()) * 2.0 - 1.0;
-    float x1 = (((qreal) selection.normalized().right()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0;
-    float y1 = (1.0 - (qreal) (selection.top())/ (qreal) render_surface->height()) * 2.0 - 1.0;
+    float x0 = (((qreal) area.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+    float x1 = (((qreal) area.x() + area.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+    
+    float y0 = (1.0 - (qreal) (area.top() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+    float y1 = (1.0 - (qreal) (area.y() + area.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
     
     Matrix<GLfloat> selection_lines(8,2);
     selection_lines[0] = x0;
-    selection_lines[1] = 1.0;
+    selection_lines[1] = y0;
     selection_lines[2] = x0;
-    selection_lines[3] = 0.0;
+    selection_lines[3] = y1;
     
     selection_lines[4] = x1;
-    selection_lines[5] = 1.0;
+    selection_lines[5] = y0;
     selection_lines[6] = x1;
-    selection_lines[7] = 0.0;
+    selection_lines[7] = y1;
     
-    selection_lines[8] = 1.0;
+    selection_lines[8] = x0;
     selection_lines[9] = y0;
-    selection_lines[10] = 0.0;
+    selection_lines[10] = x1;
     selection_lines[11] = y0;
     
-    selection_lines[12] = 1.0;
+    selection_lines[12] = x0;
     selection_lines[13] = y1;
-    selection_lines[14] = 0.0;
+    selection_lines[14] = x1;
     selection_lines[15] = y1;
     
     
@@ -1232,7 +1311,74 @@ void ImagePreviewWorker::drawSelection(QPainter *painter)
     shared_window->std_2d_col_program->bind();
     glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
-    glUniform4fv(shared_window->std_2d_col_color, 1, selection_lines_color.data());
+    glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
+
+    glBindBuffer(GL_ARRAY_BUFFER, selection_lines_vbo);
+    glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    texture_view_matrix = zoom_matrix*translation_matrix;
+
+    glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
+
+    glDrawArrays(GL_LINES,  0, 8);
+
+    glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+    shared_window->std_2d_col_program->release();
+
+    endRawGLCalls(painter);
+}
+
+void ImagePreviewWorker::drawWeightpoint(Selection &area, QPainter *painter, Matrix<float> &color)
+{
+    // Change to draw a faded polygon
+    ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
+    
+    glLineWidth(1.5);
+
+    float x0 = (((qreal) area.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+    float x2 = (((qreal) area.x() + area.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+    float x1 = (((qreal) area.weighted_x()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Center
+    
+    float y0 = (1.0 - (qreal) (area.top() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+    float y2 = (1.0 - (qreal) (area.y() + area.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+    float y1 = (1.0 - (qreal) (area.weighted_y() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Center 
+    
+    float x_offset = (x2 - x0)*0.02;
+    float y_offset = (y2 - y0)*0.02;
+    
+    Matrix<GLfloat> selection_lines(8,2);
+    selection_lines[0] = x0 - x_offset;
+    selection_lines[1] = y1;
+    selection_lines[2] = x1 - x_offset;
+    selection_lines[3] = y1;
+    
+    selection_lines[4] = x1 + x_offset;
+    selection_lines[5] = y1;
+    selection_lines[6] = x2 + x_offset;
+    selection_lines[7] = y1;
+    
+    selection_lines[8] = x1;
+    selection_lines[9] = y1 - y_offset;
+    selection_lines[10] = x1;
+    selection_lines[11] = y0 - y_offset;
+    
+    selection_lines[12] = x1;
+    selection_lines[13] = y1 + y_offset;
+    selection_lines[14] = x1;
+    selection_lines[15] = y2 + y_offset;
+    
+    
+
+    setVbo(selection_lines_vbo, selection_lines.data(), selection_lines.size(), GL_DYNAMIC_DRAW);
+
+    beginRawGLCalls(painter);
+
+    shared_window->std_2d_col_program->bind();
+    glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+    glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
 
     glBindBuffer(GL_ARRAY_BUFFER, selection_lines_vbo);
     glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
@@ -1379,10 +1525,10 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     
     
     // Intensity center
-    tip += "Weight center (x,y) "+QString::number(selection.weighted_x(),'f',2)+" "+QString::number(selection.weighted_y(),'f',2)+"\n";
+    tip += "Weight center (x,y) "+QString::number(analysis_area.weighted_x(),'f',2)+" "+QString::number(analysis_area.weighted_y(),'f',2)+"\n";
     
     // Sum
-    tip += "Integral "+QString::number(selection.sum(),'f',2);
+    tip += "Integral "+QString::number(analysis_area.integral(),'f',2);
     
     
     QFont font("monospace", 10);
@@ -1630,7 +1776,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     {
         Matrix<int> pixel = getImagePixel(x, y);
         
-        selection.setBottomRight(QPoint(pixel[0], pixel[1]));
+        analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     }
 
     prev_pos = pos;
@@ -1649,8 +1795,8 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
     {
         Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
         
-        selection.setTopLeft(QPoint(pixel[0], pixel[1]));
-        selection.setBottomRight(QPoint(pixel[0], pixel[1]));
+        analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
+        analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     }
 }
 
@@ -1667,12 +1813,13 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     {
         Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
         
-        selection.setBottomRight(QPoint(pixel[0], pixel[1]));
+        analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
 
+        analysis_area = analysis_area.normalized();
 //        copyAndReduce(selection);
         refreshSelection();
         
-        emit selectionChanged(selection);
+        emit selectionChanged(analysis_area);
     }
 }
 

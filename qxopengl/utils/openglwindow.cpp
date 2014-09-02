@@ -268,6 +268,7 @@ void OpenGLWindow::resizeEvent(QResizeEvent * ev)
 
 void OpenGLWindow::keyPressEvent(QKeyEvent * ev)
 {
+    Q_UNUSED(ev);
 //    qDebug() << ev->key();
     
 //    emit keyPressEventCaught(*ev);
@@ -275,6 +276,7 @@ void OpenGLWindow::keyPressEvent(QKeyEvent * ev)
 
 void OpenGLWindow::keyReleaseEvent(QKeyEvent * ev)
 {
+    Q_UNUSED(ev);
 //    emit keyReleaseEventCaught(ev);
 }
 

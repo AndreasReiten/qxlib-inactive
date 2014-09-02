@@ -32,6 +32,13 @@ class Matrix {
         // Operators
         const Matrix operator * (const Matrix&) const;
         const Matrix operator * (const T&) const;
+        const Matrix operator / (const Matrix&) const;
+        const Matrix operator / (const T&) const;
+        const Matrix operator += (const Matrix&);
+        const Matrix operator += (const T&) const;
+        const Matrix operator -= (const Matrix&) const;
+        const Matrix operator -= (const T&) const;
+        
 //        const Matrix operator * (const T&, const Matrix&) const;
         const Matrix operator - (const Matrix&) const;
         const Matrix operator - (const T&) const;
@@ -819,6 +826,112 @@ const Matrix<T> Matrix<T>::operator * (const Matrix& M) const
 
     return c;
 }
+
+template <class T>
+const Matrix<T> Matrix<T>::operator / (const T& value) const
+{
+    Matrix<T> c(*this);
+    
+    for (size_t i = 0; i < c.m(); i++)
+    {
+        for (size_t j = 0; j < c.n(); j++)
+        {
+            c[i*c.n() + j] = c[i*c.n() + j] / value;
+        }
+    }
+    return c;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator / (const Matrix& M) const
+{
+    Matrix<T> c(*this);
+    
+    if ((this->p_n != M.n()) || (this->p_m != M.m()))
+    {
+        qWarning("Matrix dimesions do not agree!");
+        return c;
+    }
+    
+    for (size_t i = 0; i < c.m(); i++)
+    {
+        for (size_t j = 0; j < c.n(); j++)
+        {
+            c[i*c.n() + j] /= M[i*c.n() + j];
+        }
+    }
+    return c;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator += (const T& value) const
+{
+    for (size_t i = 0; i < p_m; i++)
+    {
+        for (size_t j = 0; j < p_n; j++)
+        {
+            p_buffer[i*p_n + j] += value;
+        }
+    }
+    
+    return *this;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator += (const Matrix& M)
+{
+    if ((this->p_n != M.n()) || (this->p_m != M.m()))
+    {
+        qWarning("Matrix dimesions do not agree!");
+        return *this;
+    }
+    
+    for (size_t i = 0; i < p_m; i++)
+    {
+        for (size_t j = 0; j < p_n; j++)
+        {
+            p_buffer[i*p_n + j] += M[i*M.n() + j];
+        }
+    }
+    
+    return *this;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator -= (const T& value) const
+{
+    for (size_t i = 0; i < p_m; i++)
+    {
+        for (size_t j = 0; j < p_n; j++)
+        {
+            p_buffer[i*p_n + j] -= value;
+        }
+    }
+    
+    return *this;
+}
+
+template <class T>
+const Matrix<T> Matrix<T>::operator -= (const Matrix& M) const
+{
+    if ((this->p_n != M.n()) || (this->p_m != M.m()))
+    {
+        qWarning("Matrix dimesions do not agree!");
+        return *this;
+    }
+    
+    for (size_t i = 0; i < p_m; i++)
+    {
+        for (size_t j = 0; j < p_n; j++)
+        {
+            p_buffer[i*p_n + j] -= M[i*M.n() + j];
+        }
+    }
+    
+    return *this;
+}
+
+
 
 template <class T>
 void Matrix<T>::print(int precision, const char * id) const

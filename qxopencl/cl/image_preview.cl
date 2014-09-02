@@ -140,12 +140,12 @@ __kernel void imageCalculus(
         else if (task == 3)
         {
             // Calculate x weightpoint
-            out_buf[id_glb.y * image_size.x + id_glb.x] = value*(float)id_glb.x;
+            out_buf[id_glb.y * image_size.x + id_glb.x] = value*((float)id_glb.x+0.5);
         }
         else if (task == 4)
         {
             // Calculate y weightpoint
-            out_buf[id_glb.y * image_size.x + id_glb.x] = value*(float)id_glb.y;
+            out_buf[id_glb.y * image_size.x + id_glb.x] = value*((float)id_glb.y+0.5);
         }
         else
         {

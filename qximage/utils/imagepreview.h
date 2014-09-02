@@ -30,7 +30,7 @@ public:
     
     
 //    QRect area() const;
-    double sum() const;
+    double integral() const;
     double weighted_x() const;
     double weighted_y() const;
     
@@ -43,7 +43,7 @@ public:
     
 private:
 //    QRect p_area;
-    double p_sum;
+    double p_integral;
     double p_weighted_x;
     double p_weighted_y;
 };
@@ -90,9 +90,9 @@ public slots:
     void setSelection(QRect rect);
     void setSelectionActive(bool value);
     void centerImage();
-    void integrateSingle(Image image);
-    void integrateFolder(ImageFolder folder);
-    void integrateSet(FolderSet set);
+    void analyzeSingle(Image image);
+    void analyzeFolder(ImageFolder folder);
+    void analyzeSet(FolderSet set);
     
     void peakHuntSingle(Image image);
     void peakHuntFolder(ImageFolder folder);
@@ -111,7 +111,7 @@ private:
     
     float sumGpuArray(cl_mem cl_data, unsigned int read_size, Matrix<size_t> &local_ws);
     
-    void selectionCalculus(cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws);
+    void selectionCalculus(Selection &area, cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws);
     
     // Convenience 
     void refreshDisplay();
@@ -179,7 +179,8 @@ private:
     // Draw
     void drawImage(QPainter *painter);
     void drawTexelOverlay(QPainter *painter);
-    void drawSelection(QPainter *painter);
+    void drawSelection(Selection &area, QPainter *painter, Matrix<float> &color);
+    void drawWeightpoint(Selection &area, QPainter *painter, Matrix<float> &color);
     void drawToolTip(QPainter * painter);
 
     // Vertice buffer objects
@@ -212,7 +213,8 @@ private:
     int mode;
 
     // Selection
-    Selection selection;
+    Selection analysis_area;
+    Selection background_area;
     GLuint selection_lines_vbo;
     bool isSelectionActive;
     Matrix<int> getImagePixel(int x, int y);
