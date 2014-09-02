@@ -2,12 +2,14 @@
 
 Image::Image()
 {
-    p_selection = QRect(0,0,5000,5000);
+    p_selection = Selection(0,0,36000,36000);
+    p_background = Selection(0,0,36000,36000);
 }
 
 Image::Image(const Image & other)
 {
     p_selection = other.selection();
+    p_background = other.background();
     p_path = other.path();
 }
 
@@ -26,14 +28,24 @@ const QString Image::path() const
     return p_path;
 }
 
-void Image::setSelection(QRect rect)
+void Image::setSelection(Selection rect)
 {
     p_selection = rect;
 }
 
-const QRect Image::selection() const
+void Image::setBackground(Selection rect)
+{
+    p_background = rect;
+}
+
+const Selection Image::selection() const
 {
     return p_selection;
+}
+
+const Selection Image::background() const
+{
+    return p_background;
 }
 
 QDebug operator<<(QDebug dbg, const Image &image)
@@ -44,7 +56,7 @@ QDebug operator<<(QDebug dbg, const Image &image)
 
 QDataStream &operator<<(QDataStream &out, const Image &image)
 {
-    out << image.path() << image.selection();
+    out << image.path() << image.selection() << image.background();
 
     return out;
 }
@@ -52,11 +64,13 @@ QDataStream &operator<<(QDataStream &out, const Image &image)
 QDataStream &operator>>(QDataStream &in, Image &image)
 {
     QString path;
-    QRect rect;
+    Selection selection;
+    Selection background;
 
-    in >> path >> rect;
+    in >> path >> selection >> background;
     image.setPath(path);
-    image.setSelection(rect);
+    image.setSelection(selection);
+    image.setBackground(background);
 
     return in;
 }

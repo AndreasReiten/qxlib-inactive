@@ -13,42 +13,6 @@
 #include "../../qxmath/qxmathlib.h"
 
 
-class Selection : public QObject, public QRect
-{
-    Q_OBJECT
-public:
-    explicit Selection(const QPoint & topLeft, const QPoint & bottomRight)
-                : QRect(topLeft, bottomRight) {}
-    explicit Selection(const QPoint & topLeft, const QSize & size)
-                : QRect(topLeft, size) {}
-    explicit Selection(int x, int y, int width, int height)
-                : QRect(x, y, width, height) {}
-    
-    Selection();
-    Selection(const Selection & other);
-    ~Selection();
-    
-    
-//    QRect area() const;
-    double integral() const;
-    double weighted_x() const;
-    double weighted_y() const;
-    
-//    void setArea(QRect rect);
-    void setSum(double value);
-    void setWeightedX(double value);
-    void setWeightedY(double value);
-    
-    Selection &operator =(QRect other);
-    
-private:
-//    QRect p_area;
-    double p_integral;
-    double p_weighted_x;
-    double p_weighted_y;
-};
-
-
 class ImagePreviewWorker : public OpenGLWorker
 {
     Q_OBJECT
@@ -58,9 +22,12 @@ public:
     void setSharedWindow(SharedContextWindow * window);
 
 signals:
-    void selectionChanged(QRect rect);
+    void selectionChanged(Selection rect);
+    void backgroundChanged(Selection rect);
     void pathChanged(QString str);
     void resultFinished(QString str);
+    void selectionAlphaChanged(bool value);
+    void selectionBetaChanged(bool value);
     
 public slots:
     void setMode(int value);
@@ -86,9 +53,10 @@ public slots:
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
 //    void setFrame(Image image);
-    void setFrameNew(Image image);
+    void setFrame(Image image);
     void setSelection(QRect rect);
-    void setSelectionActive(bool value);
+    void setSelectionAlphaActive(bool value);
+    void setSelectionBetaActive(bool value);
     void centerImage();
     void analyzeSingle(Image image);
     void analyzeFolder(ImageFolder folder);
@@ -111,11 +79,11 @@ private:
     
     float sumGpuArray(cl_mem cl_data, unsigned int read_size, Matrix<size_t> &local_ws);
     
-    void selectionCalculus(Selection &area, cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws);
+    void selectionCalculus(Selection *area, cl_mem image_data_cl, cl_mem image_pos_weight_x_cl_new, cl_mem image_pos_weight_y_cl_new, Matrix<size_t> &image_size, Matrix<size_t> &local_ws);
     
     // Convenience 
     void refreshDisplay();
-    void refreshSelection();
+    void refreshSelection(Selection *area);
     
     // GPU buffer management
     void maintainImageTexture(Matrix<size_t> &image_size);
@@ -133,7 +101,7 @@ private:
     // Misc
 //    void copyAndReduce(QRect selection_rect);
     
-    QString integrationFrameString(DetectorFile &f, Selection &s, Image &image);
+    QString integrationFrameString(DetectorFile &f, Image &image);
     
     SharedContextWindow * shared_window;
 
@@ -215,8 +183,10 @@ private:
     // Selection
     Selection analysis_area;
     Selection background_area;
-    GLuint selection_lines_vbo;
-    bool isSelectionActive;
+    GLuint selections_vbo[5];
+    GLuint weightpoints_vbo[5];
+    bool isSelectionAlphaActive;
+    bool isSelectionBetaActive;
     Matrix<int> getImagePixel(int x, int y);
 
 protected:

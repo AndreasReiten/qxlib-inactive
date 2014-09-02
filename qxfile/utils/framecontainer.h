@@ -5,8 +5,9 @@
 #include <QString>
 #include <QRect>
 #include <QDebug>
-#include <QRect>
 #include <QList>
+#include "selection.h"
+
 
 class Image
 {
@@ -18,17 +19,20 @@ public:
     void setPath(QString str);
     const QString path() const;
 
-    void setSelection(QRect rect);
-    const QRect selection() const;
+    void setSelection(Selection rect);
+    void setBackground(Selection rect);
+    const Selection selection() const;
+    const Selection background() const;
 
 private:
     QString p_path;
-    QRect p_selection;
+    Selection p_selection;
+    Selection p_background;
 };
 
 Q_DECLARE_METATYPE(Image);
 
-QDebug operator<<(QDebug dbg, const Image &file);
+QDebug operator<<(QDebug dbg, const Image &image);
 
 QDataStream &operator<<(QDataStream &out, const Image &image);
 QDataStream &operator>>(QDataStream &in, Image &image);
@@ -69,7 +73,7 @@ private:
 
 Q_DECLARE_METATYPE(ImageFolder);
 
-QDebug operator<<(QDebug dbg, const ImageFolder &file);
+QDebug operator<<(QDebug dbg, const ImageFolder &image_folder);
 
 QDataStream &operator<<(QDataStream &out, const ImageFolder &image_folder);
 QDataStream &operator>>(QDataStream &in, ImageFolder &image_folder);
@@ -107,7 +111,7 @@ private:
 
 Q_DECLARE_METATYPE(FolderSet);
 
-QDebug operator<<(QDebug dbg, const FolderSet &file);
+QDebug operator<<(QDebug dbg, const FolderSet &folder_set);
 
 QDataStream &operator<<(QDataStream &out, const FolderSet &folder_set);
 QDataStream &operator>>(QDataStream &in, FolderSet &folder_set);

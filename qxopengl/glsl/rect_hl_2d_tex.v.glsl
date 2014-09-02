@@ -4,9 +4,9 @@ attribute vec2 texpos;
 uniform mat4 transform;
 uniform vec4 bounds;
 uniform float pixel_size;
-uniform vec2 center;
+//uniform vec2 center;
 
-varying vec2 f_center;
+//varying vec2 f_center;
 varying vec2 f_texpos;
 varying vec4 f_bounds;
 varying float f_pixel_size;
@@ -19,6 +19,6 @@ void main(void)
     f_texpos = texpos;
     f_bounds = bounds; 
     f_pixel_size = pixel_size;
-    f_center = center;
+//    f_center = center;
 }
 
