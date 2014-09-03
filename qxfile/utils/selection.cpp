@@ -70,7 +70,7 @@ QDebug operator<<(QDebug dbg, const Selection &selection)
     QRect tmp;
     tmp.setRect(selection.x(),selection.y(),selection.width(),selection.height());
 
-    dbg.nospace() << "Selection()" << tmp;
+    dbg.nospace() << "Selection()" << tmp << selection.integral();
     return dbg.maybeSpace();
 }
 

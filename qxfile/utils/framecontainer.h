@@ -24,6 +24,8 @@ public:
     const Selection selection() const;
     const Selection background() const;
 
+    Image &operator =(Image other);
+
 private:
     QString p_path;
     Selection p_selection;

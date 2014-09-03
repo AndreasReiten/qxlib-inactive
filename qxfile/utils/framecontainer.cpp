@@ -48,9 +48,18 @@ const Selection Image::background() const
     return p_background;
 }
 
+Image& Image::operator = (Image other)
+{
+    p_path = other.path();
+    p_selection = other.selection();
+    p_background = other.background();
+
+    return * this;
+}
+
 QDebug operator<<(QDebug dbg, const Image &image)
 {
-    dbg.nospace() << "Image()" << image.path();
+    dbg.nospace() << "Image()" << image.path() << image.selection() << image.background();
     return dbg.maybeSpace();
 }
 

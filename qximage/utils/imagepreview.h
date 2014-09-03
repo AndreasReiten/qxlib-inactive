@@ -22,9 +22,9 @@ public:
     void setSharedWindow(SharedContextWindow * window);
 
 signals:
-    void selectionChanged(Selection rect);
-    void backgroundChanged(Selection rect);
-    void pathChanged(QString str);
+//    void selectionChanged(Selection rect);
+//    void backgroundChanged(Selection rect);
+//    void pathChanged(QString str);
     void resultFinished(QString str);
     void selectionAlphaChanged(bool value);
     void selectionBetaChanged(bool value);
@@ -139,7 +139,7 @@ private:
     DetectorFile frame;
     Image frame_image;
 
-    void initResourcesCL();
+    void initOpenCL();
 //    void update(size_t w, size_t h);
     void setParameter(Matrix<float> &data);
     void setTsf(TransferFunction & tsf);
@@ -161,7 +161,7 @@ private:
     GLuint texel_line_vbo[2];
 
     // Boolean checks
-    bool isInitialized;
+//    bool isInitialized;
     bool isImageTexInitialized;
     bool isTsfTexInitialized;
     bool isCLInitialized;
@@ -188,8 +188,8 @@ private:
     int mode;
 
     // Selection
-    Selection analysis_area;
-    Selection background_area;
+//    Selection analysis_area;
+//    Selection background_area;
     GLuint selections_vbo[5];
     GLuint weightpoints_vbo[5];
     bool isSelectionAlphaActive;

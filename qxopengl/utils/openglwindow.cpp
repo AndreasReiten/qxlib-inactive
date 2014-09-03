@@ -77,16 +77,18 @@ void OpenGLWorker::process()
 {
     context_gl->makeCurrent(render_surface);
 
-//    if (!isInitialized) 
-//    {
-//        initializeOpenGLFunctions();
-//        if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
-//        paint_device_gl->setSize(render_surface->size());
+    if (!isInitialized)
+    {
+        initializeOpenGLFunctions();
+        if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
+        paint_device_gl->setSize(render_surface->size());
         
-////        initialize();
-////        isInitialized = true;
-//    }
-//    else
+        initialize();
+        isInitialized = true;
+
+        qDebug() << "now it is initialized";
+    }
+    else
     {
         QPainter painter(paint_device_gl);
         render(&painter);

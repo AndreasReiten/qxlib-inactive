@@ -10,7 +10,7 @@
 
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
-    isInitialized(false),
+//    isInitialized(false),
     isImageTexInitialized(false),
     isTsfTexInitialized(false),
     isCLInitialized(false),
@@ -21,7 +21,9 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     alpha_style(2)
 {
     Q_UNUSED(parent);
-    
+
+    isInitialized = false;
+
     parameter.reserve(1,16);
 
     texture_view_matrix.setIdentity(4);
@@ -90,6 +92,8 @@ void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl,
     context_gl->makeCurrent(render_surface);
     
     glFinish();
+
+//    qDebug() << "it is now required";
     err = clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &frame_image_cl, 0, 0, 0);
     err |= clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &tsf_image_cl, 0, 0, 0);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -321,15 +325,19 @@ void ImagePreviewWorker::calculus()
 
 void ImagePreviewWorker::setFrame(Image image)
 {
+//    qDebug() << "setFrame";
+
     // Set the frame
     frame_image = image;
-    if (!frame.set(image.path())) return;
+    if (!frame.set(frame_image.path())) return;
     if(!frame.readData()) return;
+
+    isFrameValid = true;
 
 //    frame.setNaive();
     
-    analysis_area = image.selection();
-    background_area = image.background();
+    Selection analysis_area = frame_image.selection();
+    Selection background_area = frame_image.background();
 
     // Restrict selection, this could be moved elsewhere and it would look better
     if (analysis_area.left() < 0) analysis_area.setLeft(0);
@@ -341,6 +349,9 @@ void ImagePreviewWorker::setFrame(Image image)
     if (background_area.right() >= frame.getFastDimension()) background_area.setRight(frame.getFastDimension()-1);
     if (background_area.top() < 0) background_area.setTop(0);
     if (background_area.bottom() >= frame.getSlowDimension()) background_area.setBottom(frame.getSlowDimension()-1);
+
+    frame_image.setSelection(analysis_area);
+    frame_image.setBackground(background_area);
 
 //    emit selectionChanged(analysis_area);
 //    emit backgroundChanged(background_area);
@@ -388,11 +399,11 @@ void ImagePreviewWorker::setFrame(Image image)
     frame_image.setBackground(background_area);
     
     // Emit the image instead of components
-    emit pathChanged(image.path());
-    emit selectionChanged(analysis_area);
-    emit backgroundChanged(background_area);
-    
-    isFrameValid = true;
+//    emit pathChanged(image.path());
+//    emit selectionChanged(analysis_area);
+//    emit backgroundChanged(background_area);
+    emit imageChanged(frame_image);
+
 }
 
 
@@ -900,7 +911,7 @@ void ImagePreviewWorker::selectionCalculus(Selection * area, cl_mem image_data_c
 }
 
 
-void ImagePreviewWorker::initResourcesCL()
+void ImagePreviewWorker::initOpenCL()
 {
     // Build program from OpenCL kernel source
     QStringList paths;
@@ -1017,26 +1028,19 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 
     isTsfTexInitialized = true;
 
+//    qDebug() << "A tsf was set";
+
     tsf_tex_cl = clCreateFromGLTexture2D(*context_cl->getContext(), CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, tsf_tex_gl, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
 void ImagePreviewWorker::initialize()
 {
-    initializeOpenGLFunctions();
-    if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
-    paint_device_gl->setSize(render_surface->size());
-    
-    initialize();
-    isInitialized = true;
-    
-    initResourcesCL();
+    initOpenCL();
 
     glGenBuffers(2, texel_line_vbo);
     glGenBuffers(5, selections_vbo);
     glGenBuffers(5, weightpoints_vbo);
-
-    isInitialized = true;
 }
 
 
@@ -1047,6 +1051,7 @@ void ImagePreviewWorker::setTsfTexture(int value)
     tsf.setColorScheme(rgb_style, alpha_style);
     tsf.setSpline(256);
 
+//    qDebug() << "now we try to set tsf" << isInitialized;
     if (isInitialized) setTsf(tsf);
     
     refreshDisplay();
@@ -1840,7 +1845,8 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
             analysis_area = analysis_area.normalized();
             refreshSelection(&analysis_area);
             
-            emit selectionChanged(analysis_area);
+            emit imageChanged(frame_image);
+//            emit selectionChanged(analysis_area);
         }
         else if (isSelectionBetaActive)
         {
@@ -1850,8 +1856,10 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
             
             background_area = background_area.normalized();
             refreshBackground(&background_area);
+
+            emit imageChanged(frame_image);
     
-            emit backgroundChanged(background_area);
+//            emit backgroundChanged(background_area);
         }
     }
     else if (right_button)
@@ -1864,8 +1872,10 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     
             analysis_area = analysis_area.normalized();
             refreshSelection(&analysis_area);
+
+            emit imageChanged(frame_image);
             
-            emit selectionChanged(analysis_area);
+//            emit selectionChanged(analysis_area);
         }
         else if (isSelectionBetaActive)
         {
@@ -1875,10 +1885,13 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     
             background_area = background_area.normalized();
             refreshBackground(&background_area);
-    
-            emit backgroundChanged(background_area);
+
+            emit imageChanged(frame_image);
+//            emit backgroundChanged(background_area);
         }
     }
+
+    emit imageChanged(frame_image);
 }   
 
 void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
@@ -1996,10 +2009,10 @@ void ImagePreviewWindow::initializeWorker()
 //        connect(this, SIGNAL(keyReleaseEventCaught(QKeyEvent*)), gl_worker, SLOT(keyReleaseEvent(QKeyEvent*)));
         connect(this, SIGNAL(resizeEventCaught(QResizeEvent*)), gl_worker, SLOT(resizeEvent(QResizeEvent*)));
         connect(this, SIGNAL(wheelEventCaught(QWheelEvent*)), gl_worker, SLOT(wheelEvent(QWheelEvent*)), Qt::DirectConnection);
-        connect(this,SIGNAL(workerReady()),gl_worker,SLOT(initialize()));
+//        connect(this,SIGNAL(workerReady()),gl_worker,SLOT(initialize()));
         
-        emit workerReady();
-//        emit render();
+//        emit workerReady();
+        emit render(); // A call to render is necessary to make sure initialize() is callled
     }
 
     isInitialized = true;

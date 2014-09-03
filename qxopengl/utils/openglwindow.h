@@ -70,9 +70,11 @@ protected:
     OpenCLContext *context_cl;
     QWindow *render_surface;
 
+    bool isInitialized;
+
 private:
     // Boolean checks
-    bool isInitialized;
+
     bool isThreaded;
 
     double fps;
