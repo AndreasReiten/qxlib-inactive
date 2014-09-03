@@ -31,7 +31,7 @@ public:
 
     // Sets
     void setOpenCLContext(OpenCLContext * context);
-    void setGLContext(QOpenGLContext *context);
+    void setOpenGLContext(QOpenGLContext *context);
     void setRenderSurface(QWindow *surface);
 
     // Convenience functions
@@ -55,13 +55,15 @@ public slots:
 //    virtual void keyPressEvent(QKeyEvent ev);
 //    virtual void keyReleaseEvent(QKeyEvent * ev);
     void setFps();
+    virtual void initialize();
 
 protected:
     double getFps();
 
     // Render
     virtual void render(QPainter *painter);
-    virtual void initialize();
+//    virtual void initOpenGL();
+//    virtual void initOpenCL();
 
     QOpenGLPaintDevice *paint_device_gl;
     QOpenGLContext *context_gl;
@@ -101,6 +103,7 @@ signals:
     void stopRendering();
     void render();
     void setFocus();
+    void workerReady();
 
 public slots:
     void setSwapState();

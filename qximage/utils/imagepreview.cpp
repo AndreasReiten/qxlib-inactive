@@ -16,6 +16,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isCLInitialized(false),
     isFrameValid(false),
     isWeightCenterActive(false),
+    isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
     alpha_style(2)
 {
@@ -86,6 +87,8 @@ void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl,
     if (!isFrameValid) return;
         
     // Aquire shared CL/GL objects
+    context_gl->makeCurrent(render_surface);
+    
     glFinish();
     err = clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &frame_image_cl, 0, 0, 0);
     err |= clEnqueueAcquireGLObjects(*context_cl->getCommandQueue(), 1, &tsf_image_cl, 0, 0, 0);
@@ -319,6 +322,7 @@ void ImagePreviewWorker::calculus()
 void ImagePreviewWorker::setFrame(Image image)
 {
     // Set the frame
+    frame_image = image;
     if (!frame.set(image.path())) return;
     if(!frame.readData()) return;
 
@@ -338,8 +342,8 @@ void ImagePreviewWorker::setFrame(Image image)
     if (background_area.top() < 0) background_area.setTop(0);
     if (background_area.bottom() >= frame.getSlowDimension()) background_area.setBottom(frame.getSlowDimension()-1);
 
-    emit selectionChanged(analysis_area);
-    emit backgroundChanged(background_area);
+//    emit selectionChanged(analysis_area);
+//    emit backgroundChanged(background_area);
 
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
@@ -371,13 +375,23 @@ void ImagePreviewWorker::setFrame(Image image)
     setParameter(parameter);
     
     // Do relevant calculations and render
+    refreshBackground(&background_area);
+    
+//    qDebug() << "SF BG" << background_area.integral() << background_area.width() << background_area.height();
+    
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
-
+//    qDebug() << "SF FG" << analysis_area.integral() << analysis_area.width() << analysis_area.height();
+    
+    frame_image.setSelection(analysis_area);
+    frame_image.setBackground(background_area);
+    
+    // Emit the image instead of components
     emit pathChanged(image.path());
-
+    emit selectionChanged(analysis_area);
+    emit backgroundChanged(background_area);
+    
     isFrameValid = true;
 }
 
@@ -460,12 +474,12 @@ void ImagePreviewWorker::refreshSelection(Selection * area)
     if (mode == 0)
     {
         // Normal intensity
-        selectionCalculus(area ,image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+        selectionCalculus(area, image_data_corrected_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
     }
     if (mode == 1)
     {
         // Variance
-        selectionCalculus(area,image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+        selectionCalculus(area, image_data_variance_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
     }
     else if (mode == 2)
     {
@@ -478,6 +492,35 @@ void ImagePreviewWorker::refreshSelection(Selection * area)
     }
     
 
+}
+
+void ImagePreviewWorker::refreshBackground(Selection * area)
+{
+    Matrix<size_t> local_ws(1,2);
+    local_ws[0] = 64;
+    local_ws[1] = 1;
+    
+    Matrix<size_t> image_size(1,2);
+    image_size[0] = frame.getFastDimension();
+    image_size[1] = frame.getSlowDimension();
+
+    // Normal intensity
+    selectionCalculus(area, image_data_raw_cl, image_data_weight_x_cl, image_data_weight_y_cl, image_size, local_ws);
+    
+    
+    if (isAutoBackgroundCorrectionActive)
+    {
+        double noise = area->integral()/(double)(area->width()*area->height());
+//        setThresholdNoiseLow(noise);
+        
+        parameter[0] = noise;
+        setParameter(parameter);
+//        qDebug() << area->integral()/(double)(area->width()*area->height()) << area->integral() << area->width() << area->height();
+        emit noiseLowChanged(noise);
+    }
+    
+    
+//    emit backgroundChanged(background_area);
 }
 
 void ImagePreviewWorker::refreshDisplay()
@@ -614,7 +657,7 @@ void ImagePreviewWorker::analyzeSingle(Image image)
     result += "#\n";
     result += "# (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
 
-    result += integrationFrameString(frame, image);
+    result += integrationFrameString(frame, frame_image);
     emit resultFinished(result);
 }
 
@@ -643,7 +686,7 @@ void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
         
         integral += analysis_area.integral();
         
-        frames += integrationFrameString(frame, *folder.current());
+        frames += integrationFrameString(frame, frame_image);
     
         folder.next();
     }
@@ -700,7 +743,7 @@ void ImagePreviewWorker::analyzeSet(FolderSet set)
             
             integral += analysis_area.integral();
             
-            str += integrationFrameString(frame, *set.current()->current());
+            str += integrationFrameString(frame, frame_image);
         
             set.current()->next(); 
         }
@@ -980,6 +1023,13 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 
 void ImagePreviewWorker::initialize()
 {
+    initializeOpenGLFunctions();
+    if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
+    paint_device_gl->setSize(render_surface->size());
+    
+    initialize();
+    isInitialized = true;
+    
     initResourcesCL();
 
     glGenBuffers(2, texel_line_vbo);
@@ -1043,11 +1093,11 @@ void ImagePreviewWorker::setThresholdNoiseLow(double value)
 {
     parameter[0] = value;
     setParameter(parameter);
-
+    
+//    refreshBackground(&background_area);
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
 }
 
 
@@ -1060,7 +1110,7 @@ void ImagePreviewWorker::setThresholdNoiseHigh(double value)
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
+//    refreshBackground(&background_area);
 }
 void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
 {
@@ -1070,7 +1120,7 @@ void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
+//    refreshBackground(&background_area);
 }
 void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
 {
@@ -1080,7 +1130,7 @@ void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
+//    refreshBackground(&background_area);
 }
 
 void ImagePreviewWorker::beginRawGLCalls(QPainter * painter)
@@ -1281,7 +1331,7 @@ void ImagePreviewWorker::drawWeightpoint(Selection &area, QPainter *painter, Mat
     // Change to draw a faded polygon
     ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
     
-    glLineWidth(1.5);
+    glLineWidth(2.5);
 
     float x0 = (((qreal) area.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
     float x2 = (((qreal) area.x() + area.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
@@ -1623,7 +1673,7 @@ void ImagePreviewWorker::setMode(int value)
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
+//    refreshBackground(&background_area);
 }
 
 void ImagePreviewWorker::setCorrection(bool value)
@@ -1633,7 +1683,18 @@ void ImagePreviewWorker::setCorrection(bool value)
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
-    refreshSelection(&background_area);
+//    refreshBackground(&background_area);
+}
+
+void ImagePreviewWorker::setAutoBackgroundCorrection(bool value)
+{
+    isAutoBackgroundCorrectionActive = (int) value;
+    
+    refreshBackground(&background_area);
+    calculus();
+    refreshDisplay();
+    refreshSelection(&analysis_area);
+    
 }
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)
@@ -1723,19 +1784,19 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
 
     if (left_button)
     {
-        if (isSelectionAlphaActive)
-        {
-            Matrix<int> pixel = getImagePixel(x, y);
+//        if (isSelectionAlphaActive)
+//        {
+//            Matrix<int> pixel = getImagePixel(x, y);
 
-            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-        }
-        else if (isSelectionBetaActive)
-        {
-            Matrix<int> pixel = getImagePixel(x, y);
+//            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+//        }
+//        else if (isSelectionBetaActive)
+//        {
+//            Matrix<int> pixel = getImagePixel(x, y);
 
-            background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-        }
-        else
+//            background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+//        }
+//        else
         {
             double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
             double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
@@ -1755,25 +1816,9 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
 
-    pos = QPoint(x,y);
+//    pos = QPoint(x,y);
     
-    if (left_button)
-    {
-        if (isSelectionAlphaActive)
-        {
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-
-            analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
-            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-        }
-        else if (isSelectionBetaActive)
-        {
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-
-            background_area.setTopLeft(QPoint(pixel[0], pixel[1]));
-            background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-        }
-    }
+    
 }
 
 void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
@@ -1784,31 +1829,57 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     Q_UNUSED(shift_button);
 
     pos = QPoint(x,y);
+    if (left_button)
+    {
+        if (isSelectionAlphaActive)
+        {
+            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+
+            analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
+            
+            analysis_area = analysis_area.normalized();
+            refreshSelection(&analysis_area);
+            
+            emit selectionChanged(analysis_area);
+        }
+        else if (isSelectionBetaActive)
+        {
+            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+
+            background_area.setTopLeft(QPoint(pixel[0], pixel[1]));
+            
+            background_area = background_area.normalized();
+            refreshBackground(&background_area);
     
-    if (isSelectionAlphaActive)
-    {
-        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-        
-        analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-
-        analysis_area = analysis_area.normalized();
-        refreshSelection(&analysis_area);
-        
-        emit selectionChanged(analysis_area);
+            emit backgroundChanged(background_area);
+        }
     }
-    else if (isSelectionBetaActive)
+    else if (right_button)
     {
-        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-
-        background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-
-        background_area = background_area.normalized();
-        refreshSelection(&background_area);
-
-        emit backgroundChanged(background_area);
+        if (isSelectionAlphaActive)
+        {
+            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+            
+            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+    
+            analysis_area = analysis_area.normalized();
+            refreshSelection(&analysis_area);
+            
+            emit selectionChanged(analysis_area);
+        }
+        else if (isSelectionBetaActive)
+        {
+            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+    
+            background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+    
+            background_area = background_area.normalized();
+            refreshBackground(&background_area);
+    
+            emit backgroundChanged(background_area);
+        }
     }
-
-}
+}   
 
 void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
 {
@@ -1904,7 +1975,7 @@ void ImagePreviewWindow::initializeWorker()
 
     gl_worker = new ImagePreviewWorker;
     gl_worker->setRenderSurface(this);
-    gl_worker->setGLContext(context_gl);
+    gl_worker->setOpenGLContext(context_gl);
     gl_worker->setOpenCLContext(context_cl);
     gl_worker->setSharedWindow(shared_window);
     gl_worker->setMultiThreading(isThreaded);
@@ -1925,8 +1996,10 @@ void ImagePreviewWindow::initializeWorker()
 //        connect(this, SIGNAL(keyReleaseEventCaught(QKeyEvent*)), gl_worker, SLOT(keyReleaseEvent(QKeyEvent*)));
         connect(this, SIGNAL(resizeEventCaught(QResizeEvent*)), gl_worker, SLOT(resizeEvent(QResizeEvent*)));
         connect(this, SIGNAL(wheelEventCaught(QWheelEvent*)), gl_worker, SLOT(wheelEvent(QWheelEvent*)), Qt::DirectConnection);
+        connect(this,SIGNAL(workerReady()),gl_worker,SLOT(initialize()));
         
-        emit render();
+        emit workerReady();
+//        emit render();
     }
 
     isInitialized = true;

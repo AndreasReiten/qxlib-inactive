@@ -28,6 +28,8 @@ signals:
     void resultFinished(QString str);
     void selectionAlphaChanged(bool value);
     void selectionBetaChanged(bool value);
+    void noiseLowChanged(double value);
+    void imageChanged(Image image);
     
 public slots:
     void setMode(int value);
@@ -39,6 +41,7 @@ public slots:
     void setTsfAlpha(int value);
     void setLog(bool value);
     void setCorrection(bool value);
+    void setAutoBackgroundCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
 //    void displayImage(DetectorFile & file);
@@ -84,6 +87,7 @@ private:
     // Convenience 
     void refreshDisplay();
     void refreshSelection(Selection *area);
+    void refreshBackground(Selection *area);
     
     // GPU buffer management
     void maintainImageTexture(Matrix<size_t> &image_size);
@@ -131,7 +135,9 @@ private:
     Matrix<size_t> image_tex_size;
     Matrix<size_t> image_buffer_size;
     
+    // Eventually merge the following two objects into a single class, or at least name them appropriately
     DetectorFile frame;
+    Image frame_image;
 
     void initResourcesCL();
 //    void update(size_t w, size_t h);
@@ -161,6 +167,7 @@ private:
     bool isCLInitialized;
     bool isFrameValid;
     bool isWeightCenterActive;
+    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
     Matrix<double> translation_matrix;

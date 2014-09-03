@@ -77,16 +77,16 @@ void OpenGLWorker::process()
 {
     context_gl->makeCurrent(render_surface);
 
-    if (!isInitialized)
-    {
-        initializeOpenGLFunctions();
-        if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
-        paint_device_gl->setSize(render_surface->size());
+//    if (!isInitialized) 
+//    {
+//        initializeOpenGLFunctions();
+//        if (!paint_device_gl) paint_device_gl = new QOpenGLPaintDevice;
+//        paint_device_gl->setSize(render_surface->size());
         
-        initialize();
-        isInitialized = true;
-    }
-    else
+////        initialize();
+////        isInitialized = true;
+//    }
+//    else
     {
         QPainter painter(paint_device_gl);
         render(&painter);
@@ -107,7 +107,7 @@ void OpenGLWorker::initialize()
     
 }
 
-void OpenGLWorker::setGLContext(QOpenGLContext *context)
+void OpenGLWorker::setOpenGLContext(QOpenGLContext *context)
 {
     context_gl = context;
 }
@@ -231,7 +231,7 @@ OpenGLWindow::~OpenGLWindow()
 
 void OpenGLWindow::mouseReleaseEvent(QMouseEvent* ev)
 {
-    emit metaMouseReleaseEventCaught((int)ev->x(), (int)ev->y(), (int)(ev->buttons() & Qt::LeftButton), (int)(ev->buttons() & Qt::MidButton), (int)(ev->buttons() & Qt::RightButton), (int)(ev->modifiers() & Qt::ControlModifier), (int)(ev->modifiers() & Qt::ShiftModifier));
+    emit metaMouseReleaseEventCaught((int)ev->x(), (int)ev->y(), (int)(ev->button() & Qt::LeftButton), (int)(ev->button() & Qt::MidButton), (int)(ev->button() & Qt::RightButton), (int)(ev->modifiers() & Qt::ControlModifier), (int)(ev->modifiers() & Qt::ShiftModifier));
 }
 
 void OpenGLWindow::mousePressEvent(QMouseEvent* ev)

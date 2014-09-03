@@ -76,19 +76,23 @@ QDebug operator<<(QDebug dbg, const Selection &selection)
 
 QDataStream &operator<<(QDataStream &out, const Selection &selection)
 {
-    out << selection << selection.integral() << selection.weighted_x() << selection.weighted_y();
+    QRect tmp;
+    tmp.setRect(selection.x(), selection.y(),selection.width(), selection.height());
+    
+    out << tmp << selection.integral() << selection.weighted_x() << selection.weighted_y();
 
     return out;
 }
 
 QDataStream &operator>>(QDataStream &in, Selection &selection)
 {
-    Selection tmp;
+    QRect tmp;
     double integral;
     double weighted_x;
     double weighted_y;
 
     in >> tmp >> integral >> weighted_x >> weighted_y;
+    selection = tmp;
     selection.setSum(integral);
     selection.setWeightedX(weighted_x);
     selection.setWeightedY(weighted_y);
