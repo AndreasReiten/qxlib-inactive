@@ -29,7 +29,7 @@ signals:
     void selectionAlphaChanged(bool value);
     void selectionBetaChanged(bool value);
     void noiseLowChanged(double value);
-    void imageChanged(Image image);
+    void imageChanged(ImageInfo image);
     
 public slots:
     void setMode(int value);
@@ -56,16 +56,16 @@ public slots:
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
 //    void setFrame(Image image);
-    void setFrame(Image image);
-    void setSelection(QRect rect);
+    void setFrame(ImageInfo image);
+//    void setSelection(QRect rect);
     void setSelectionAlphaActive(bool value);
     void setSelectionBetaActive(bool value);
     void centerImage();
-    void analyzeSingle(Image image);
+    void analyzeSingle(ImageInfo image);
     void analyzeFolder(ImageFolder folder);
     void analyzeSet(FolderSet set);
     
-    void peakHuntSingle(Image image);
+    void peakHuntSingle(ImageInfo image);
     void peakHuntFolder(ImageFolder folder);
     void peakHuntSet(FolderSet set);
     
@@ -105,7 +105,7 @@ private:
     // Misc
 //    void copyAndReduce(QRect selection_rect);
     
-    QString integrationFrameString(DetectorFile &f, Image &image);
+    QString integrationFrameString(DetectorFile &f, ImageInfo &image);
     
     SharedContextWindow * shared_window;
 
@@ -137,7 +137,7 @@ private:
     
     // Eventually merge the following two objects into a single class, or at least name them appropriately
     DetectorFile frame;
-    Image frame_image;
+    ImageInfo frame_image;
 
     void initOpenCL();
 //    void update(size_t w, size_t h);
@@ -152,13 +152,13 @@ private:
 
     // Draw
     void drawImage(QPainter *painter);
-    void drawTexelOverlay(QPainter *painter);
-    void drawSelection(Selection &area, QPainter *painter, Matrix<float> &color);
-    void drawWeightpoint(Selection &area, QPainter *painter, Matrix<float> &color);
+//    void drawTexelOverlay(QPainter *painter);
+    void drawSelection(Selection area, QPainter *painter, Matrix<float> &color);
+    void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawToolTip(QPainter * painter);
 
     // Vertice buffer objects
-    GLuint texel_line_vbo[2];
+//    GLuint texel_line_vbo[2];
 
     // Boolean checks
 //    bool isInitialized;

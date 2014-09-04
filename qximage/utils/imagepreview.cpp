@@ -44,7 +44,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 
 ImagePreviewWorker::~ImagePreviewWorker()
 {
-    glDeleteBuffers(2, texel_line_vbo);
+//    glDeleteBuffers(2, texel_line_vbo);
     glDeleteBuffers(5, selections_vbo);
     glDeleteBuffers(5, weightpoints_vbo);
 }
@@ -323,7 +323,7 @@ void ImagePreviewWorker::calculus()
     }
 }
 
-void ImagePreviewWorker::setFrame(Image image)
+void ImagePreviewWorker::setFrame(ImageInfo image)
 {
 //    qDebug() << "setFrame";
 
@@ -611,7 +611,7 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
     }
 }
 
-QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, Image & image)
+QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, ImageInfo & image)
 {
     Matrix<double> Q = getScatteringVector(f, image.selection().weighted_x(), image.selection().weighted_y());
     double value = 180*getScatteringAngle(f, image.selection().weighted_x(), image.selection().weighted_y())/pi;
@@ -639,7 +639,7 @@ QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, Image & imag
 }
 
 
-void ImagePreviewWorker::peakHuntSingle(Image image)
+void ImagePreviewWorker::peakHuntSingle(ImageInfo image)
 {
 }
 
@@ -651,7 +651,7 @@ void ImagePreviewWorker::peakHuntSet(FolderSet set)
 {
 }
 
-void ImagePreviewWorker::analyzeSingle(Image image)
+void ImagePreviewWorker::analyzeSingle(ImageInfo image)
 {
     // Draw the frame and update the intensity OpenCL buffer prior to further operations 
     setFrame(image);
@@ -690,12 +690,12 @@ void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
         context_gl->swapBuffers(render_surface);
 
         // Math
-        Matrix<double> Q = getScatteringVector(frame, analysis_area.weighted_x(), analysis_area.weighted_y());
+        Matrix<double> Q = getScatteringVector(frame, frame_image.selection().weighted_x(), frame_image.selection().weighted_y());
         
-        weightpoint += analysis_area.integral()*Q;
+        weightpoint += frame_image.selection().integral()*Q;
         
         
-        integral += analysis_area.integral();
+        integral += frame_image.selection().integral();
         
         frames += integrationFrameString(frame, frame_image);
     
@@ -748,11 +748,11 @@ void ImagePreviewWorker::analyzeSet(FolderSet set)
 
             
             // Math
-            Matrix<double> Q = getScatteringVector(frame, analysis_area.weighted_x(), analysis_area.weighted_y());
+            Matrix<double> Q = getScatteringVector(frame, frame_image.selection().weighted_x(), frame_image.selection().weighted_y());
             
-            weightpoint += analysis_area.integral()*Q;
+            weightpoint += frame_image.selection().integral()*Q;
             
-            integral += analysis_area.integral();
+            integral += frame_image.selection().integral();
             
             str += integrationFrameString(frame, frame_image);
         
@@ -818,6 +818,8 @@ void ImagePreviewWorker::selectionCalculus(Selection * area, cl_mem image_data_c
      * for further calculations. This functions copies data from these buffers into smaller buffers depending
      * on the selected area. The buffers are then summed, effectively doing operations such as integration
      * */
+    
+    if (!isFrameValid) return;
     
     // Set the size of the cl buffer that will be used to store the data in the marked selection. The padded size is neccessary for the subsequent parallel reduction
     int selection_read_size = area->width()*area->height();
@@ -1038,7 +1040,7 @@ void ImagePreviewWorker::initialize()
 {
     initOpenCL();
 
-    glGenBuffers(2, texel_line_vbo);
+//    glGenBuffers(2, texel_line_vbo);
     glGenBuffers(5, selections_vbo);
     glGenBuffers(5, weightpoints_vbo);
 }
@@ -1089,10 +1091,11 @@ void ImagePreviewWorker::setDataMax(double value)
     refreshDisplay();
 }
 
-void ImagePreviewWorker::setSelection(QRect rect)
-{
-    analysis_area = rect;
-}
+//void ImagePreviewWorker::setSelection(Selection rect)
+//{
+//    frame_image.setSelection(rect);
+////    analysis_area = rect;
+//}
 
 void ImagePreviewWorker::setThresholdNoiseLow(double value)
 {
@@ -1102,7 +1105,11 @@ void ImagePreviewWorker::setThresholdNoiseLow(double value)
 //    refreshBackground(&background_area);
     calculus();
     refreshDisplay();
+    
+    Selection analysis_area = frame_image.selection();
     refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
+    
 }
 
 
@@ -1114,7 +1121,9 @@ void ImagePreviewWorker::setThresholdNoiseHigh(double value)
 
     calculus();
     refreshDisplay();
+    Selection analysis_area = frame_image.selection();
     refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
 //    refreshBackground(&background_area);
 }
 void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
@@ -1124,7 +1133,9 @@ void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
 
     calculus();
     refreshDisplay();
+    Selection analysis_area = frame_image.selection();
     refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
 //    refreshBackground(&background_area);
 }
 void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
@@ -1134,7 +1145,9 @@ void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
 
     calculus();
     refreshDisplay();
+    Selection analysis_area = frame_image.selection();
     refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
 //    refreshBackground(&background_area);
 }
 
@@ -1168,14 +1181,14 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawImage(painter);
     
-    ColorMatrix<float> analysis_area_color(1.0,0,0,0.8);
+    ColorMatrix<float> analysis_area_color(1.0,0,0.2,0.8);
+    ColorMatrix<float> background_area_color(0.0,0.5,0,0.8);
     ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
     
-    drawSelection(analysis_area, painter, analysis_area_color);
-    if (isWeightCenterActive) drawWeightpoint(analysis_area, painter, analysis_wp_color);
-
-    ColorMatrix<float> background_area_color(0.0,1,0,0.8);
-    drawSelection(background_area, painter, background_area_color);
+    drawSelection(frame_image.selection(), painter, analysis_area_color);
+    drawSelection(frame_image.background(), painter, background_area_color);
+    
+    if (isWeightCenterActive) drawWeightpoint(frame_image.selection(), painter, analysis_wp_color);
     
     drawToolTip(painter);
     
@@ -1217,10 +1230,10 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     
 //    qDebug() << selection << selection.right();
 
-    bounds[0] = (double) analysis_area.left() / (double) frame.getFastDimension();
-    bounds[1] = 1.0 - (double) (analysis_area.y()+analysis_area.height()) / (double) frame.getSlowDimension();
-    bounds[2] = (double) (analysis_area.x()+analysis_area.width()) / (double) frame.getFastDimension();
-    bounds[3] = 1.0 - (double) (analysis_area.top()) / (double) frame.getSlowDimension();
+    bounds[0] = (double) frame_image.selection().left() / (double) frame.getFastDimension();
+    bounds[1] = 1.0 - (double) (frame_image.selection().y()+frame_image.selection().height()) / (double) frame.getSlowDimension();
+    bounds[2] = (double) (frame_image.selection().x()+frame_image.selection().width()) / (double) frame.getFastDimension();
+    bounds[3] = 1.0 - (double) (frame_image.selection().top()) / (double) frame.getSlowDimension();
     
     glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
     
@@ -1269,12 +1282,12 @@ void ImagePreviewWorker::centerImage()
 
 
 
-void ImagePreviewWorker::drawSelection(Selection &area, QPainter *painter, Matrix<float> &color)
+void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix<float> &color)
 {
     // Change to draw a faded polygon
-    ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
+//    ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
     
-    glLineWidth(1.0);
+    glLineWidth(2.0);
 
     float x0 = (((qreal) area.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
     float x1 = (((qreal) area.x() + area.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
@@ -1331,7 +1344,7 @@ void ImagePreviewWorker::drawSelection(Selection &area, QPainter *painter, Matri
     endRawGLCalls(painter);
 }
 
-void ImagePreviewWorker::drawWeightpoint(Selection &area, QPainter *painter, Matrix<float> &color)
+void ImagePreviewWorker::drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color)
 {
     // Change to draw a faded polygon
     ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
@@ -1526,10 +1539,10 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     
     
     // Intensity center
-    tip += "Weight center (x,y) "+QString::number(analysis_area.weighted_x(),'f',2)+" "+QString::number(analysis_area.weighted_y(),'f',2)+"\n";
+    tip += "Weight center (x,y) "+QString::number(frame_image.selection().weighted_x(),'f',2)+" "+QString::number(frame_image.selection().weighted_y(),'f',2)+"\n";
     
     // Sum
-    tip += "Integral "+QString::number(analysis_area.integral(),'f',2);
+    tip += "Integral "+QString::number(frame_image.selection().integral(),'f',2);
     
     
     QFont font("monospace", 10);
@@ -1559,117 +1572,117 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
 }
 
 
-void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
-{
+//void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
+//{
     /*
      * Draw lines between the texels to better distinguish them.
      * Only happens when the texels occupy a certain number of pixels.
      */
 
     // Find size of texels in GL coordinates
-    double w = zoom_matrix[0] * 2.0 /(double) render_surface->width();
-    double h = zoom_matrix[0] * 2.0 /(double) render_surface->height();
+//    double w = zoom_matrix[0] * 2.0 /(double) render_surface->width();
+//    double h = zoom_matrix[0] * 2.0 /(double) render_surface->height();
 
-    // Find size of texels in pixels
-    double wh_pix = zoom_matrix[0];
+//    // Find size of texels in pixels
+//    double wh_pix = zoom_matrix[0];
 
-    // The number of texels that fit in
-    double n_texel_x = 2.0 / w;
-    double n_texel_y = 2.0 / h;
+//    // The number of texels that fit in
+//    double n_texel_x = 2.0 / w;
+//    double n_texel_y = 2.0 / h;
 
-    if((wh_pix > 26.0) && (n_texel_x < 64) && (n_texel_y < 64))
-    {
-        beginRawGLCalls(painter);
+//    if((wh_pix > 26.0) && (n_texel_x < 64) && (n_texel_y < 64))
+//    {
+//        beginRawGLCalls(painter);
 
-        // Move to resize event
-            Matrix<float> vertical_lines_buf(65,4);
-            for (int i = 0; i < vertical_lines_buf.m(); i++)
-            {
-                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
-                vertical_lines_buf[i*4+1] = 1;
-                vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
-                vertical_lines_buf[i*4+3] = -1;
-            }
-            setVbo(texel_line_vbo[0], vertical_lines_buf.data(), vertical_lines_buf.size(), GL_DYNAMIC_DRAW);
+//        // Move to resize event
+//            Matrix<float> vertical_lines_buf(65,4);
+//            for (int i = 0; i < vertical_lines_buf.m(); i++)
+//            {
+//                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
+//                vertical_lines_buf[i*4+1] = 1;
+//                vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
+//                vertical_lines_buf[i*4+3] = -1;
+//            }
+//            setVbo(texel_line_vbo[0], vertical_lines_buf.data(), vertical_lines_buf.size(), GL_DYNAMIC_DRAW);
 
-            Matrix<float> horizontal_lines_buf(65,4);
-            for (int i = 0; i < horizontal_lines_buf.m(); i++)
-            {
-                horizontal_lines_buf[i*4+0] = 1.0;
-                horizontal_lines_buf[i*4+1] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
-                horizontal_lines_buf[i*4+2] = -1.0;
-                horizontal_lines_buf[i*4+3] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
-            }
-            setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
+//            Matrix<float> horizontal_lines_buf(65,4);
+//            for (int i = 0; i < horizontal_lines_buf.m(); i++)
+//            {
+//                horizontal_lines_buf[i*4+0] = 1.0;
+//                horizontal_lines_buf[i*4+1] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
+//                horizontal_lines_buf[i*4+2] = -1.0;
+//                horizontal_lines_buf[i*4+3] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
+//            }
+//            setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
 
-        // Draw lines
-        ColorMatrix<float> texel_line_color(0.0f,0.0f,0.0f,0.7f);
+//        // Draw lines
+//        ColorMatrix<float> texel_line_color(0.0f,0.0f,0.0f,0.7f);
 
-        glLineWidth(2.0);
+//        glLineWidth(2.0);
 
-        shared_window->std_2d_col_program->bind();
-        glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
+//        shared_window->std_2d_col_program->bind();
+//        glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
-        glUniform4fv(shared_window->std_2d_col_color, 1, texel_line_color.data());
+//        glUniform4fv(shared_window->std_2d_col_color, 1, texel_line_color.data());
 
-        // Vertical
-        texel_offset_matrix[3] = fmod(translation_matrix[3], 2.0 /(double) render_surface->width());
-        texel_offset_matrix[7] = 0;
-        texel_view_matrix = zoom_matrix*texel_offset_matrix;
+//        // Vertical
+//        texel_offset_matrix[3] = fmod(translation_matrix[3], 2.0 /(double) render_surface->width());
+//        texel_offset_matrix[7] = 0;
+//        texel_view_matrix = zoom_matrix*texel_offset_matrix;
 
-        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[0]);
-        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[0]);
+//        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
+//        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
 
-        glDrawArrays(GL_LINES,  0, vertical_lines_buf.m()*2);
+//        glDrawArrays(GL_LINES,  0, vertical_lines_buf.m()*2);
 
-        // Horizontal
-        texel_offset_matrix[3] = 0;
-        texel_offset_matrix[7] = fmod(translation_matrix[7], 2.0 /(double) render_surface->height());
-        texel_view_matrix = zoom_matrix*texel_offset_matrix;
+//        // Horizontal
+//        texel_offset_matrix[3] = 0;
+//        texel_offset_matrix[7] = fmod(translation_matrix[7], 2.0 /(double) render_surface->height());
+//        texel_view_matrix = zoom_matrix*texel_offset_matrix;
 
-        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[1]);
-        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[1]);
+//        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
+//        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
 
-        glDrawArrays(GL_LINES,  0, horizontal_lines_buf.m()*2);
-
-
-        glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
-
-        shared_window->std_2d_col_program->release();
-
-        endRawGLCalls(painter);
-
-        // Draw intensity numbers over each texel
-
-        // For each visible vertical line
-        for (int i = 0; i < vertical_lines_buf.m(); i++)
-        {
-            if ((vertical_lines_buf[i*4] >= -1) && (vertical_lines_buf[i*4] <= 1))
-            {
-                // For each visible horizontal line
-                for (int j = 0; j < horizontal_lines_buf.m(); j++)
-                {
-                    if ((horizontal_lines_buf[j*4+1] >= -1) && (horizontal_lines_buf[j*4+1] <= 1))
-                    {
-                        // Find the corresponding texel in the data buffer and display the intensity value at the current position
-//                        translation_matrix[3]
-
-                    }
-                }
-            }
-        }
+//        glDrawArrays(GL_LINES,  0, horizontal_lines_buf.m()*2);
 
 
+//        glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+//        shared_window->std_2d_col_program->release();
+
+//        endRawGLCalls(painter);
+
+//        // Draw intensity numbers over each texel
+
+//        // For each visible vertical line
+//        for (int i = 0; i < vertical_lines_buf.m(); i++)
+//        {
+//            if ((vertical_lines_buf[i*4] >= -1) && (vertical_lines_buf[i*4] <= 1))
+//            {
+//                // For each visible horizontal line
+//                for (int j = 0; j < horizontal_lines_buf.m(); j++)
+//                {
+//                    if ((horizontal_lines_buf[j*4+1] >= -1) && (horizontal_lines_buf[j*4+1] <= 1))
+//                    {
+//                        // Find the corresponding texel in the data buffer and display the intensity value at the current position
+////                        translation_matrix[3]
+
+//                    }
+//                }
+//            }
+//        }
 
 
-    }
-}
+
+
+//    }
+//}
 
 void ImagePreviewWorker::setMode(int value)
 {
@@ -1677,17 +1690,23 @@ void ImagePreviewWorker::setMode(int value)
 //    qDebug() << mode;
     calculus();
     refreshDisplay();
+    Selection analysis_area = frame_image.selection();
     refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
 //    refreshBackground(&background_area);
 }
 
 void ImagePreviewWorker::setCorrection(bool value)
 {
+//    qDebug() << frame_image;
+    
     isCorrected = (int) value;
 
     calculus();
     refreshDisplay();
+    Selection analysis_area = frame_image.selection();
     refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
 //    refreshBackground(&background_area);
 }
 
@@ -1695,11 +1714,16 @@ void ImagePreviewWorker::setAutoBackgroundCorrection(bool value)
 {
     isAutoBackgroundCorrectionActive = (int) value;
     
+    Selection analysis_area = frame_image.selection();
+    Selection background_area = frame_image.background();
+    
     refreshBackground(&background_area);
     calculus();
     refreshDisplay();
-    refreshSelection(&analysis_area);
     
+    refreshSelection(&analysis_area);
+    frame_image.setSelection(analysis_area);
+    frame_image.setBackground(background_area);
 }
 
 void ImagePreviewWorker::setParameter(Matrix<float> & data)
@@ -1802,6 +1826,7 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
 //            background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
 //        }
 //        else
+        if (!isSelectionAlphaActive && !isSelectionBetaActive)
         {
             double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
             double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
@@ -1839,11 +1864,15 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         if (isSelectionAlphaActive)
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-
+            
+            Selection analysis_area = frame_image.selection();
+            
             analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
             
             analysis_area = analysis_area.normalized();
             refreshSelection(&analysis_area);
+            
+            frame_image.setSelection(analysis_area);
             
             emit imageChanged(frame_image);
 //            emit selectionChanged(analysis_area);
@@ -1851,12 +1880,16 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         else if (isSelectionBetaActive)
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+            
+            Selection background_area = frame_image.background();
 
             background_area.setTopLeft(QPoint(pixel[0], pixel[1]));
             
             background_area = background_area.normalized();
             refreshBackground(&background_area);
 
+            frame_image.setBackground(background_area);
+            
             emit imageChanged(frame_image);
     
 //            emit backgroundChanged(background_area);
@@ -1868,10 +1901,14 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
             
+            Selection analysis_area = frame_image.selection();
+            
             analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     
             analysis_area = analysis_area.normalized();
             refreshSelection(&analysis_area);
+            
+            frame_image.setSelection(analysis_area);
 
             emit imageChanged(frame_image);
             
@@ -1881,10 +1918,14 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
     
+            Selection background_area = frame_image.background();
+            
             background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     
             background_area = background_area.normalized();
             refreshBackground(&background_area);
+            
+            frame_image.setBackground(background_area);
 
             emit imageChanged(frame_image);
 //            emit backgroundChanged(background_area);

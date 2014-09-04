@@ -1,54 +1,54 @@
 #include "framecontainer.h"
 
-Image::Image()
+ImageInfo::ImageInfo()
 {
-    p_selection = Selection(0,0,36000,36000);
-    p_background = Selection(0,0,36000,36000);
+    p_selection = Selection(0,0,64,64);
+    p_background = Selection(64,0,64,64);
 }
 
-Image::Image(const Image & other)
+ImageInfo::ImageInfo(const ImageInfo & other)
 {
     p_selection = other.selection();
     p_background = other.background();
     p_path = other.path();
 }
 
-Image::~Image()
+ImageInfo::~ImageInfo()
 {
     ;
 }
 
-void Image::setPath(QString str)
+void ImageInfo::setPath(QString str)
 {
     p_path = str;
 }
 
-const QString Image::path() const
+const QString ImageInfo::path() const
 {
     return p_path;
 }
 
-void Image::setSelection(Selection rect)
+void ImageInfo::setSelection(Selection rect)
 {
     p_selection = rect;
 }
 
-void Image::setBackground(Selection rect)
+void ImageInfo::setBackground(Selection rect)
 {
     p_background = rect;
 }
 
-const Selection Image::selection() const
+Selection ImageInfo::selection() const
 {
     return p_selection;
 }
 
-const Selection Image::background() const
+Selection ImageInfo::background() const
 {
     return p_background;
 }
 
-Image& Image::operator = (Image other)
+ImageInfo& ImageInfo::operator = (ImageInfo other)
 {
     p_path = other.path();
     p_selection = other.selection();
@@ -57,20 +57,20 @@ Image& Image::operator = (Image other)
     return * this;
 }
 
-QDebug operator<<(QDebug dbg, const Image &image)
+QDebug operator<<(QDebug dbg, const ImageInfo &image)
 {
     dbg.nospace() << "Image()" << image.path() << image.selection() << image.background();
     return dbg.maybeSpace();
 }
 
-QDataStream &operator<<(QDataStream &out, const Image &image)
+QDataStream &operator<<(QDataStream &out, const ImageInfo &image)
 {
     out << image.path() << image.selection() << image.background();
 
     return out;
 }
 
-QDataStream &operator>>(QDataStream &in, Image &image)
+QDataStream &operator>>(QDataStream &in, ImageInfo &image)
 {
     QString path;
     Selection selection;
@@ -123,7 +123,7 @@ int ImageFolder::i() const
     return p_i;
 }
 
-void ImageFolder::setImages(QList<Image> list)
+void ImageFolder::setImages(QList<ImageInfo> list)
 {
     p_images = list;
     p_i = 0;
@@ -153,17 +153,17 @@ void ImageFolder::restoreMemory()
     }
 }
 
-void ImageFolder::append(Image image)
+void ImageFolder::append(ImageInfo image)
 {
     p_images.append(image);
 }
 
-Image * ImageFolder::current()
+ImageInfo * ImageFolder::current()
 {
     return &p_images[p_i];
 }
 
-Image * ImageFolder::next()
+ImageInfo * ImageFolder::next()
 {
     if (p_i < p_images.size() - 1)
     {
@@ -173,7 +173,7 @@ Image * ImageFolder::next()
     return &p_images[p_i];
 }
 
-Image * ImageFolder::previous()
+ImageInfo * ImageFolder::previous()
 {
     if ((p_i > 0) && (p_images.size() > 0))
     {
@@ -183,13 +183,13 @@ Image * ImageFolder::previous()
     return &p_images[p_i];
 }
 
-Image * ImageFolder::begin()
+ImageInfo * ImageFolder::begin()
 {
     p_i = 0;
     return &p_images[p_i];
 }
 
-const QList<Image> & ImageFolder::images() const
+const QList<ImageInfo> & ImageFolder::images() const
 {
     return p_images;
 }
@@ -216,7 +216,7 @@ QDataStream &operator<<(QDataStream &out, const ImageFolder &image_folder)
 QDataStream &operator>>(QDataStream &in, ImageFolder &image_folder)
 {
     QString path;
-    QList<Image> images;
+    QList<ImageInfo> images;
 
     in >> path >> images;
     image_folder.setPath(path);
@@ -225,7 +225,7 @@ QDataStream &operator>>(QDataStream &in, ImageFolder &image_folder)
     return in;
 }
 
-ImageFolder &operator<<(ImageFolder &image_folder, const Image &image)
+ImageFolder &operator<<(ImageFolder &image_folder, const ImageInfo &image)
 {
     image_folder.append(image);
 

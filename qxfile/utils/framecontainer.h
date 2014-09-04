@@ -9,22 +9,22 @@
 #include "selection.h"
 
 
-class Image
+class ImageInfo
 {
 public:
-    Image();
-    Image(const Image & other);
-    ~Image();
+    ImageInfo();
+    ImageInfo(const ImageInfo & other);
+    ~ImageInfo();
 
     void setPath(QString str);
     const QString path() const;
 
     void setSelection(Selection rect);
     void setBackground(Selection rect);
-    const Selection selection() const;
-    const Selection background() const;
+    Selection selection() const;
+    Selection background() const;
 
-    Image &operator =(Image other);
+    ImageInfo &operator =(ImageInfo other);
 
 private:
     QString p_path;
@@ -32,12 +32,12 @@ private:
     Selection p_background;
 };
 
-Q_DECLARE_METATYPE(Image);
+Q_DECLARE_METATYPE(ImageInfo);
 
-QDebug operator<<(QDebug dbg, const Image &image);
+QDebug operator<<(QDebug dbg, const ImageInfo &image);
 
-QDataStream &operator<<(QDataStream &out, const Image &image);
-QDataStream &operator>>(QDataStream &in, Image &image);
+QDataStream &operator<<(QDataStream &out, const ImageInfo &image);
+QDataStream &operator>>(QDataStream &in, ImageInfo &image);
 
 class ImageFolder
 {
@@ -51,23 +51,23 @@ public:
     int size() const;
     int i() const;
 
-    void setImages(QList<Image> list);
+    void setImages(QList<ImageInfo> list);
     void removeCurrent();
-    void append(Image image);
+    void append(ImageInfo image);
     void rememberCurrent();
     void restoreMemory();
-    const QList<Image> &images() const;
+    const QList<ImageInfo> &images() const;
 
-    Image * current();
-    Image * next();
-    Image * previous();
-    Image * begin();
+    ImageInfo * current();
+    ImageInfo * next();
+    ImageInfo * previous();
+    ImageInfo * begin();
 
     bool operator == (const ImageFolder&);
 
 private:
     QString p_path;
-    QList<Image> p_images;
+    QList<ImageInfo> p_images;
     int p_i;
     int p_i_memory;
 
@@ -80,7 +80,7 @@ QDebug operator<<(QDebug dbg, const ImageFolder &image_folder);
 QDataStream &operator<<(QDataStream &out, const ImageFolder &image_folder);
 QDataStream &operator>>(QDataStream &in, ImageFolder &image_folder);
 
-ImageFolder &operator<<(ImageFolder &image_folder, const Image &image);
+ImageFolder &operator<<(ImageFolder &image_folder, const ImageInfo &image);
 
 class FolderSet
 {
