@@ -40,6 +40,8 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     
     image_tex_size.set(1,2,0);
     image_buffer_size.set(1,2,2);
+    
+    prev_pixel.set(1,2,0);
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
@@ -770,7 +772,7 @@ void ImagePreviewWorker::analyzeSet(FolderSet set)
         
         folder_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
         
-        folder_integral << QString(QString::number(integral,'E')+" "+set.current()->path()+"\n");
+        folder_integral << QString(QString::number(integral,'E')+"\n"); //+" "+set.current()->path()+
         integral = 0;
         
         folder_frames << str;
@@ -1181,8 +1183,8 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawImage(painter);
     
-    ColorMatrix<float> analysis_area_color(1.0,0,0.2,0.8);
-    ColorMatrix<float> background_area_color(0.0,0.5,0,0.8);
+    ColorMatrix<float> analysis_area_color(0.0,0,0,1);
+    ColorMatrix<float> background_area_color(0.0,1,0,1);
     ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
     
     drawSelection(frame_image.selection(), painter, analysis_area_color);
@@ -1828,11 +1830,40 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
 //        else
         if (!isSelectionAlphaActive && !isSelectionBetaActive)
         {
-            double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
-            double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
-
-            translation_matrix[3] += dx*move_scaling;
-            translation_matrix[7] += dy*move_scaling;
+            if (shift_button)
+            {
+                Selection analysis_area = frame_image.selection();
+                
+//                Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+                
+//                QPoint new_pos = analysis_area.topLeft() + QPoint(pixel[0] - prev_pixel[0], pixel[1] - prev_pixel[1]);
+                QPoint new_pos = analysis_area.topLeft() + (pos - prev_pos);
+                
+//                qDebug() << analysis_area.topLeft()  << QPoint(pixel[0] - prev_pixel[0], pixel[1] - prev_pixel[1]);
+                
+//                prev_pixel = pixel;
+                
+                //QPoint new_pos = analysis_area.topLeft() + QPoint((pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]), -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]));
+                
+                analysis_area.moveTopLeft(new_pos);
+                        
+//                analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
+                
+//                analysis_area = analysis_area.normalized();
+//                refreshSelection(&analysis_area);
+                
+                frame_image.setSelection(analysis_area);
+                
+//                emit imageChanged(frame_image);
+            }
+            else
+            {
+                double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
+                double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
+    
+                translation_matrix[3] += dx*move_scaling;
+                translation_matrix[7] += dy*move_scaling;
+            }
         }
     }
 
@@ -1859,38 +1890,42 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     Q_UNUSED(shift_button);
 
     pos = QPoint(x,y);
+    
+    Selection analysis_area = frame_image.selection();
+    Selection background_area = frame_image.background();
+    
+//    qDebug() << analysis_area;
+    
     if (left_button)
     {
         if (isSelectionAlphaActive)
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
             
-            Selection analysis_area = frame_image.selection();
+//            Selection analysis_area = frame_image.selection();
             
             analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
             
             analysis_area = analysis_area.normalized();
-            refreshSelection(&analysis_area);
             
-            frame_image.setSelection(analysis_area);
             
-            emit imageChanged(frame_image);
+//            emit imageChanged(frame_image);
 //            emit selectionChanged(analysis_area);
         }
         else if (isSelectionBetaActive)
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
             
-            Selection background_area = frame_image.background();
+//            Selection background_area = frame_image.background();
 
             background_area.setTopLeft(QPoint(pixel[0], pixel[1]));
             
             background_area = background_area.normalized();
-            refreshBackground(&background_area);
+//            refreshBackground(&background_area);
 
-            frame_image.setBackground(background_area);
+//            frame_image.setBackground(background_area);
             
-            emit imageChanged(frame_image);
+//            emit imageChanged(frame_image);
     
 //            emit backgroundChanged(background_area);
         }
@@ -1901,16 +1936,16 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
             
-            Selection analysis_area = frame_image.selection();
+//            Selection analysis_area = frame_image.selection();
             
             analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     
             analysis_area = analysis_area.normalized();
-            refreshSelection(&analysis_area);
+//            refreshSelection(&analysis_area);
             
-            frame_image.setSelection(analysis_area);
+//            frame_image.setSelection(analysis_area);
 
-            emit imageChanged(frame_image);
+//            emit imageChanged(frame_image);
             
 //            emit selectionChanged(analysis_area);
         }
@@ -1918,20 +1953,26 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         {
             Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
     
-            Selection background_area = frame_image.background();
-            
             background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     
             background_area = background_area.normalized();
-            refreshBackground(&background_area);
             
-            frame_image.setBackground(background_area);
 
-            emit imageChanged(frame_image);
+//            emit imageChanged(frame_image);
 //            emit backgroundChanged(background_area);
         }
     }
-
+    
+    refreshSelection(&analysis_area);
+    
+    frame_image.setSelection(analysis_area);
+    
+    refreshBackground(&background_area);
+    
+    frame_image.setBackground(background_area);
+    
+//    qDebug() << "After " << analysis_area;
+    
     emit imageChanged(frame_image);
 }   
 

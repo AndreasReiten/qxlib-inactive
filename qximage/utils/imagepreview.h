@@ -179,6 +179,7 @@ private:
     // Mouse
     QPoint pos;
     QPoint prev_pos;
+    Matrix<int> prev_pixel;
 //    int last_mouse_pos_x;
 //    int last_mouse_pos_y;
 

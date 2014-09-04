@@ -86,7 +86,7 @@ void OpenGLWorker::process()
         initialize();
         isInitialized = true;
 
-        qDebug() << "now it is initialized";
+//        qDebug() << "now it is initialized";
     }
     else
     {
