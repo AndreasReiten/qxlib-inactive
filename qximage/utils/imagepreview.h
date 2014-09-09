@@ -55,7 +55,7 @@ public slots:
 //    void keyReleaseEvent(QKeyEvent *ev);
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
-//    void setFrame(Image image);
+//    void setFrame(ImageInfo image);
     void setFrame(ImageInfo image);
 //    void setSelection(QRect rect);
     void setSelectionAlphaActive(bool value);
