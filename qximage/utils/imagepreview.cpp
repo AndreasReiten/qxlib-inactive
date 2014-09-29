@@ -10,7 +10,6 @@
 
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
-//    isInitialized(false),
     isImageTexInitialized(false),
     isTsfTexInitialized(false),
     isCLInitialized(false),
@@ -32,11 +31,6 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 
     texel_view_matrix.setIdentity(4);
     texel_offset_matrix.setIdentity(4);
-
-//    setThresholdNoiseLow(-1e99);
-//    setThresholdNoiseHigh(1e99);
-//    setThresholdPostCorrectionLow(-1e99);
-//    setThresholdPostCorrectionHigh(1e99);
     
     image_tex_size.set(1,2,0);
     image_buffer_size.set(1,2,2);
@@ -46,7 +40,6 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 
 ImagePreviewWorker::~ImagePreviewWorker()
 {
-//    glDeleteBuffers(2, texel_line_vbo);
     glDeleteBuffers(5, selections_vbo);
     glDeleteBuffers(5, weightpoints_vbo);
 }
@@ -327,8 +320,6 @@ void ImagePreviewWorker::calculus()
 
 void ImagePreviewWorker::setFrame(ImageInfo image)
 {
-//    qDebug() << "setFrame";
-
     // Set the frame
     frame_image = image;
     if (!frame.set(frame_image.path())) return;

@@ -172,7 +172,8 @@ void SparseVoxelOcttree::setUB(UBMatrix<double> mat)
 
 void SparseVoxelOcttree::open(QString path)
 {
-    // Disabled chunking and compression due to problems under Windows
+    // Disabled chunking and compression due to problems under Windows.
+    // TODO: The svo objects should have qdatastream << and >> operators
     if ((path != ""))
     {
         // v 0.3
@@ -212,8 +213,6 @@ void SparseVoxelOcttree::open(QString path)
             // v 0.4
             if ((version_major >= 0) && (version_minor >= 4))
             {
-                qDebug() << "New file!!!!";
-                
                 // Creation settings
                 in >> creation_date;
                 in >> creation_noise_cutoff_low;
@@ -236,8 +235,6 @@ void SparseVoxelOcttree::open(QString path)
             }
             else 
             {
-                qDebug() << "Old file!!!!";
-                
                 // Creation settings
                 creation_date = QFileInfo(file).created();
                 creation_noise_cutoff_low = -1;
