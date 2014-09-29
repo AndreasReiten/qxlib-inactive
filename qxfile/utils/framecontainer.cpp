@@ -123,9 +123,30 @@ int ImageFolder::i() const
     return p_i;
 }
 
+
+QStringList ImageFolder::paths()
+{
+    QStringList paths;
+
+    for (int j = 0; j < p_images.size(); j++)
+    {
+        paths << p_images[j].path();
+    }
+
+    return paths;
+}
+
 void ImageFolder::setImages(QList<ImageInfo> list)
 {
     p_images = list;
+    p_i = 0;
+    p_i_memory = 0;
+}
+
+void ImageFolder::clear()
+{
+    p_images.clear();
+
     p_i = 0;
     p_i_memory = 0;
 }
@@ -172,6 +193,23 @@ ImageInfo * ImageFolder::next()
 
     return &p_images[p_i];
 }
+
+ImageInfo * ImageFolder::at(int value)
+{
+    if (value >= p_images.size())
+    {
+        value = p_images.size() - 1;
+    }
+    if (value < 0)
+    {
+        p_i = 0;
+    }
+
+    p_i = value;
+    
+    return &p_images[p_i];
+}
+
 
 ImageInfo * ImageFolder::previous()
 {
@@ -327,6 +365,22 @@ QStringList FolderSet::paths()
 
     return paths;
 }
+
+ImageFolder FolderSet::onefolder()
+{
+    ImageFolder folder;
+    
+    for (int i = 0; i < p_folders.size(); i++)
+    {
+        for (int j = 0; j < p_folders[i].images().size(); j++)
+        {
+            folder << p_folders[i].images()[j];
+        }
+    }
+
+    return folder;
+}
+
 
 int FolderSet::size() const
 {

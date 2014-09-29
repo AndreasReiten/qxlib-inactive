@@ -50,8 +50,11 @@ public:
     const QString path() const;
     int size() const;
     int i() const;
-
+    
+    QStringList paths();
+    
     void setImages(QList<ImageInfo> list);
+    void clear();
     void removeCurrent();
     void append(ImageInfo image);
     void rememberCurrent();
@@ -62,6 +65,7 @@ public:
     ImageInfo * next();
     ImageInfo * previous();
     ImageInfo * begin();
+    ImageInfo * at(int value);
 
     bool operator == (const ImageFolder&);
 
@@ -93,9 +97,11 @@ public:
     ImageFolder * next();
     ImageFolder * previous();
     ImageFolder * begin();
+    
 
     QStringList paths();
-
+    ImageFolder onefolder();
+    
     void rememberCurrent();
     void restoreMemory();
     void clear();
