@@ -102,7 +102,7 @@ void UBMatrix<T>::setUMatrix(RotationMatrix<T> mat)
 {
     U = mat;
 
-    U.print(2,"U set");
+//    U.print(2,"U set");
     *this = U*getBMatrix();
 }
 
