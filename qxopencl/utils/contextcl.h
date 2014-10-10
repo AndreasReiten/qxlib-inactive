@@ -8,8 +8,10 @@
 #include <QLibrary>
 #include <CL/opencl.h>
 
-#include "devicecl.h"
+//#include "devicecl.h"
 #include "../../qxmath/qxmathlib.h"
+
+const char * cl_error_cstring(cl_int err);
 
 class OpenCLContext
 {
@@ -21,8 +23,6 @@ public:
     void initResources();
     const cl_command_queue *getCommandQueue();
     cl_context * getContext();
-    QList<DeviceCL> * getDeviceList();
-    DeviceCL * getMainDevice();
 
     cl_program createProgram(QStringList paths, cl_int * err);
     void buildProgram(cl_program * program, const char * options);
@@ -31,12 +31,9 @@ public:
     cl_kernel cl_parallel_reduction;
     
 private:
-    Matrix<cl_platform_id> platforms;
-    Matrix<cl_device_id> devices;
+    cl_platform_id platform[64];
+    cl_device_id device[64];
 
-    DeviceCL *main_device;
-    QList<DeviceCL> device_list;
-    
     cl_program program;
     
     cl_command_queue queue;
@@ -50,7 +47,7 @@ private:
     typedef cl_int (*PROTOTYPE_QOpenCLGetDeviceIDs)(        cl_platform_id platform,
                                                             cl_device_type device_type,
                                                             cl_uint num_entries,
-                                                            cl_device_id *devices,
+                                                            cl_device_id *device,
                                                             cl_uint *num_devices);
 
     typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformInfo)( 	cl_platform_id platform,
@@ -65,6 +62,49 @@ private:
                                                             void *param_value,
                                                             size_t *param_value_size_ret);
 
+    typedef cl_program (*PROTOTYPE_QOpenCLCreateProgramWithSource)( 	cl_context context,
+                                                                    cl_uint count,
+                                                                    const char **strings,
+                                                                    const size_t *lengths,
+                                                                    cl_int *errcode_ret);
+    typedef cl_int (*PROTOTYPE_QOpenCLGetProgramBuildInfo)( 	cl_program  program,
+                                                                cl_device_id  device,
+                                                                cl_program_build_info  param_name,
+                                                                size_t  param_value_size,
+                                                                void  *param_value,
+                                                                size_t  *param_value_size_ret);
+    typedef cl_context (*PROTOTYPE_QOpenCLCreateContext)( 	cl_context_properties *properties,
+                                                        cl_uint num_devices,
+                                                        const cl_device_id *devices,
+                                                        void *pfn_notify (
+                                                        const char *errinfo,
+                                                        const void *private_info,
+                                                        size_t cb,
+                                                        void *user_data),
+                                                        void *user_data,
+                                                        cl_int *errcode_ret);
+
+    typedef cl_command_queue (*PROTOTYPE_QOpenCLCreateCommandQueue)( 	cl_context context,
+                                                    cl_device_id device,
+                                                    cl_command_queue_properties properties,
+                                                    cl_int *errcode_ret);
+
+    //    typedef cl_int (*PROTOTYPE_QOpenCL)();
+    //    typedef cl_int (*PROTOTYPE_QOpenCL)();
+    //    typedef cl_int (*PROTOTYPE_QOpenCL)();
+
+
+    PROTOTYPE_QOpenCLGetProgramBuildInfo QOpenCLGetProgramBuildInfo;
+    PROTOTYPE_QOpenCLCreateContext QOpenCLCreateContext;
+    PROTOTYPE_QOpenCLCreateCommandQueue QOpenCLCreateCommandQueue;
+
+//    PROTOTYPE_QOpenCL QOpenCL;
+    //    PROTOTYPE_QOpenCL QOpenCL;
+
+    //    PROTOTYPE_QOpenCL QOpenCL;
+    //    PROTOTYPE_QOpenCL QOpenCL;
+    //    PROTOTYPE_QOpenCL QOpenCL;
+    PROTOTYPE_QOpenCLCreateProgramWithSource QOpenCLCreateProgramWithSource;
     PROTOTYPE_QOpenCLGetPlatformIDs QOpenCLGetPlatformIDs;
     PROTOTYPE_QOpenCLGetDeviceIDs QOpenCLGetDeviceIDs;
     PROTOTYPE_QOpenCLGetPlatformInfo QOpenCLGetPlatformInfo;

@@ -26,16 +26,33 @@ OpenCLContext::OpenCLContext()
     QLibrary myLib("OpenCL");
 
     QOpenCLGetPlatformIDs = (PROTOTYPE_QOpenCLGetPlatformIDs) myLib.resolve("clGetPlatformIDs");
-    if (!QOpenCLGetPlatformIDs) qDebug("Failed to resolve clGetPlatformIDs");
+    if (!QOpenCLGetPlatformIDs) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
 
     QOpenCLGetDeviceIDs = (PROTOTYPE_QOpenCLGetDeviceIDs) myLib.resolve("clGetDeviceIDs");
-    if (!QOpenCLGetDeviceIDs) qDebug("Failed to resolve clGetDeviceIDs");
+    if (!QOpenCLGetDeviceIDs) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
 
     QOpenCLGetPlatformInfo = (PROTOTYPE_QOpenCLGetPlatformInfo) myLib.resolve("clGetPlatformInfo");
-    if (!QOpenCLGetPlatformInfo) qDebug("Failed to resolve clGetPlatformInfo");
+    if (!QOpenCLGetPlatformInfo) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
 
     QOpenCLGetDeviceInfo = (PROTOTYPE_QOpenCLGetDeviceInfo) myLib.resolve("clGetDeviceInfo");
-    if (!QOpenCLGetDeviceInfo) qDebug("Failed to resolve clGetDeviceInfo");
+    if (!QOpenCLGetDeviceInfo) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLCreateProgramWithSource = (PROTOTYPE_QOpenCLCreateProgramWithSource) myLib.resolve("clCreateProgramWithSource");
+    if (!QOpenCLCreateProgramWithSource) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLGetProgramBuildInfo = (PROTOTYPE_QOpenCLGetProgramBuildInfo) myLib.resolve("clGetProgramBuildInfo");
+    if (!QOpenCLGetProgramBuildInfo) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLCreateContext = (PROTOTYPE_QOpenCLCreateContext) myLib.resolve("clCreateContext");
+    if (!QOpenCLCreateContext) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLCreateCommandQueue = (PROTOTYPE_QOpenCLCreateCommandQueue) myLib.resolve("clCreateCommandQueue");
+    if (!QOpenCLCreateCommandQueue) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+    //    QOpenCL= (PROTOTYPE_QOpenCL) myLib.resolve("cl");
+    //    if (!QOpenCL) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+    //    QOpenCL= (PROTOTYPE_QOpenCL) myLib.resolve("cl");
+    //    if (!QOpenCL) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
 }
 
 const cl_command_queue * OpenCLContext::getCommandQueue()
@@ -48,62 +65,30 @@ cl_context * OpenCLContext::getContext()
     return &context;
 }
 
-QList<DeviceCL> * OpenCLContext::getDeviceList()
-{
-    return &device_list;
-}
-
-DeviceCL * OpenCLContext::getMainDevice()
-{
-    return main_device;
-}
-
 cl_program OpenCLContext::createProgram(QStringList paths, cl_int * err)
 {
     // Program
     Matrix<size_t> lengths(1, paths.size());
     Matrix<const char *> sources(1, paths.size());
-//    Matrix<QByteArray> qsources(1, paths.size());
-    
+
     Matrix<QByteArray> blobs(1,paths.size());
     
     for (size_t i = 0; i < paths.size(); i++)
     {
-//        std::ifstream in(paths.at(i), std::ios::in | std::ios::binary);
-//        std::string contents;
-    
-//        if (in)
-//        {
-//            in.seekg(0, std::ios::end);
-//            contents.resize(in.tellg());
-//            in.seekg(0, std::ios::beg);
-//            in.read(&contents[0], contents.size());
-//            in.close();
-//        }
-//        else
-//        {
-//            qDebug(QString("Could not open file: " + QString(paths.at(i))).toStdString().c_str());
-//        }
-    
-//        qsources[i] = QString(contents.c_str()).toUtf8();
-        
         QFile file(paths[i]);
         if (!file.open(QIODevice::ReadOnly)) qDebug(QString(QString("Could not open file: ")+paths[i]).toStdString().c_str());
         blobs[i] = file.readAll();
         
-//        qDebug() << blobs[i];
-        
         sources[i] = blobs[i].data();
         lengths[i] = blobs[i].length();
     }
-    return clCreateProgramWithSource(context, paths.size(), sources.data(), lengths.data(), err);
+    return QOpenCLCreateProgramWithSource(context, paths.size(), sources.data(), lengths.data(), err);
 }
 
 void OpenCLContext::buildProgram(cl_program * program, const char * options)
 {
     // Compile kernel
-    cl_device_id tmp = main_device->getDeviceId();
-    err = clBuildProgram(*program, 1, &tmp, options, NULL, NULL);
+    err = clBuildProgram(*program, 1, device, options, NULL, NULL);
     if (err != CL_SUCCESS)
     {
         // Compile log
@@ -113,10 +98,10 @@ void OpenCLContext::buildProgram(cl_program * program, const char * options)
         char* build_log;
         size_t log_size;
 
-        clGetProgramBuildInfo(*program, main_device->getDeviceId(), CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
+        QOpenCLGetProgramBuildInfo(*program, device[0], CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
         build_log = new char[log_size+1];
 
-        clGetProgramBuildInfo(*program, main_device->getDeviceId(), CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
+        QOpenCLGetProgramBuildInfo(*program, device[0], CL_PROGRAM_BUILD_LOG, log_size, build_log, NULL);
         build_log[log_size] = '\0';
 
         ss << "___ START KERNEL COMPILE LOG ___" << std::endl;
@@ -131,110 +116,82 @@ void OpenCLContext::buildProgram(cl_program * program, const char * options)
 
 void OpenCLContext::initDevices()
 {
-    // Platforms and Devices
-    cl_uint max_platforms = 10; // Max number of platforms
-    cl_uint num_platforms = 0;
-    platforms.reserve (1, max_platforms);
-
-    // Get platforms
-    err = QOpenCLGetPlatformIDs(max_platforms, platforms.data(), &num_platforms);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-    cl_uint max_devices = 10; // Max number of devices per platform
-    cl_uint nupaint_device_gls = 0;
-    cl_uint nupaint_device_gls_total = 0;
-    devices.reserve (1, max_devices);
-
-    // Get devices for platforms
-    for (size_t i = 0; i < num_platforms; i++)
-    {
-        err = QOpenCLGetDeviceIDs( platforms[i], CL_DEVICE_TYPE_GPU, max_devices, devices.data(), &nupaint_device_gls);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-        for (size_t j = 0; j < nupaint_device_gls; j++)
-        {
-            device_list.append (DeviceCL(platforms[i], devices[j]));
-            qDebug() << device_list.last().getDeviceInfoString().c_str();
-            nupaint_device_gls_total++;
-        }
-    }
-
-    // Find suitable devices
-    for (int i = 0; i < device_list.size(); i++)
-    {
-        if (device_list[i].getDeviceType() != CL_DEVICE_TYPE_GPU)
-        {
-            device_list.removeAt(i);
-            i--;
-        }
-    }
-
-    // Re-populate devices with only suitable devices
-    devices.reserve(1, device_list.size());
-    for (int i = 0; i < device_list.size(); i++)
-    {
-        devices[i] = device_list[i].getDeviceId();
-    }
-
-    // Pick a preferred device
-    main_device = &device_list[0];
-
     // Get platforms
     cl_uint num_platform_entries = 64;
-    cl_platform_id platform[64];
+//    cl_platform_id platform[64];
     cl_uint num_platforms;
 
     err = QOpenCLGetPlatformIDs(num_platform_entries, platform, &num_platforms);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    // Get devices for each platform
-    for (size_t i = 0; i < num_platforms; i++)
+    if (num_platforms > 1)
+    {
+        qDebug() << "Found" << num_platforms << "OpenCL platforms. Using the first one.";
+        for (size_t i = 0; i < num_platforms; i++)
+        {
+            char platform_name[128];
+
+            err = QOpenCLGetPlatformInfo(platform[i], CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
+            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+            qDebug() << i << ":" << platform_name;
+        }
+    }
+    else if (num_platforms == 0)
+    {
+        qDebug() << "No OpenCL platforms were found.";
+    }
+
+    cl_uint num_device_entries = 64;
+    cl_uint num_devices;
+
+    err = QOpenCLGetDeviceIDs( platform[0], CL_DEVICE_TYPE_ALL, num_device_entries, device, &num_devices);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    if (num_devices > 1)
+    {
+        qDebug() << "Found" << num_platforms << " OpenCL devices. Using the first one.";
+        for (size_t i = 0; i < num_platforms; i++)
+        {
+            char platform_name[128];
+
+            err = QOpenCLGetPlatformInfo(platform[i], CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
+            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+            qDebug() << i << ":" << platform_name;
+        }
+    }
+    else if (num_devices == 0)
     {
         char platform_name[128];
 
-        err = QOpenCLGetPlatformInfo(platform[i], CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
+        err = QOpenCLGetPlatformInfo(platform[0], CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-        qDebug(platform_name);
-
-
-        cl_uint num_device_entries = 64;
-        cl_device_id device[64];
-        cl_uint num_devices;
-
-        err = QOpenCLGetDeviceIDs( platform[i], CL_DEVICE_TYPE_GPU, num_device_entries, device, &num_devices);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-        for (size_t j = 0; j < num_devices; j++)
-        {
-            device_list.append (DeviceCL(platform[i], device[j]));
-        }
+        qDebug() << "No OpenCL devices were found on" << platform_name;
     }
 
-    // For now just select the first GPU in the list
-    main_device = &device_list[0];
 }
 
 void OpenCLContext::initSharedContext()
 {
     // Context with GL interopability
-
     #ifdef Q_OS_LINUX
     cl_context_properties properties[] = {
         CL_GL_CONTEXT_KHR, (cl_context_properties) glXGetCurrentContext(),
         CL_GLX_DISPLAY_KHR, (cl_context_properties) glXGetCurrentDisplay(),
-        CL_CONTEXT_PLATFORM, (cl_context_properties) main_device->getPlatformId(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties) platform[0],
         0};
 
     #elif defined Q_OS_WIN
     cl_context_properties properties[] = {
         CL_GL_CONTEXT_KHR, (cl_context_properties) wglGetCurrentContext(),
         CL_WGL_HDC_KHR, (cl_context_properties) wglGetCurrentDC(),
-        CL_CONTEXT_PLATFORM, (cl_context_properties) main_device->getPlatformId(),
+        CL_CONTEXT_PLATFORM, (cl_context_properties) platform[0],
         0};
     #endif
 
-    context = clCreateContext(properties, devices.size(), devices.data(), NULL, NULL, &err);
+    context = QOpenCLCreateContext(properties, 1, device, NULL, NULL, &err);
     if (err != CL_SUCCESS)
     {
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -244,7 +201,7 @@ void OpenCLContext::initSharedContext()
 void OpenCLContext::initCommandQueue()
 {
     // Command queue
-    queue = clCreateCommandQueue(context, main_device->getDeviceId(), 0, &err);
+    queue = QOpenCLCreateCommandQueue(context, device[0], 0, &err);
     if (err != CL_SUCCESS)
     {
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -269,4 +226,58 @@ void OpenCLContext::initResources()
     
     cl_parallel_reduction = clCreateKernel(program, "psum", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+}
+
+
+const char * cl_error_cstring(cl_int err)
+{
+    switch (err) {
+        case CL_SUCCESS:                            return "CL_SUCCESS";
+        case CL_DEVICE_NOT_FOUND:                   return "CL_DEVICE_NOT_FOUND";
+        case CL_DEVICE_NOT_AVAILABLE:               return "CL_DEVICE_NOT_AVAILABLE";
+        case CL_COMPILER_NOT_AVAILABLE:             return "CL_COMPILER_NOT_AVAILABLE";
+        case CL_MEM_OBJECT_ALLOCATION_FAILURE:      return "CL_MEM_OBJECT_ALLOCATION_FAILURE";
+        case CL_OUT_OF_RESOURCES:                   return "CL_OUT_OF_RESOURCES";
+        case CL_OUT_OF_HOST_MEMORY:                 return "CL_OUT_OF_HOST_MEMORY";
+        case CL_PROFILING_INFO_NOT_AVAILABLE:       return "CL_PROFILING_INFO_NOT_AVAILABLE";
+        case CL_MEM_COPY_OVERLAP:                   return "CL_MEM_COPY_OVERLAP";
+        case CL_IMAGE_FORMAT_MISMATCH:              return "CL_IMAGE_FORMAT_MISMATCH";
+        case CL_IMAGE_FORMAT_NOT_SUPPORTED:         return "Image format not supported";
+        case CL_BUILD_PROGRAM_FAILURE:              return "CL_IMAGE_FORMAT_NOT_SUPPORTED";
+        case CL_MAP_FAILURE:                        return "CL_MAP_FAILURE";
+        case CL_INVALID_VALUE:                      return "CL_INVALID_VALUE";
+        case CL_INVALID_DEVICE_TYPE:                return "CL_INVALID_DEVICE_TYPE";
+        case CL_INVALID_PLATFORM:                   return "CL_INVALID_PLATFORM";
+        case CL_INVALID_DEVICE:                     return "CL_INVALID_DEVICE";
+        case CL_INVALID_CONTEXT:                    return "CL_INVALID_CONTEXT";
+        case CL_INVALID_QUEUE_PROPERTIES:           return "CL_INVALID_QUEUE_PROPERTIES";
+        case CL_INVALID_COMMAND_QUEUE:              return "CL_INVALID_COMMAND_QUEUE";
+        case CL_INVALID_HOST_PTR:                   return "CL_INVALID_HOST_PTR";
+        case CL_INVALID_MEM_OBJECT:                 return "CL_INVALID_MEM_OBJECT";
+        case CL_INVALID_IMAGE_FORMAT_DESCRIPTOR:    return "CL_INVALID_IMAGE_FORMAT_DESCRIPTOR";
+        case CL_INVALID_IMAGE_SIZE:                 return "CL_INVALID_IMAGE_SIZE";
+        case CL_INVALID_SAMPLER:                    return "CL_INVALID_SAMPLER";
+        case CL_INVALID_BINARY:                     return "CL_INVALID_BINARY";
+        case CL_INVALID_BUILD_OPTIONS:              return "CL_INVALID_BUILD_OPTIONS";
+        case CL_INVALID_PROGRAM:                    return "CL_INVALID_PROGRAM";
+        case CL_INVALID_PROGRAM_EXECUTABLE:         return "CL_INVALID_PROGRAM_EXECUTABLE";
+        case CL_INVALID_KERNEL_NAME:                return "CL_INVALID_KERNEL_NAME";
+        case CL_INVALID_KERNEL_DEFINITION:          return "CL_INVALID_KERNEL_DEFINITION";
+        case CL_INVALID_KERNEL:                     return "CL_INVALID_KERNEL";
+        case CL_INVALID_ARG_INDEX:                  return "CL_INVALID_ARG_INDEX";
+        case CL_INVALID_ARG_VALUE:                  return "CL_INVALID_ARG_VALUE";
+        case CL_INVALID_ARG_SIZE:                   return "CL_INVALID_ARG_SIZE";
+        case CL_INVALID_KERNEL_ARGS:                return "CL_INVALID_KERNEL_ARGS";
+        case CL_INVALID_WORK_DIMENSION:             return "CL_INVALID_WORK_DIMENSION:";
+        case CL_INVALID_WORK_GROUP_SIZE:            return "CL_INVALID_WORK_GROUP_SIZE";
+        case CL_INVALID_WORK_ITEM_SIZE:             return "CL_INVALID_WORK_ITEM_SIZE";
+        case CL_INVALID_GLOBAL_OFFSET:              return "CL_INVALID_GLOBAL_OFFSET";
+        case CL_INVALID_EVENT_WAIT_LIST:            return "CL_INVALID_EVENT_WAIT_LIST";
+        case CL_INVALID_EVENT:                      return "CL_INVALID_EVENT";
+        case CL_INVALID_OPERATION:                  return "CL_INVALID_OPERATION";
+        case CL_INVALID_GL_OBJECT:                  return "CL_INVALID_GL_OBJECT";
+        case CL_INVALID_BUFFER_SIZE:                return "CL_INVALID_BUFFER_SIZE";
+        case CL_INVALID_MIP_LEVEL:                  return "CL_INVALID_MIP_LEVEL";
+        default: return "Unknown";
+    }
 }
