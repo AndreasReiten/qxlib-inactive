@@ -5,7 +5,6 @@
  * This class can open a file from another thread and display its contents as a texture using QOpenGLPainter or raw GL calls
  * */
 
-/* GL and CL*/
 #include <CL/opencl.h>
 
 #include "../../qxopengl/qxopengllib.h"

@@ -7,8 +7,8 @@
 
 /* GL and CL*/
 // It might be cleaner to exclude opencl from this lib and rather use opencl as a method in a parent
-#include <CL/opencl.h>
-#include <QMetaType>
+//#include <CL/opencl.h>
+//#include <QMetaType>
 
 /* QT */
 //class QString;

@@ -23,6 +23,19 @@
 
 OpenCLContext::OpenCLContext()
 {
+    QLibrary myLib("OpenCL");
+
+    QOpenCLGetPlatformIDs = (PROTOTYPE_QOpenCLGetPlatformIDs) myLib.resolve("clGetPlatformIDs");
+    if (!QOpenCLGetPlatformIDs) qDebug("Failed to resolve clGetPlatformIDs");
+
+    QOpenCLGetDeviceIDs = (PROTOTYPE_QOpenCLGetDeviceIDs) myLib.resolve("clGetDeviceIDs");
+    if (!QOpenCLGetDeviceIDs) qDebug("Failed to resolve clGetDeviceIDs");
+
+    QOpenCLGetPlatformInfo = (PROTOTYPE_QOpenCLGetPlatformInfo) myLib.resolve("clGetPlatformInfo");
+    if (!QOpenCLGetPlatformInfo) qDebug("Failed to resolve clGetPlatformInfo");
+
+    QOpenCLGetDeviceInfo = (PROTOTYPE_QOpenCLGetDeviceInfo) myLib.resolve("clGetDeviceInfo");
+    if (!QOpenCLGetDeviceInfo) qDebug("Failed to resolve clGetDeviceInfo");
 }
 
 const cl_command_queue * OpenCLContext::getCommandQueue()
@@ -124,7 +137,7 @@ void OpenCLContext::initDevices()
     platforms.reserve (1, max_platforms);
 
     // Get platforms
-    err = clGetPlatformIDs(max_platforms, platforms.data(), &num_platforms);
+    err = QOpenCLGetPlatformIDs(max_platforms, platforms.data(), &num_platforms);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     cl_uint max_devices = 10; // Max number of devices per platform
@@ -135,7 +148,7 @@ void OpenCLContext::initDevices()
     // Get devices for platforms
     for (size_t i = 0; i < num_platforms; i++)
     {
-        err = clGetDeviceIDs( platforms[i], CL_DEVICE_TYPE_ALL, max_devices, devices.data(), &nupaint_device_gls);
+        err = QOpenCLGetDeviceIDs( platforms[i], CL_DEVICE_TYPE_GPU, max_devices, devices.data(), &nupaint_device_gls);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         for (size_t j = 0; j < nupaint_device_gls; j++)
@@ -164,6 +177,41 @@ void OpenCLContext::initDevices()
     }
 
     // Pick a preferred device
+    main_device = &device_list[0];
+
+    // Get platforms
+    cl_uint num_platform_entries = 64;
+    cl_platform_id platform[64];
+    cl_uint num_platforms;
+
+    err = QOpenCLGetPlatformIDs(num_platform_entries, platform, &num_platforms);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    // Get devices for each platform
+    for (size_t i = 0; i < num_platforms; i++)
+    {
+        char platform_name[128];
+
+        err = QOpenCLGetPlatformInfo(platform[i], CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        qDebug(platform_name);
+
+
+        cl_uint num_device_entries = 64;
+        cl_device_id device[64];
+        cl_uint num_devices;
+
+        err = QOpenCLGetDeviceIDs( platform[i], CL_DEVICE_TYPE_GPU, num_device_entries, device, &num_devices);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        for (size_t j = 0; j < num_devices; j++)
+        {
+            device_list.append (DeviceCL(platform[i], device[j]));
+        }
+    }
+
+    // For now just select the first GPU in the list
     main_device = &device_list[0];
 }
 

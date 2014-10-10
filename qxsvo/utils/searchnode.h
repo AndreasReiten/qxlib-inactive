@@ -1,7 +1,7 @@
 #ifndef NODE_H
 #define NODE_H
 
-#include <CL/opencl.h>
+//#include <CL/opencl.h>
 
 #include "../../qxmath/qxmathlib.h"
 

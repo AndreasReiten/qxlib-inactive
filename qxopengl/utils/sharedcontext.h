@@ -1,8 +1,7 @@
 #ifndef SHAREDCONTEXT_H
 #define SHAREDCONTEXT_H
 
-/* GL and CL*/
-#include <CL/opencl.h>
+//#include <CL/opencl.h>
 
 /* QT */
 #include <QOpenGLShaderProgram>
