@@ -6,9 +6,10 @@
 FileTreeView::FileTreeView(QWidget *parent) :
     QTreeView(parent)
 {
-//    connect(this, SIGNAL(expanded(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
-//    connect(this, SIGNAL(collapsed(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
+    connect(this, SIGNAL(expanded(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
+    connect(this, SIGNAL(collapsed(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
     connect(this, SIGNAL(clicked(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
+    connect(this, SIGNAL(activated(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
 }
 
 void FileTreeView::itemChanged(const QModelIndex & item)

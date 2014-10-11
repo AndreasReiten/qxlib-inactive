@@ -987,10 +987,6 @@ void ImagePreviewWorker::initOpenCL()
     cl_image_calculus =  QOpenCLCreateKernel(program, "imageCalculus", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    qDebug() << "Use it";
-
-    qDebug() << context_cl->cl_easy_context_info(context_cl->context());
-
     // Image sampler
     image_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
