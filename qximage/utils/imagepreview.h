@@ -197,7 +197,7 @@ private:
     bool isSelectionBetaActive;
     Matrix<int> getImagePixel(int x, int y);
 
-    typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,
+    /*typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,
                                                             cl_platform_id *platforms,
                                                             cl_uint *num_platforms);
 
@@ -354,7 +354,7 @@ private:
     PROTOTYPE_QOpenCLGetPlatformIDs QOpenCLGetPlatformIDs;
     PROTOTYPE_QOpenCLGetDeviceIDs QOpenCLGetDeviceIDs;
     PROTOTYPE_QOpenCLGetPlatformInfo QOpenCLGetPlatformInfo;
-    PROTOTYPE_QOpenCLGetDeviceInfo QOpenCLGetDeviceInfo;
+    PROTOTYPE_QOpenCLGetDeviceInfo QOpenCLGetDeviceInfo;*/
 
 
 protected:

@@ -81,7 +81,7 @@ cl_context OpenCLContext::context()
 
 cl_program OpenCLContext::createProgram(QStringList paths, cl_int * err)
 {
-    // Program
+    // Create program object
     Matrix<size_t> lengths(1, paths.size());
     Matrix<const char *> sources(1, paths.size());
 
@@ -101,7 +101,7 @@ cl_program OpenCLContext::createProgram(QStringList paths, cl_int * err)
 
 void OpenCLContext::buildProgram(cl_program * program, const char * options)
 {
-    // Compile kernel
+    // Build source
     err = QOpenCLBuildProgram(*program, 1, device, options, NULL, NULL);
     if (err != CL_SUCCESS)
     {
