@@ -6,8 +6,8 @@
 FileTreeView::FileTreeView(QWidget *parent) :
     QTreeView(parent)
 {
-    connect(this, SIGNAL(expanded(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
-    connect(this, SIGNAL(collapsed(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
+//    connect(this, SIGNAL(expanded(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
+//    connect(this, SIGNAL(collapsed(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
     connect(this, SIGNAL(clicked(const QModelIndex &)), this, SLOT(itemChanged(const QModelIndex &)));
 }
 
@@ -15,13 +15,12 @@ void FileTreeView::itemChanged(const QModelIndex & item)
 {
     if (item.column() == 0) resizeColumnToContents(item.column());
 
-    QFileSystemModel mod;
-
-    if ((item.isValid()) &&  mod.fileInfo(item).isFile() && mod.fileInfo(item).isReadable() && mod.fileInfo(item).exists())
+    QFileSystemModel *mod = qobject_cast<QFileSystemModel *> (this->model());
+    if ((item.isValid()) &&  mod->fileInfo(item).isFile() && mod->fileInfo(item).isReadable() && mod->fileInfo(item).exists())
     {
-        qDebug() << mod.filePath(item);
+        qDebug() << mod->filePath(item);
 
-        emit fileChanged(mod.filePath(item));
+        emit fileChanged(mod->filePath(item));
     }
 
 }
