@@ -988,7 +988,7 @@ void ImagePreviewWorker::initOpenCL()
     
     qDebug() << "Use it";
 
-//    clGetContextInfo()
+    qDebug() << cl_easy_context_info(context_cl->context());
 
     // Image sampler
     image_sampler = QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);

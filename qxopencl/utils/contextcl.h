@@ -12,6 +12,9 @@
 #include "../../qxmath/qxmathlib.h"
 
 const char * cl_error_cstring(cl_int err);
+QString cl_easy_context_info(cl_context context);
+QString cl_easy_device_info(cl_device_id device);
+QString cl_easy_platform_info(cl_platform_id platform);
 
 class OpenCLContext
 {
@@ -21,7 +24,7 @@ public:
     void initSharedContext();
     void initCommandQueue();
     void initResources();
-    const cl_command_queue queue();
+    cl_command_queue queue();
     cl_context context();
 
     cl_program createProgram(QStringList paths, cl_int * err);
@@ -94,7 +97,22 @@ private:
     typedef cl_kernel (*PROTOTYPE_QOpenCLCreateKernel) ( 	cl_program  program,
                                                         const char *kernel_name,
                                                         cl_int *errcode_ret);
+
+    typedef cl_int (*PROTOTYPE_QOpenCLBuildProgram) ( 	cl_program program,
+                                                        cl_uint num_devices,
+                                                        const cl_device_id *device_list,
+                                                        const char *options,
+                                                        void (*pfn_notify)(cl_program, void *user_data),
+                                                        void *user_data);
+
+    typedef cl_int (*PROTOTYPE_QOpenCLGetContextInfo)( 	cl_context context,
+                                                        cl_context_info param_name,
+                                                        size_t param_value_size,
+                                                        void *param_value,
+                                                        size_t * param_value_size_ret);
+
     //    typedef cl_int (*PROTOTYPE_QOpenCL)();
+
     //    typedef cl_int (*PROTOTYPE_QOpenCL)();
 
 
@@ -102,10 +120,10 @@ private:
     PROTOTYPE_QOpenCLCreateContext QOpenCLCreateContext;
     PROTOTYPE_QOpenCLCreateCommandQueue QOpenCLCreateCommandQueue;
 
-//    PROTOTYPE_QOpenCL QOpenCL;
+    PROTOTYPE_QOpenCLBuildProgram QOpenCLBuildProgram;
     PROTOTYPE_QOpenCLCreateKernel QOpenCLCreateKernel;
 
-    //    PROTOTYPE_QOpenCL QOpenCL;
+    PROTOTYPE_QOpenCLGetContextInfo QOpenCLGetContextInfo;
     //    PROTOTYPE_QOpenCL QOpenCL;
     //    PROTOTYPE_QOpenCL QOpenCL;
     PROTOTYPE_QOpenCLCreateProgramWithSource QOpenCLCreateProgramWithSource;
