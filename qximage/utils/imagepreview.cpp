@@ -17,7 +17,9 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isWeightCenterActive(false),
     isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
-    alpha_style(2)
+    alpha_style(2),
+    isSelectionAlphaActive(false),
+    isSelectionBetaActive(false)
 {
     Q_UNUSED(parent);
 
@@ -116,22 +118,15 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     // Prepare kernel parameters
     Matrix<size_t> global_ws(1,2);
 
-    image_size.print(0,"image_size");
-    local_ws.print(0,"local_ws");
-    global_ws.print(0,"global_ws");
-
     global_ws[0] = image_size[0] + (local_ws[0] - ((size_t) image_size[0])%local_ws[0]);
     global_ws[1] = image_size[1] + (local_ws[1] - ((size_t) image_size[1])%local_ws[1]);
     
     // Set kernel parameters
     err =   QOpenCLSetKernelArg(cl_image_calculus,  0, sizeof(cl_mem), (void *) &data_buf_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 1, sizeof(cl_mem), (void *) &out_buf_cl);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 2, sizeof(cl_mem), &parameter_cl);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 3, sizeof(cl_int2), image_size.toInt().data());
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &correction);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 5, sizeof(cl_int), &task);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 6, sizeof(cl_float), &mean);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 7, sizeof(cl_float), &deviation);
@@ -323,8 +318,6 @@ void ImagePreviewWorker::calculus()
     image_size[0] = frame.getFastDimension();
     image_size[1] = frame.getSlowDimension();
 
-    image_size.print(0,"iamge_size");
-    
     if (mode == 0)
     {
         // Normal intensity
