@@ -34,6 +34,8 @@ GLuint SharedContextWindow::loadShader(GLenum type, const char *source)
 
 void SharedContextWindow::initialize()
 {
+    qDebug() << "init shared context";
+
     // Shader for drawing textures in 2D
     std_2d_tex_program = new QOpenGLShaderProgram(this);
     std_2d_tex_program->addShaderFromSourceFile(QOpenGLShader::Vertex, "glsl/std_2d_tex.v.glsl");
@@ -55,7 +57,7 @@ void SharedContextWindow::initialize()
     if ((rect_hl_2d_tex_pos = rect_hl_2d_tex_program->attributeLocation("texpos")) == -1) qCritical("Invalid attribute");
     if ((rect_hl_2d_tex_texture = rect_hl_2d_tex_program->uniformLocation("texture")) == -1) qCritical("Invalid uniform");
     if ((rect_hl_2d_tex_transform = rect_hl_2d_tex_program->uniformLocation("transform")) == -1) qCritical("Invalid uniform");
-    if ((rect_hl_2d_tex_bounds = rect_hl_2d_tex_program->uniformLocation("bounds")) == -1) qCritical("Invalid uniform");
+//    if ((rect_hl_2d_tex_bounds = rect_hl_2d_tex_program->uniformLocation("bounds")) == -1) qCritical("Invalid uniform");
 //    if ((rect_hl_2d_tex_center = rect_hl_2d_tex_program->uniformLocation("center")) == -1) qCritical("Invalid uniform");
     if ((rect_hl_2d_tex_pixel_size = rect_hl_2d_tex_program->uniformLocation("pixel_size")) == -1) qCritical("Invalid uniform");
 

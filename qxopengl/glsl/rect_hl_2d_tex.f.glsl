@@ -1,6 +1,6 @@
 uniform sampler2D texture;
 varying vec2 f_texpos;
-varying vec4 f_bounds; 
+//varying vec4 f_bounds;
 varying float f_pixel_size;
 //varying vec2 f_center;
 

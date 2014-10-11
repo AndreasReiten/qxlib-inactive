@@ -21,8 +21,8 @@ public:
     void initSharedContext();
     void initCommandQueue();
     void initResources();
-    const cl_command_queue *getCommandQueue();
-    cl_context * getContext();
+    const cl_command_queue queue();
+    cl_context context();
 
     cl_program createProgram(QStringList paths, cl_int * err);
     void buildProgram(cl_program * program, const char * options);
@@ -36,8 +36,8 @@ private:
 
     cl_program program;
     
-    cl_command_queue queue;
-    cl_context context;
+    cl_command_queue p_queue;
+    cl_context p_context;
     cl_int err;
 
     typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,
@@ -67,12 +67,14 @@ private:
                                                                     const char **strings,
                                                                     const size_t *lengths,
                                                                     cl_int *errcode_ret);
+
     typedef cl_int (*PROTOTYPE_QOpenCLGetProgramBuildInfo)( 	cl_program  program,
                                                                 cl_device_id  device,
                                                                 cl_program_build_info  param_name,
                                                                 size_t  param_value_size,
                                                                 void  *param_value,
                                                                 size_t  *param_value_size_ret);
+
     typedef cl_context (*PROTOTYPE_QOpenCLCreateContext)( 	cl_context_properties *properties,
                                                         cl_uint num_devices,
                                                         const cl_device_id *devices,
@@ -89,7 +91,9 @@ private:
                                                     cl_command_queue_properties properties,
                                                     cl_int *errcode_ret);
 
-    //    typedef cl_int (*PROTOTYPE_QOpenCL)();
+    typedef cl_kernel (*PROTOTYPE_QOpenCLCreateKernel) ( 	cl_program  program,
+                                                        const char *kernel_name,
+                                                        cl_int *errcode_ret);
     //    typedef cl_int (*PROTOTYPE_QOpenCL)();
     //    typedef cl_int (*PROTOTYPE_QOpenCL)();
 
@@ -99,7 +103,7 @@ private:
     PROTOTYPE_QOpenCLCreateCommandQueue QOpenCLCreateCommandQueue;
 
 //    PROTOTYPE_QOpenCL QOpenCL;
-    //    PROTOTYPE_QOpenCL QOpenCL;
+    PROTOTYPE_QOpenCLCreateKernel QOpenCLCreateKernel;
 
     //    PROTOTYPE_QOpenCL QOpenCL;
     //    PROTOTYPE_QOpenCL QOpenCL;

@@ -427,7 +427,7 @@ QString DetectorFile::info()
 //    target_format.image_channel_data_type = CL_FLOAT;
 
 //    // Prepare the target for storage of projected and corrected pixels (intensity but also xyz position)
-//    cl_mem xyzi_frame_cl = clCreateImage2D ( *context_cl->getContext(),
+//    cl_mem xyzi_frame_cl = clCreateImage2D ( context_cl->getContext(),
 //        CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
 //        &target_format,
 //        fast_dimension,
@@ -442,7 +442,7 @@ QString DetectorFile::info()
 //    source_format.image_channel_order = CL_INTENSITY;
 //    source_format.image_channel_data_type = CL_FLOAT;
 
-//    cl_mem source_cl = clCreateImage2D ( *context_cl->getContext(),
+//    cl_mem source_cl = clCreateImage2D ( context_cl->getContext(),
 //        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
 //        &source_format,
 //        fast_dimension,
@@ -453,7 +453,7 @@ QString DetectorFile::info()
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    // A sampler. The filtering should be CL_FILTER_NEAREST unless a linear interpolation of the data is actually what you want
-//    cl_sampler intensity_sampler = clCreateSampler(*context_cl->getContext(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
+//    cl_sampler intensity_sampler = clCreateSampler(context_cl->getContext(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    // Sample rotation matrix to be applied to each projected pixel to account for rotations. First set the active angle. Ideally this would be given by the header file, but for some reason it is not stated in there. Maybe it is just so normal to rotate around the omega angle to keep the resolution function consistent
@@ -479,7 +479,7 @@ QString DetectorFile::info()
     
 //    sampleRotMat = PHI*KAPPA*OMEGA;
 
-//    cl_mem sample_rotation_matrix_cl = clCreateBuffer(*context_cl->getContext(),
+//    cl_mem sample_rotation_matrix_cl = clCreateBuffer(context_cl->getContext(),
 //        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
 //        sampleRotMat.bytes(),
 //        sampleRotMat.data(),
@@ -487,7 +487,7 @@ QString DetectorFile::info()
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    // The sampler for cl_tsf_tex
-//    cl_sampler tsf_sampler = clCreateSampler(*context_cl->getContext(), true, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
+//    cl_sampler tsf_sampler = clCreateSampler(context_cl->getContext(), true, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
 //    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 //    // Set kernel arguments

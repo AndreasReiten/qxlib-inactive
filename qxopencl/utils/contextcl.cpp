@@ -23,6 +23,8 @@
 
 OpenCLContext::OpenCLContext()
 {
+    qDebug() << "resolving";
+
     QLibrary myLib("OpenCL");
 
     QOpenCLGetPlatformIDs = (PROTOTYPE_QOpenCLGetPlatformIDs) myLib.resolve("clGetPlatformIDs");
@@ -48,21 +50,24 @@ OpenCLContext::OpenCLContext()
 
     QOpenCLCreateCommandQueue = (PROTOTYPE_QOpenCLCreateCommandQueue) myLib.resolve("clCreateCommandQueue");
     if (!QOpenCLCreateCommandQueue) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
-    //    QOpenCL= (PROTOTYPE_QOpenCL) myLib.resolve("cl");
-    //    if (!QOpenCL) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLCreateKernel = (PROTOTYPE_QOpenCLCreateKernel) myLib.resolve("clCreateKernel");
+    if (!QOpenCLCreateKernel) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
     //    QOpenCL= (PROTOTYPE_QOpenCL) myLib.resolve("cl");
     //    if (!QOpenCL) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
 
 }
 
-const cl_command_queue * OpenCLContext::getCommandQueue()
+const cl_command_queue OpenCLContext::queue()
 {
-    return &queue;
+    return p_queue;
 }
 
-cl_context * OpenCLContext::getContext()
+cl_context OpenCLContext::context()
 {
-    return &context;
+//    qDebug() << "getContyext";
+    return p_context;
 }
 
 cl_program OpenCLContext::createProgram(QStringList paths, cl_int * err)
@@ -82,7 +87,7 @@ cl_program OpenCLContext::createProgram(QStringList paths, cl_int * err)
         sources[i] = blobs[i].data();
         lengths[i] = blobs[i].length();
     }
-    return QOpenCLCreateProgramWithSource(context, paths.size(), sources.data(), lengths.data(), err);
+    return QOpenCLCreateProgramWithSource(p_context, paths.size(), sources.data(), lengths.data(), err);
 }
 
 void OpenCLContext::buildProgram(cl_program * program, const char * options)
@@ -191,17 +196,16 @@ void OpenCLContext::initSharedContext()
         0};
     #endif
 
-    context = QOpenCLCreateContext(properties, 1, device, NULL, NULL, &err);
-    if (err != CL_SUCCESS)
-    {
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    }
+    qDebug() << "Set context";
+
+    p_context = QOpenCLCreateContext(properties, 1, device, NULL, NULL, &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
 void OpenCLContext::initCommandQueue()
 {
     // Command queue
-    queue = QOpenCLCreateCommandQueue(context, device[0], 0, &err);
+    p_queue = QOpenCLCreateCommandQueue(p_context, device[0], 0, &err);
     if (err != CL_SUCCESS)
     {
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -221,10 +225,10 @@ void OpenCLContext::initResources()
     buildProgram(&program, "-Werror");
 
     // Kernel handles
-    cl_rect_copy_float = clCreateKernel(program, "rectCopyFloat", &err);
+    cl_rect_copy_float = QOpenCLCreateKernel(program, "rectCopyFloat", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
-    cl_parallel_reduction = clCreateKernel(program, "psum", &err);
+    cl_parallel_reduction = QOpenCLCreateKernel(program, "psum", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
 
