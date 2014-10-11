@@ -23,8 +23,6 @@
 
 OpenCLContext::OpenCLContext()
 {
-    qDebug() << "resolving";
-
     QLibrary myLib("OpenCL");
 
     QOpenCLGetPlatformIDs = (PROTOTYPE_QOpenCLGetPlatformIDs) myLib.resolve("clGetPlatformIDs");
@@ -59,13 +57,6 @@ OpenCLContext::OpenCLContext()
 
     QOpenCLGetContextInfo = (PROTOTYPE_QOpenCLGetContextInfo) myLib.resolve("clGetContextInfo");
     if (!QOpenCLGetContextInfo) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
-
-    //    QOpenCL= (PROTOTYPE_QOpenCL) myLib.resolve("cl");
-    //    if (!QOpenCL) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
-
-    //    QOpenCL= (PROTOTYPE_QOpenCL) myLib.resolve("cl");
-    //    if (!QOpenCL) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
-
 }
 
 cl_command_queue OpenCLContext::queue()
@@ -205,8 +196,6 @@ void OpenCLContext::initSharedContext()
         0};
     #endif
 
-    qDebug() << "Set context";
-
     cl_uint num = 1;
 
     p_context = QOpenCLCreateContext(properties, num, device, NULL, NULL, &err);
@@ -244,7 +233,7 @@ void OpenCLContext::initResources()
 }
 
 
-QString cl_easy_context_info(cl_context context)
+QString OpenCLContext::cl_easy_context_info(cl_context context)
 {
     QString str;
 
@@ -260,12 +249,12 @@ QString cl_easy_context_info(cl_context context)
 
     str = "\n*** OpenCL context info ***\n";
 
-    err = clGetContextInfo(context, CL_CONTEXT_REFERENCE_COUNT, sizeof(cl_int), &reference_count, NULL);
+    err = QOpenCLGetContextInfo(context, CL_CONTEXT_REFERENCE_COUNT, sizeof(cl_int), &reference_count, NULL);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     str += "  Reference count: " + QString::number(reference_count) + "\n";
 
-    err = clGetContextInfo(context, CL_CONTEXT_DEVICES, sizeof(cl_device_id)*64, device, &size_devices);
+    err = QOpenCLGetContextInfo(context, CL_CONTEXT_DEVICES, sizeof(cl_device_id)*64, device, &size_devices);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     str += "  Devices in this context:\n";
@@ -274,19 +263,19 @@ QString cl_easy_context_info(cl_context context)
         str += "  " + QString::number(i) + ":\t" + cl_easy_device_info(device[i]) + "\n";
     }
 
-    err = clGetContextInfo(context, CL_CONTEXT_PROPERTIES, sizeof(cl_context_properties)*64, property, &size_properties);
+    err = QOpenCLGetContextInfo(context, CL_CONTEXT_PROPERTIES, sizeof(cl_context_properties)*64, property, &size_properties);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     return str;
 }
 
-QString cl_easy_device_info(cl_device_id device)
+QString OpenCLContext::cl_easy_device_info(cl_device_id device)
 {
     QString str;
 
     char device_name[128];
 
-    cl_int err = clGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(char)*128, device_name, NULL);
+    cl_int err = QOpenCLGetDeviceInfo(device, CL_DEVICE_NAME, sizeof(char)*128, device_name, NULL);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     str += device_name;
@@ -294,13 +283,13 @@ QString cl_easy_device_info(cl_device_id device)
     return str;
 }
 
-QString cl_easy_platform_info(cl_platform_id platform)
+QString OpenCLContext::cl_easy_platform_info(cl_platform_id platform)
 {
     QString str;
 
     char platform_name[128];
 
-    cl_int err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
+    cl_int err = QOpenCLGetPlatformInfo(platform, CL_PLATFORM_NAME, sizeof(char)*128, platform_name, NULL);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     str += platform_name;

@@ -22,9 +22,6 @@ public:
     void setSharedWindow(SharedContextWindow * window);
 
 signals:
-//    void selectionChanged(Selection rect);
-//    void backgroundChanged(Selection rect);
-//    void pathChanged(QString str);
     void resultFinished(QString str);
     void selectionAlphaChanged(bool value);
     void selectionBetaChanged(bool value);
@@ -44,20 +41,14 @@ public slots:
     void setAutoBackgroundCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
-//    void displayImage(DetectorFile & file);
-//    void refresh();
     void calculus();
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-//    void keyPressEvent(QKeyEvent ev);
-//    void keyReleaseEvent(QKeyEvent *ev);
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
-//    void setFrame(ImageInfo image);
     void setFrame(ImageInfo image);
-//    void setSelection(QRect rect);
     void setSelectionAlphaActive(bool value);
     void setSelectionBetaActive(bool value);
     void centerImage();
@@ -103,15 +94,12 @@ private:
     cl_mem image_data_generic_cl;
     
     // Misc
-//    void copyAndReduce(QRect selection_rect);
-    
     QString integrationFrameString(DetectorFile &f, ImageInfo &image);
     
     SharedContextWindow * shared_window;
 
     cl_int err;
     cl_program program;
-//    cl_kernel cl_image_preview;
     cl_kernel cl_display_image;
     cl_kernel cl_image_calculus;
     cl_mem image_tex_cl;
@@ -121,8 +109,6 @@ private:
     cl_mem image_intensity_cl;
     cl_mem image_pos_weight_x_cl;
     cl_mem image_pos_weight_y_cl;
-    
-//    cl_mem image_data_raw_cl;
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
@@ -140,7 +126,6 @@ private:
     ImageInfo frame_image;
 
     void initOpenCL();
-//    void update(size_t w, size_t h);
     void setParameter(Matrix<float> &data);
     void setTsf(TransferFunction & tsf);
     Matrix<double> getScatteringVector(DetectorFile & f, double x, double y);
@@ -152,16 +137,11 @@ private:
 
     // Draw
     void drawImage(QPainter *painter);
-//    void drawTexelOverlay(QPainter *painter);
     void drawSelection(Selection area, QPainter *painter, Matrix<float> &color);
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawToolTip(QPainter * painter);
 
-    // Vertice buffer objects
-//    GLuint texel_line_vbo[2];
-
     // Boolean checks
-//    bool isInitialized;
     bool isImageTexInitialized;
     bool isTsfTexInitialized;
     bool isCLInitialized;
@@ -180,8 +160,6 @@ private:
     QPoint pos;
     QPoint prev_pos;
     Matrix<int> prev_pixel;
-//    int last_mouse_pos_x;
-//    int last_mouse_pos_y;
 
     // Display
     int isLog;
@@ -189,15 +167,13 @@ private:
     int mode;
 
     // Selection
-//    Selection analysis_area;
-//    Selection background_area;
     GLuint selections_vbo[5];
     GLuint weightpoints_vbo[5];
     bool isSelectionAlphaActive;
     bool isSelectionBetaActive;
     Matrix<int> getImagePixel(int x, int y);
 
-    /*typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,
+    typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,
                                                             cl_platform_id *platforms,
                                                             cl_uint *num_platforms);
 
@@ -321,32 +297,20 @@ private:
     typedef cl_kernel (*PROTOTYPE_QOpenCLCreateKernel) ( 	cl_program  program,
                                                         const char *kernel_name,
                                                         cl_int *errcode_ret);
-//    typedef cl_int (*PROTOTYPE_QOpenCL)();
-//    typedef cl_int (*PROTOTYPE_QOpenCL)();
-//    typedef cl_int (*PROTOTYPE_QOpenCL)();
 
 
-
-
-
-    PROTOTYPE_QOpenCLSetKernelArg QOpenCLSetKernelArg;
-
-    PROTOTYPE_QOpenCLEnqueueNDRangeKernel QOpenCLEnqueueNDRangeKernel;
-    PROTOTYPE_QOpenCLFinish QOpenCLFinish;
+    PROTOTYPE_QOpenCLSetKernelArg QOpenCLSetKernelArg; // OK
+    PROTOTYPE_QOpenCLEnqueueNDRangeKernel QOpenCLEnqueueNDRangeKernel; // OK
+    PROTOTYPE_QOpenCLFinish QOpenCLFinish; // OK
     PROTOTYPE_QOpenCLEnqueueAcquireGLObjects QOpenCLEnqueueAcquireGLObjects;
     PROTOTYPE_QOpenCLEnqueueReleaseGLObjects QOpenCLEnqueueReleaseGLObjects;
-
-    PROTOTYPE_QOpenCLEnqueueReadBuffer QOpenCLEnqueueReadBuffer;
+    PROTOTYPE_QOpenCLEnqueueReadBuffer QOpenCLEnqueueReadBuffer; // OK
     PROTOTYPE_QOpenCLCreateBuffer QOpenCLCreateBuffer;
     PROTOTYPE_QOpenCLReleaseMemObject QOpenCLReleaseMemObject;
     PROTOTYPE_QOpenCLCreateFromGLTexture2D QOpenCLCreateFromGLTexture2D;
     PROTOTYPE_QOpenCLCreateSampler QOpenCLCreateSampler;
     PROTOTYPE_QOpenCLEnqueueWriteBuffer QOpenCLEnqueueWriteBuffer;
     PROTOTYPE_QOpenCLCreateKernel QOpenCLCreateKernel;
-//    PROTOTYPE_QOpenCL QOpenCL;
-//    PROTOTYPE_QOpenCL QOpenCL;
-//    PROTOTYPE_QOpenCL QOpenCL;
-
     PROTOTYPE_QOpenCLGetProgramBuildInfo QOpenCLGetProgramBuildInfo;
     PROTOTYPE_QOpenCLCreateContext QOpenCLCreateContext;
     PROTOTYPE_QOpenCLCreateCommandQueue QOpenCLCreateCommandQueue;
@@ -354,7 +318,7 @@ private:
     PROTOTYPE_QOpenCLGetPlatformIDs QOpenCLGetPlatformIDs;
     PROTOTYPE_QOpenCLGetDeviceIDs QOpenCLGetDeviceIDs;
     PROTOTYPE_QOpenCLGetPlatformInfo QOpenCLGetPlatformInfo;
-    PROTOTYPE_QOpenCLGetDeviceInfo QOpenCLGetDeviceInfo;*/
+    PROTOTYPE_QOpenCLGetDeviceInfo QOpenCLGetDeviceInfo;
 
 
 protected:

@@ -12,9 +12,6 @@
 #include "../../qxmath/qxmathlib.h"
 
 const char * cl_error_cstring(cl_int err);
-QString cl_easy_context_info(cl_context context);
-QString cl_easy_device_info(cl_device_id device);
-QString cl_easy_platform_info(cl_platform_id platform);
 
 class OpenCLContext
 {
@@ -32,6 +29,10 @@ public:
     
     cl_kernel cl_rect_copy_float; 
     cl_kernel cl_parallel_reduction;
+
+    QString cl_easy_context_info(cl_context context);
+    QString cl_easy_device_info(cl_device_id device);
+    QString cl_easy_platform_info(cl_platform_id platform);
     
 private:
     cl_platform_id platform[64];

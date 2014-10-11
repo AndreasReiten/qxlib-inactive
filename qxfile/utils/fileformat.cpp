@@ -32,38 +32,15 @@ DetectorFile::DetectorFile() :
     srchrad_sugg_high = std::numeric_limits<float>::min();
     max_counts = 0;
     STATUS_OK = 0;
-    
-//    offset_omega = 0;
-//    offset_kappa = 0;
-//    offset_phi = 0;
 }
 DetectorFile::DetectorFile(QString path):
     active_angle(2)
 {
-//    context_cl = context;
     srchrad_sugg_low = std::numeric_limits<float>::max();
     srchrad_sugg_high = std::numeric_limits<float>::min();
     max_counts = 0;
     STATUS_OK = this->set(path);
 }
-
-//void DetectorFile::setOffsetOmega(double value)
-//{
-//    offset_omega = value*pi/180.0;
-//}
-//void DetectorFile::setOffsetKappa(double value)
-//{
-//    offset_kappa = value*pi/180.0;
-//}
-//void DetectorFile::setOffsetPhi(double value)
-//{
-//    offset_phi = value*pi/180.0;
-//}
-
-//void DetectorFile::setActiveAngle(int value)
-//{
-//    active_angle = value;
-//}
 
 void DetectorFile::setNaive()
 {
@@ -165,11 +142,6 @@ int DetectorFile::set(QString path)
         return 0;
     }
     this->suggestSearchRadius();
-
-//    loc_ws[0] = 16;
-//    loc_ws[1] = 16;
-//    glb_ws[0] = fast_dimension + loc_ws[0] - (fast_dimension%loc_ws[0]);
-//    glb_ws[1] = slow_dimension + loc_ws[1] - (slow_dimension%loc_ws[1]);
 
     return 1;
 }
@@ -355,15 +327,9 @@ void DetectorFile::print()
     std::stringstream ss;
     ss << "__________ PILATUS FILE __________" << std::endl;
     ss << "Path: " << path.toStdString().c_str() << std::endl;
-//    ss << "CL context: " << context_cl << std::endl;
-//    ss << "CL kernel: " << project_kernel << std::endl;
-//    ss << "CL local work dim: " << loc_ws[0] << " " << loc_ws[1] << std::endl;
-//    ss << "CL global work dim: " << glb_ws[0] << " " << glb_ws[1] << std::endl;
     ss << "Data elements: " << data_buf.size() << std::endl;
     ss << "Dimensions: " << fast_dimension << " x " << slow_dimension << std::endl;
     ss << "Max counts: " << max_counts << std::endl;
-//    ss << "Reduction threshold: " << threshold_reduce_low << " " << threshold_reduce_high << std::endl;
-//    ss << "Projection threshold: " << threshold_project_low << " "<< threshold_project_high << std::endl;
     ss << "Search radius: " << srchrad_sugg_low << " " << srchrad_sugg_high << std::endl; 
     ss << "..." << std::endl;
     ss << "Detector: " << detector.toStdString().c_str() << std::endl;
@@ -415,190 +381,7 @@ QString DetectorFile::info()
     return QString(ss.str().c_str());
 }
 
-//int DetectorFile::filterData(size_t * n, Matrix<float> * outBuf, float threshold_reduce_low, float threshold_reduce_high, float threshold_project_low, float threshold_project_high, bool isProjectionActive)
-//{
-//    this->threshold_reduce_low = threshold_reduce_low;
-//    this->threshold_reduce_high = threshold_reduce_high;
-//    this->threshold_project_low = threshold_project_low;
-//    this->threshold_project_high = threshold_project_high;
-    
-//    cl_image_format target_format;
-//    target_format.image_channel_order = CL_RGBA;
-//    target_format.image_channel_data_type = CL_FLOAT;
 
-//    // Prepare the target for storage of projected and corrected pixels (intensity but also xyz position)
-//    cl_mem xyzi_frame_cl = clCreateImage2D ( context_cl->getContext(),
-//        CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR,
-//        &target_format,
-//        fast_dimension,
-//        slow_dimension,
-//        0,
-//        NULL,
-//        &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    // Load data into a CL texture
-//    cl_image_format source_format;
-//    source_format.image_channel_order = CL_INTENSITY;
-//    source_format.image_channel_data_type = CL_FLOAT;
-
-//    cl_mem source_cl = clCreateImage2D ( context_cl->getContext(),
-//        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-//        &source_format,
-//        fast_dimension,
-//        slow_dimension,
-//        fast_dimension*sizeof(cl_float),
-//        data_buf.data(),
-//        &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    // A sampler. The filtering should be CL_FILTER_NEAREST unless a linear interpolation of the data is actually what you want
-//    cl_sampler intensity_sampler = clCreateSampler(context_cl->getContext(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    // Sample rotation matrix to be applied to each projected pixel to account for rotations. First set the active angle. Ideally this would be given by the header file, but for some reason it is not stated in there. Maybe it is just so normal to rotate around the omega angle to keep the resolution function consistent
-
-//    if(active_angle == 0) phi = start_angle + 0.5*angle_increment;
-//    else if(active_angle == 1) kappa = start_angle + 0.5*angle_increment;
-//    else if(active_angle == 2) omega = start_angle + 0.5*angle_increment;
-
-//    RotationMatrix<float> PHI;
-//    RotationMatrix<float> KAPPA;
-//    RotationMatrix<float> OMEGA;
-//    RotationMatrix<float> sampleRotMat;
-
-//    alpha =  0.8735582;
-//    beta =  0.000891863;
-    
-//    PHI.setArbRotation(beta, 0, -(phi+offset_phi)); 
-//    KAPPA.setArbRotation(alpha, 0, -(kappa+offset_kappa));
-//    OMEGA.setZRotation(-(omega+offset_omega));
-
-    
-//    // The sample rotation matrix. Some rotations perturb the other rotation axes, and in the above calculations for phi, kappa, and omega we use fixed axes. It is therefore neccessary to put a rotation axis back into its basic position before the matrix is applied. In our case omega perturbs kappa and phi, and kappa perturbs phi. Thus we must first rotate omega back into the base position to recover the base rotation axis of kappa. Then we recover the base rotation axis for phi in the same manner. The order of matrix operations thus becomes:
-    
-//    sampleRotMat = PHI*KAPPA*OMEGA;
-
-//    cl_mem sample_rotation_matrix_cl = clCreateBuffer(context_cl->getContext(),
-//        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-//        sampleRotMat.bytes(),
-//        sampleRotMat.data(),
-//        &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    // The sampler for cl_tsf_tex
-//    cl_sampler tsf_sampler = clCreateSampler(context_cl->getContext(), true, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    // Set kernel arguments
-//    err = clSetKernelArg(*project_kernel, 0, sizeof(cl_mem), (void *) &xyzi_frame_cl);
-//    err |= clSetKernelArg(*project_kernel, 1, sizeof(cl_mem), (void *) &source_cl);
-//    err |= clSetKernelArg(*project_kernel, 2, sizeof(cl_sampler), &tsf_sampler);
-//    err |= clSetKernelArg(*project_kernel, 3, sizeof(cl_sampler), &intensity_sampler);
-//    err |= clSetKernelArg(*project_kernel, 4, sizeof(cl_mem), (void *) &sample_rotation_matrix_cl);
-//    float threshold_one[2], threshold_two[2];
-//    threshold_one[0] = this->threshold_reduce_low;
-//    threshold_one[1] = this->threshold_reduce_high;
-//    threshold_two[0] = this->threshold_project_low;
-//    threshold_two[1] = this->threshold_project_high;
-//    err |= clSetKernelArg(*project_kernel, 5, 2*sizeof(cl_float), threshold_one);
-//    err |= clSetKernelArg(*project_kernel, 6, 2*sizeof(cl_float), threshold_two);
-//    err |= clSetKernelArg(*project_kernel, 7, sizeof(cl_float), &background_flux);
-//    err |= clSetKernelArg(*project_kernel, 8, sizeof(cl_float), &backgroundExpTime);
-//    err |= clSetKernelArg(*project_kernel, 9, sizeof(cl_float), &pixel_size_x);
-//    err |= clSetKernelArg(*project_kernel, 10, sizeof(cl_float), &pixel_size_y);
-//    err |= clSetKernelArg(*project_kernel, 11, sizeof(cl_float), &exposure_time);
-//    err |= clSetKernelArg(*project_kernel, 12, sizeof(cl_float), &wavelength);
-//    err |= clSetKernelArg(*project_kernel, 13, sizeof(cl_float), &detector_distance);
-//    err |= clSetKernelArg(*project_kernel, 14, sizeof(cl_float), &beam_x);
-//    err |= clSetKernelArg(*project_kernel, 15, sizeof(cl_float), &beam_y);
-//    err |= clSetKernelArg(*project_kernel, 16, sizeof(cl_float), &flux);
-//    err |= clSetKernelArg(*project_kernel, 17, sizeof(cl_float), &start_angle);
-//    err |= clSetKernelArg(*project_kernel, 18, sizeof(cl_float), &angle_increment);
-//    err |= clSetKernelArg(*project_kernel, 19, sizeof(cl_float), &kappa);
-//    err |= clSetKernelArg(*project_kernel, 20, sizeof(cl_float), &phi);
-//    err |= clSetKernelArg(*project_kernel, 21, sizeof(cl_float), &omega);
-//    err |= clSetKernelArg(*project_kernel, 22, sizeof(cl_float), &max_counts);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    /* Launch rendering kernel */
-//    size_t area_per_call[2] = {128, 128};
-//    size_t call_offset[2] = {0,0};
-//    for (size_t glb_x = 0; glb_x < glb_ws[0]; glb_x += area_per_call[0])
-//    {
-//        for (size_t glb_y = 0; glb_y < glb_ws[1]; glb_y += area_per_call[1])
-//        {
-//            call_offset[0] = glb_x;
-//            call_offset[1] = glb_y;
-
-//            err = clEnqueueNDRangeKernel(*context_cl->getCommandQueue(), *project_kernel, 2, call_offset, area_per_call, loc_ws, 0, NULL, NULL);
-//            if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//        }
-//    }
-//    clFinish(*context_cl->getCommandQueue());
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    // Read the data
-//    size_t origin[3];
-//    origin[0] = 0;
-//    origin[1] = 0;
-//    origin[2] = 0;
-
-//    size_t region[3];
-//    region[0] = fast_dimension;
-//    region[1] = slow_dimension;
-//    region[2] = 1;
-
-//    Matrix<float> projected_data_buf(1,fast_dimension*slow_dimension*4);
-//    err = clEnqueueReadImage ( *context_cl->getCommandQueue(), xyzi_frame_cl, true, origin, region, 0, 0, projected_data_buf.data(), 0, NULL, NULL);
-//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-//    if (xyzi_frame_cl){
-//        err = clReleaseMemObject(xyzi_frame_cl);
-//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    }
-//    if (source_cl){
-//        err = clReleaseMemObject(source_cl);
-//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    }
-//    if (sample_rotation_matrix_cl){
-//        err = clReleaseMemObject(sample_rotation_matrix_cl);
-//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    }
-//    if (intensity_sampler){
-//        err = clReleaseSampler(intensity_sampler);
-//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    }
-//    if (tsf_sampler){
-//        err = clReleaseSampler(tsf_sampler);
-//        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    }
-
-//    if (isProjectionActive)
-//    {
-//        for (size_t i = 0; i < fast_dimension*slow_dimension; i++)
-//        {
-//            if (projected_data_buf[i*4+3] > 0.0) // Above 0 check?
-//            {
-////                if (projected_data_buf[i*4+3] < 0.0) qDebug() <<  projected_data_buf[i*4+3] << i;
-//                if ((*n)+3 < outBuf->size())
-//                {
-//                    (*outBuf)[(*n)+0] = projected_data_buf[i*4+0];
-//                    (*outBuf)[(*n)+1] = projected_data_buf[i*4+1];
-//                    (*outBuf)[(*n)+2] = projected_data_buf[i*4+2];
-//                    (*outBuf)[(*n)+3] = projected_data_buf[i*4+3];
-//                    (*n)+=4;
-//                }
-//                else
-//                {
-//                    qDebug() << "TODO: send proper warning";
-//                }
-//            }
-//        }
-//    }
-
-//    return 1;
-//}
 
 float DetectorFile::getDetectorDist()
 {
@@ -622,10 +405,6 @@ float DetectorFile::getPixSizeY()
     return pixel_size_y;
 }
 
-//void DetectorFile::setProjectionKernel(cl_kernel * kernel)
-//{
-//    this->project_kernel = kernel;
-//}
 
 int DetectorFile::readData()
 {
