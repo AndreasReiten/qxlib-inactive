@@ -19,13 +19,20 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     rgb_style(1),
     alpha_style(2),
     isSelectionAlphaActive(false),
-    isSelectionBetaActive(false)
+    isSelectionBetaActive(false),
+    mode(0)
 {
     Q_UNUSED(parent);
 
     isInitialized = false;
 
     parameter.reserve(1,16);
+    parameter[0] = 0;
+    parameter[1] = 1e9;
+    parameter[2] = 0;
+    parameter[3] = 1e9;
+    parameter[12] = 0;
+    parameter[13] = 1000;
 
     texture_view_matrix.setIdentity(4);
     translation_matrix.setIdentity(4);
@@ -165,7 +172,6 @@ void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl,
     err |=   QOpenCLSetKernelArg(cl_display_image, 1, sizeof(cl_mem), (void *) &frame_image_cl);
     err |=   QOpenCLSetKernelArg(cl_display_image, 2, sizeof(cl_mem), (void *) &tsf_image_cl);
     err |=   QOpenCLSetKernelArg(cl_display_image, 3, sizeof(cl_sampler), &tsf_sampler);
-//    data_limit.print(2,"data_limit");
     err |=   QOpenCLSetKernelArg(cl_display_image, 4, sizeof(cl_float2), data_limit.data());
     err |=   QOpenCLSetKernelArg(cl_display_image, 5, sizeof(cl_int), &log);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -408,9 +414,6 @@ void ImagePreviewWorker::setFrame(ImageInfo image)
     frame_image.setSelection(analysis_area);
     frame_image.setBackground(background_area);
 
-//    emit selectionChanged(analysis_area);
-//    emit backgroundChanged(background_area);
-
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
     image_size[1] = frame.getSlowDimension();
@@ -571,16 +574,10 @@ void ImagePreviewWorker::refreshBackground(Selection * area)
     if (isAutoBackgroundCorrectionActive)
     {
         double noise = area->integral()/(double)(area->width()*area->height());
-//        setThresholdNoiseLow(noise);
-        
         parameter[0] = noise;
         setParameter(parameter);
-//        qDebug() << area->integral()/(double)(area->width()*area->height()) << area->integral() << area->width() << area->height();
         emit noiseLowChanged(noise);
     }
-    
-    
-//    emit backgroundChanged(background_area);
 }
 
 void ImagePreviewWorker::refreshDisplay()

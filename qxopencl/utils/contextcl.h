@@ -8,7 +8,6 @@
 #include <QLibrary>
 #include <CL/opencl.h>
 
-//#include "devicecl.h"
 #include "../../qxmath/qxmathlib.h"
 
 const char * cl_error_cstring(cl_int err);

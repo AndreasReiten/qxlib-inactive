@@ -19,8 +19,6 @@ void FileTreeView::itemChanged(const QModelIndex & item)
     QFileSystemModel *mod = qobject_cast<QFileSystemModel *> (this->model());
     if ((item.isValid()) &&  mod->fileInfo(item).isFile() && mod->fileInfo(item).isReadable() && mod->fileInfo(item).exists())
     {
-        qDebug() << mod->filePath(item);
-
         emit fileChanged(mod->filePath(item));
     }
 

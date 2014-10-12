@@ -66,7 +66,6 @@ cl_command_queue OpenCLContext::queue()
 
 cl_context OpenCLContext::context()
 {
-//    qDebug() << "getContyext";
     return p_context;
 }
 
