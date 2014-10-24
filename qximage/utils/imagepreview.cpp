@@ -689,11 +689,11 @@ void ImagePreviewWorker::peakHuntSingle(ImageInfo image)
 {
 }
 
-void ImagePreviewWorker::peakHuntFolder(ImageFolder folder)
+void ImagePreviewWorker::peakHuntFolder(ImageSeries series)
 {
 }
 
-void ImagePreviewWorker::peakHuntSet(FolderSet set)
+void ImagePreviewWorker::peakHuntSet(SeriesSet set)
 {
 }
 
@@ -718,16 +718,16 @@ void ImagePreviewWorker::analyzeSingle(ImageInfo image)
     emit resultFinished(result);
 }
 
-void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
+void ImagePreviewWorker::analyzeFolder(ImageSeries series)
 {
     double integral = 0;
     Matrix<double> weightpoint(1,3,0);
     
     QString frames;        
-    for (int i = 0; i < folder.size(); i++)
+    for (int i = 0; i < series.size(); i++)
     {
         // Draw the frame and update the intensity OpenCL buffer prior to further operations 
-        setFrame(*folder.current());
+        setFrame(*series.current());
         {
             QPainter painter(paint_device_gl);
             render(&painter);
@@ -745,7 +745,7 @@ void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
         
         frames += integrationFrameString(frame, frame_image);
     
-        folder.next();
+        series.next();
     }
     
     if (integral > 0)
@@ -758,10 +758,10 @@ void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
     }
     
     QString result;
-    result += "# Analysis of frames in folder "+folder.path()+"\n";
+    result += "# Analysis of frames in series "+series.path()+"\n";
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
-    result += "# Sum of total integrated area in folder "+QString::number(integral,'E')+"\n";
+    result += "# Sum of total integrated area in series "+QString::number(integral,'E')+"\n";
     result += "# Weightpoint xyz "+QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
     result += "# Analysis of the individual frames (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
     result += frames;
@@ -769,12 +769,12 @@ void ImagePreviewWorker::analyzeFolder(ImageFolder folder)
     emit resultFinished(result);
 }
 
-void ImagePreviewWorker::analyzeSet(FolderSet set)
+void ImagePreviewWorker::analyzeSet(SeriesSet set)
 {
     double integral = 0;
-    QStringList folder_integral;
-    QStringList folder_weightpoint;
-    QStringList folder_frames;
+    QStringList series_integral;
+    QStringList series_weightpoint;
+    QStringList series_frames;
     QString str;
     
     for (int i = 0; i < set.size(); i++)
@@ -814,12 +814,12 @@ void ImagePreviewWorker::analyzeSet(FolderSet set)
             weightpoint.set(1,3,0);
         }
         
-        folder_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+        series_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
         
-        folder_integral << QString(QString::number(integral,'E')+"\n"); //+" "+set.current()->path()+
+        series_integral << QString(QString::number(integral,'E')+"\n"); //+" "+set.current()->path()+
         integral = 0;
         
-        folder_frames << str;
+        series_frames << str;
         str.clear();
         
         set.next();
@@ -827,25 +827,25 @@ void ImagePreviewWorker::analyzeSet(FolderSet set)
     
     QString result;
     
-    result += "# Analysis of frames in several folders\n";
+    result += "# Analysis of frames in several seriess\n";
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
-    result += "# Sum of total integrated area in folders\n";
-    foreach(const QString &str, folder_integral)
+    result += "# Sum of total integrated area in seriess\n";
+    foreach(const QString &str, series_integral)
     {
         result += str;
     }
-    result += "# Weightpoints in folders (Qx, Qy, Qz, |Q|)\n";
-    foreach(const QString &str, folder_weightpoint)
+    result += "# Weightpoints in seriess (Qx, Qy, Qz, |Q|)\n";
+    foreach(const QString &str, series_weightpoint)
     {
         result += str;
     }
     
-    result += "# Analysis of the individual frames for each folder (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
-    for (int i = 0; i < folder_integral.size(); i++)
+    result += "# Analysis of the individual frames for each series (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+    for (int i = 0; i < series_integral.size(); i++)
     {
-        result += "# Folder integral "+folder_integral.at(i);
-        result += folder_frames.at(i);
+        result += "# Folder integral "+series_integral.at(i);
+        result += series_frames.at(i);
     }
     
     emit resultFinished(result);
@@ -2088,5 +2088,22 @@ void ImagePreviewWindow::renderNow()
     renderLater();
 }
 
+SeriesToolShed::SeriesToolShed()
+{
 
+}
 
+SeriesToolShed::~SeriesToolShed()
+{
+
+}
+
+void ImagePreviewWorker::populateSeriesBackgroundSamples(ImageSeries * series)
+{
+    // Given a set of rules for sample selection
+
+    // For each image in the series
+
+    // Move relevant samples into a separate buffer
+
+}

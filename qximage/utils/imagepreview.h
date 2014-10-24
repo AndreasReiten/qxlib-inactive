@@ -53,17 +53,21 @@ public slots:
     void setSelectionBetaActive(bool value);
     void centerImage();
     void analyzeSingle(ImageInfo image);
-    void analyzeFolder(ImageFolder folder);
-    void analyzeSet(FolderSet set);
+    void analyzeFolder(ImageSeries series);
+    void analyzeSet(SeriesSet set);
     
     void peakHuntSingle(ImageInfo image);
-    void peakHuntFolder(ImageFolder folder);
-    void peakHuntSet(FolderSet set);
+    void peakHuntFolder(ImageSeries series);
+    void peakHuntSet(SeriesSet set);
     
     void showWeightCenter(bool value);
     
 private:
     
+    // Series
+    void populateSeriesBackgroundSamples(ImageSeries * series);
+
+
     // GPU functions
     void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, int correction, float mean, float deviation, int task);
     
@@ -299,12 +303,12 @@ private:
                                                         cl_int *errcode_ret);
 
 
-    PROTOTYPE_QOpenCLSetKernelArg QOpenCLSetKernelArg; // OK
-    PROTOTYPE_QOpenCLEnqueueNDRangeKernel QOpenCLEnqueueNDRangeKernel; // OK
-    PROTOTYPE_QOpenCLFinish QOpenCLFinish; // OK
+    PROTOTYPE_QOpenCLSetKernelArg QOpenCLSetKernelArg;
+    PROTOTYPE_QOpenCLEnqueueNDRangeKernel QOpenCLEnqueueNDRangeKernel;
+    PROTOTYPE_QOpenCLFinish QOpenCLFinish;
     PROTOTYPE_QOpenCLEnqueueAcquireGLObjects QOpenCLEnqueueAcquireGLObjects;
     PROTOTYPE_QOpenCLEnqueueReleaseGLObjects QOpenCLEnqueueReleaseGLObjects;
-    PROTOTYPE_QOpenCLEnqueueReadBuffer QOpenCLEnqueueReadBuffer; // OK
+    PROTOTYPE_QOpenCLEnqueueReadBuffer QOpenCLEnqueueReadBuffer;
     PROTOTYPE_QOpenCLCreateBuffer QOpenCLCreateBuffer;
     PROTOTYPE_QOpenCLReleaseMemObject QOpenCLReleaseMemObject;
     PROTOTYPE_QOpenCLCreateFromGLTexture2D QOpenCLCreateFromGLTexture2D;
@@ -352,6 +356,22 @@ private:
 
     SharedContextWindow * shared_window;
     ImagePreviewWorker * gl_worker;
+};
+
+class SeriesToolShed
+{
+public:
+    SeriesToolShed();
+    ~SeriesToolShed();
+
+    // Background samples container and background interpolation container
+    cl_mem series_samples_gpu;
+    cl_mem series_interpol_gpu;
+
+    Matrix<float> series_samples_cpu;
+    Matrix<float> series_interpol_cpu;
+
+
 };
 
 #endif // IMAGEPREVIEW_H

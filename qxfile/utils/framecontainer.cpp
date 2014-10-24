@@ -85,12 +85,12 @@ QDataStream &operator>>(QDataStream &in, ImageInfo &image)
 }
 
 
-ImageFolder::ImageFolder()
+ImageSeries::ImageSeries()
 {
     p_i = 0;
     p_i_memory = 0;
 }
-ImageFolder::ImageFolder(const ImageFolder & other)
+ImageSeries::ImageSeries(const ImageSeries & other)
 {
     p_images = other.images();
     p_path = other.path();
@@ -98,33 +98,33 @@ ImageFolder::ImageFolder(const ImageFolder & other)
     p_i_memory = 0;
     
 }
-ImageFolder::~ImageFolder()
+ImageSeries::~ImageSeries()
 {
     ;
 }
 
-void ImageFolder::setPath(QString str)
+void ImageSeries::setPath(QString str)
 {
     p_path = str;
 }
 
-const QString ImageFolder::path() const
+const QString ImageSeries::path() const
 {
     return p_path;
 }
 
-int ImageFolder::size() const
+int ImageSeries::size() const
 {
     return p_images.size();
 }
 
-int ImageFolder::i() const
+int ImageSeries::i() const
 {
     return p_i;
 }
 
 
-QStringList ImageFolder::paths()
+QStringList ImageSeries::paths()
 {
     QStringList paths;
 
@@ -136,14 +136,14 @@ QStringList ImageFolder::paths()
     return paths;
 }
 
-void ImageFolder::setImages(QList<ImageInfo> list)
+void ImageSeries::setImages(QList<ImageInfo> list)
 {
     p_images = list;
     p_i = 0;
     p_i_memory = 0;
 }
 
-void ImageFolder::clear()
+void ImageSeries::clear()
 {
     p_images.clear();
 
@@ -151,7 +151,7 @@ void ImageFolder::clear()
     p_i_memory = 0;
 }
 
-void ImageFolder::removeCurrent()
+void ImageSeries::removeCurrent()
 {
     p_images.removeAt(p_i);
 
@@ -161,12 +161,12 @@ void ImageFolder::removeCurrent()
     }
 }
 
-void ImageFolder::rememberCurrent()
+void ImageSeries::rememberCurrent()
 {
     p_i_memory = p_i;
 }
 
-void ImageFolder::restoreMemory()
+void ImageSeries::restoreMemory()
 {
     if (p_i_memory < images().size())
     {
@@ -174,17 +174,17 @@ void ImageFolder::restoreMemory()
     }
 }
 
-void ImageFolder::append(ImageInfo image)
+void ImageSeries::append(ImageInfo image)
 {
     p_images.append(image);
 }
 
-ImageInfo * ImageFolder::current()
+ImageInfo * ImageSeries::current()
 {
     return &p_images[p_i];
 }
 
-ImageInfo * ImageFolder::next()
+ImageInfo * ImageSeries::next()
 {
     if (p_i < p_images.size() - 1)
     {
@@ -194,7 +194,7 @@ ImageInfo * ImageFolder::next()
     return &p_images[p_i];
 }
 
-ImageInfo * ImageFolder::at(int value)
+ImageInfo * ImageSeries::at(int value)
 {
     if (value >= p_images.size())
     {
@@ -211,7 +211,7 @@ ImageInfo * ImageFolder::at(int value)
 }
 
 
-ImageInfo * ImageFolder::previous()
+ImageInfo * ImageSeries::previous()
 {
     if ((p_i > 0) && (p_images.size() > 0))
     {
@@ -221,129 +221,139 @@ ImageInfo * ImageFolder::previous()
     return &p_images[p_i];
 }
 
-ImageInfo * ImageFolder::begin()
+ImageInfo * ImageSeries::begin()
 {
     p_i = 0;
     return &p_images[p_i];
 }
 
-const QList<ImageInfo> & ImageFolder::images() const
+const QList<ImageInfo> & ImageSeries::images() const
 {
     return p_images;
 }
 
-bool ImageFolder::operator ==(const ImageFolder& other)
+bool ImageSeries::operator ==(const ImageSeries& other)
 {
     if (this->path() == other.path()) return true;
     else return false;
 }
 
-QDebug operator<<(QDebug dbg, const ImageFolder &image_folder)
+QDebug operator<<(QDebug dbg, const ImageSeries &image_series)
 {
-    dbg.nospace() << "ImageFolder()" << image_folder.path();
+    dbg.nospace() << "ImageFolder()" << image_series.path();
     return dbg.maybeSpace();
 }
 
-QDataStream &operator<<(QDataStream &out, const ImageFolder &image_folder)
+QDataStream &operator<<(QDataStream &out, const ImageSeries &image_series)
 {
-    out << image_folder.path() << image_folder.images();
+    out << image_series.path() << image_series.images();
 
     return out;
 }
 
-QDataStream &operator>>(QDataStream &in, ImageFolder &image_folder)
+QDataStream &operator>>(QDataStream &in, ImageSeries &image_series)
 {
     QString path;
     QList<ImageInfo> images;
 
     in >> path >> images;
-    image_folder.setPath(path);
-    image_folder.setImages(images);
+    image_series.setPath(path);
+    image_series.setImages(images);
 
     return in;
 }
 
-ImageFolder &operator<<(ImageFolder &image_folder, const ImageInfo &image)
+ImageSeries &operator<<(ImageSeries &image_series, const ImageInfo &image)
 {
-    image_folder.append(image);
+    image_series.append(image);
 
-    return image_folder;
+    return image_series;
 }
 
-FolderSet::FolderSet()
+SeriesSet::SeriesSet()
 {
     p_i = 0;
     p_i_memory = 0;
 }
-FolderSet::FolderSet(const FolderSet & other)
+SeriesSet::SeriesSet(const SeriesSet & other)
 {
-    p_folders = other.folders();
+    p_seriess = other.seriess();
     p_i = 0;
     p_i_memory = 0;
     
 }
-FolderSet::~FolderSet()
+SeriesSet::~SeriesSet()
 {
 
 }
-ImageFolder * FolderSet::current()
+ImageSeries * SeriesSet::current()
 {
-    return &p_folders[p_i];
+    return &p_seriess[p_i];
 }
-ImageFolder * FolderSet::next()
+ImageSeries * SeriesSet::next()
 {
-    if (p_i < p_folders.size() - 1)
+    if (p_i < p_seriess.size() - 1)
     {
         p_i++;
     }
 
-    return &p_folders[p_i];
+    return &p_seriess[p_i];
 }
-ImageFolder * FolderSet::previous()
+ImageSeries * SeriesSet::previous()
 {
-    if ((p_i > 0) && (p_folders.size() > 0))
+    if ((p_i > 0) && (p_seriess.size() > 0))
     {
         p_i--;
     }
 
-    return &p_folders[p_i];
+    return &p_seriess[p_i];
 }
 
-ImageFolder * FolderSet::begin()
+ImageSeries * SeriesSet::begin()
 {
     p_i = 0;
-    return &p_folders[p_i];
+    return &p_seriess[p_i];
 }
 
-void FolderSet::setFolders(QList<ImageFolder> list)
+void SeriesSet::setFolders(QList<ImageSeries> list)
 {
-    p_folders = list;
+    p_seriess = list;
 }
 
-void FolderSet::rememberCurrent()
+bool SeriesSet::isEmpty()
+{
+    for (int i = 0; i < p_seriess.size(); i++)
+    {
+        if (p_seriess[i].size()) return false;
+    }
+
+    return true;
+}
+
+void SeriesSet::rememberCurrent()
 {
     p_i_memory = p_i;
 }
 
-void FolderSet::restoreMemory()
+void SeriesSet::restoreMemory()
 {
-    if (p_i_memory < folders().size())
+    if (p_i_memory < seriess().size())
     {
         p_i = p_i_memory;
     }
 }
 
-void FolderSet::clear()
+void SeriesSet::clear()
 {
-    p_folders.clear();
+    p_seriess.clear();
 
     p_i = 0;
     p_i_memory = 0;
 }
 
-void FolderSet::removeCurrent()
+void SeriesSet::removeCurrent()
 {
-    p_folders.removeAt(p_i);
+    p_seriess.removeAt(p_i);
 
     if (p_i > 0)
     {
@@ -351,78 +361,78 @@ void FolderSet::removeCurrent()
     }
 }
 
-QStringList FolderSet::paths()
+QStringList SeriesSet::paths()
 {
     QStringList paths;
 
-    for (int i = 0; i < p_folders.size(); i++)
+    for (int i = 0; i < p_seriess.size(); i++)
     {
-        for (int j = 0; j < p_folders[i].images().size(); j++)
+        for (int j = 0; j < p_seriess[i].images().size(); j++)
         {
-            paths << p_folders[i].images()[j].path();
+            paths << p_seriess[i].images()[j].path();
         }
     }
 
     return paths;
 }
 
-ImageFolder FolderSet::onefolder()
+ImageSeries SeriesSet::oneSeries()
 {
-    ImageFolder folder;
+    ImageSeries series;
     
-    for (int i = 0; i < p_folders.size(); i++)
+    for (int i = 0; i < p_seriess.size(); i++)
     {
-        for (int j = 0; j < p_folders[i].images().size(); j++)
+        for (int j = 0; j < p_seriess[i].images().size(); j++)
         {
-            folder << p_folders[i].images()[j];
+            series << p_seriess[i].images()[j];
         }
     }
 
-    return folder;
+    return series;
 }
 
 
-int FolderSet::size() const
+int SeriesSet::size() const
 {
-    return p_folders.size();
+    return p_seriess.size();
 }
 
-const QList<ImageFolder> &FolderSet::folders() const
+const QList<ImageSeries> &SeriesSet::seriess() const
 {
-    return p_folders;
+    return p_seriess;
 }
 
-void FolderSet::append(ImageFolder image_folder)
+void SeriesSet::append(ImageSeries image_series)
 {
-    p_folders.append(image_folder);
+    p_seriess.append(image_series);
 }
 
-QDebug operator<<(QDebug dbg, const FolderSet &folder_set)
+QDebug operator<<(QDebug dbg, const SeriesSet &series_set)
 {
-    dbg.nospace() << "FolderSet()" << folder_set.size();
+    dbg.nospace() << "FolderSet()" << series_set.size();
     return dbg.maybeSpace();
 }
 
-QDataStream &operator<<(QDataStream &out, const FolderSet &folder_set)
+QDataStream &operator<<(QDataStream &out, const SeriesSet &series_set)
 {
-    out << folder_set.folders();
+    out << series_set.seriess();
 
     return out;
 }
 
-QDataStream &operator>>(QDataStream &in, FolderSet &folder_set)
+QDataStream &operator>>(QDataStream &in, SeriesSet &series_set)
 {
-    QList<ImageFolder> folder_list;
+    QList<ImageSeries> series_list;
 
-    in >> folder_list;
-    folder_set.setFolders(folder_list);
+    in >> series_list;
+    series_set.setFolders(series_list);
 
     return in;
 }
 
-FolderSet &operator<<(FolderSet &folder_set, const ImageFolder &image_folder)
+SeriesSet &operator<<(SeriesSet &series_set, const ImageSeries &image_series)
 {
-    folder_set.append(image_folder);
+    series_set.append(image_series);
 
-    return folder_set;
+    return series_set;
 }

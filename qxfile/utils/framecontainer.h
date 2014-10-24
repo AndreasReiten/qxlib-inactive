@@ -39,12 +39,12 @@ QDebug operator<<(QDebug dbg, const ImageInfo &image);
 QDataStream &operator<<(QDataStream &out, const ImageInfo &image);
 QDataStream &operator>>(QDataStream &in, ImageInfo &image);
 
-class ImageFolder
+class ImageSeries
 {
 public:
-    ImageFolder();
-    ImageFolder(const ImageFolder & other);
-    ~ImageFolder();
+    ImageSeries();
+    ImageSeries(const ImageSeries & other);
+    ~ImageSeries();
 
     void setPath(QString str);
     const QString path() const;
@@ -67,7 +67,7 @@ public:
     ImageInfo * begin();
     ImageInfo * at(int value);
 
-    bool operator == (const ImageFolder&);
+    bool operator == (const ImageSeries&);
 
 private:
     QString p_path;
@@ -77,53 +77,55 @@ private:
 
 };
 
-Q_DECLARE_METATYPE(ImageFolder);
+Q_DECLARE_METATYPE(ImageSeries);
 
-QDebug operator<<(QDebug dbg, const ImageFolder &image_folder);
+QDebug operator<<(QDebug dbg, const ImageSeries &image_series);
 
-QDataStream &operator<<(QDataStream &out, const ImageFolder &image_folder);
-QDataStream &operator>>(QDataStream &in, ImageFolder &image_folder);
+QDataStream &operator<<(QDataStream &out, const ImageSeries &image_series);
+QDataStream &operator>>(QDataStream &in, ImageSeries &image_series);
 
-ImageFolder &operator<<(ImageFolder &image_folder, const ImageInfo &image);
+ImageSeries &operator<<(ImageSeries &image_series, const ImageInfo &image);
 
-class FolderSet
+class SeriesSet
 {
 public:
-    FolderSet();
-    FolderSet(const FolderSet & other);
-    ~FolderSet();
+    SeriesSet();
+    SeriesSet(const SeriesSet & other);
+    ~SeriesSet();
 
-    ImageFolder * current();
-    ImageFolder * next();
-    ImageFolder * previous();
-    ImageFolder * begin();
+    ImageSeries * current();
+    ImageSeries * next();
+    ImageSeries * previous();
+    ImageSeries * begin();
     
 
     QStringList paths();
-    ImageFolder onefolder();
+    ImageSeries oneSeries();
     
+    bool isEmpty();
+
     void rememberCurrent();
     void restoreMemory();
     void clear();
-    void append(ImageFolder image_folder);
+    void append(ImageSeries image_series);
     void removeCurrent();
-    void setFolders(QList<ImageFolder> list);
-    const QList<ImageFolder> &folders() const;
+    void setFolders(QList<ImageSeries> list);
+    const QList<ImageSeries> &seriess() const;
     int size() const;
     
 private:
-    QList<ImageFolder> p_folders;
+    QList<ImageSeries> p_seriess;
     int p_i;
     int p_i_memory;
 };
 
-Q_DECLARE_METATYPE(FolderSet);
+Q_DECLARE_METATYPE(SeriesSet);
 
-QDebug operator<<(QDebug dbg, const FolderSet &folder_set);
+QDebug operator<<(QDebug dbg, const SeriesSet &series_set);
 
-QDataStream &operator<<(QDataStream &out, const FolderSet &folder_set);
-QDataStream &operator>>(QDataStream &in, FolderSet &folder_set);
+QDataStream &operator<<(QDataStream &out, const SeriesSet &series_set);
+QDataStream &operator>>(QDataStream &in, SeriesSet &series_set);
 
-FolderSet &operator<<(FolderSet &folder_set, const ImageFolder &image_folder);
+SeriesSet &operator<<(SeriesSet &series_set, const ImageSeries &image_series);
 
 #endif // FRAMECONTAINER_H
