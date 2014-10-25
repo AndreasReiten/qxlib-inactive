@@ -240,7 +240,7 @@ bool ImageSeries::operator ==(const ImageSeries& other)
 
 QDebug operator<<(QDebug dbg, const ImageSeries &image_series)
 {
-    dbg.nospace() << "ImageFolder()" << image_series.path();
+    dbg.nospace() << "ImageSeries()" << image_series.path();
     return dbg.maybeSpace();
 }
 
@@ -409,7 +409,7 @@ void SeriesSet::append(ImageSeries image_series)
 
 QDebug operator<<(QDebug dbg, const SeriesSet &series_set)
 {
-    dbg.nospace() << "FolderSet()" << series_set.size();
+    dbg.nospace() << "SeriesSet()" << series_set.size();
     return dbg.maybeSpace();
 }
 
