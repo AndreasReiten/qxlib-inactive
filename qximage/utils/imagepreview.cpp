@@ -107,6 +107,26 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
 
     QOpenCLEnqueueWriteBuffer = (PROTOTYPE_QOpenCLEnqueueWriteBuffer) myLib.resolve("clEnqueueWriteBuffer");
     if (!QOpenCLEnqueueWriteBuffer) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLReleaseKernel = (PROTOTYPE_QOpenCLReleaseKernel) myLib.resolve("clReleaseKernel");
+    if (!QOpenCLReleaseKernel) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLCreateImage2D = (PROTOTYPE_QOpenCLCreateImage2D) myLib.resolve("clCreateImage2D");
+    if (!QOpenCLCreateImage2D) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLCreateImage3D = (PROTOTYPE_QOpenCLCreateImage3D) myLib.resolve("clCreateImage3D");
+    if (!QOpenCLCreateImage3D) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLEnqueueReadImage = (PROTOTYPE_QOpenCLEnqueueReadImage) myLib.resolve("clEnqueueReadImage");
+    if (!QOpenCLEnqueueReadImage) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLReleaseSampler = (PROTOTYPE_QOpenCLReleaseSampler) myLib.resolve("clReleaseSampler");
+    if (!QOpenCLReleaseSampler) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+    QOpenCLEnqueueCopyBufferToImage  = (PROTOTYPE_QOpenCLEnqueueCopyBufferToImage ) myLib.resolve("clEnqueueCopyBufferToImage");
+    if (!QOpenCLEnqueueCopyBufferToImage ) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+
+
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
@@ -157,7 +177,6 @@ void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl,
     
     glFinish();
 
-//    qDebug() << "it is now required";
     err =  QOpenCLEnqueueAcquireGLObjects(context_cl->queue(), 1, &frame_image_cl, 0, 0, 0);
     err |=  QOpenCLEnqueueAcquireGLObjects(context_cl->queue(), 1, &tsf_image_cl, 0, 0, 0);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -776,9 +795,75 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
     QStringList series_weightpoint;
     QStringList series_frames;
     QString str;
-    
+
     for (int i = 0; i < set.size(); i++)
     {
+        // Background correction: Note: It is assumed that all images a series have the same dimensions
+        // Use the first frame as an example:
+        setFrame(*set.current()->current());
+
+
+        // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid.
+        size_t sample_equidistance = 8;
+
+        // Prepare the storage buffer
+        size_t m = frame.getSlowDimension()/sample_equidistance;
+        size_t n = frame.getFastDimension()/sample_equidistance;
+
+        main_series.series_samples_cpu.set(m, n, set.current()->size());
+
+        // For each image in the series
+        for (int j = 0; j < set.current()->size(); j++)
+        {
+            // Move relevant samples into a separate buffer
+            for (int k = 0; k < n; k++)
+            {
+                for (int l = 0; l < m; l++)
+                {
+                    main_series.series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
+                }
+            }
+        }
+
+        // Move series storage buffer into gpu memory
+        main_series.series_samples_gpu = QOpenCLCreateBuffer( context_cl->context(),
+                CL_MEM_COPY_HOST_PTR,
+                main_series.series_samples_cpu.bytes(),
+                main_series.series_samples_cpu.data(),
+                &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        main_series.series_interpol_gpu = QOpenCLCreateBuffer( context_cl->context(),
+                CL_MEM_ALLOC_HOST_PTR,
+                main_series.series_interpol_cpu.bytes(),
+                NULL,
+                &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        // Do GPU magic on series, saving an interpolation object in gpu memory
+
+
+        // Copy data over to image buffer and release some buffers
+        Matrix<size_t> dst_origin(1,3,0);
+        Matrix<size_t> region(1,3);
+        region[0] = n;
+        region[1] = m;
+        region[2] = set.current()->size();
+
+        err = QOpenCLEnqueueCopyBufferToImage(  context_cl->queue(),
+                                                main_series.series_interpol_gpu,
+                                                main_series.series_interpol_gpu_3Dimg,
+                                                0,
+                                                dst_origin.data(),
+                                                region.data(),
+                                                0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        err =  QOpenCLReleaseMemObject(main_series.series_samples_gpu);
+        err |=  QOpenCLReleaseMemObject(main_series.series_samples_gpu);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+
         Matrix<double> weightpoint(1,3,0);
         
         for (int j = 0; j < set.current()->size(); j++)
@@ -2100,7 +2185,15 @@ SeriesToolShed::~SeriesToolShed()
 
 void ImagePreviewWorker::populateSeriesBackgroundSamples(ImageSeries * series)
 {
-    // Given a set of rules for sample selection
+    // Note: It is assumed that all images in a series have the same dimensions
+
+    // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid.
+//    size_t sample_equidistance = 8;
+
+    // Prepare the storage buffer
+//    size_t m = series->
+
+//    main_series.series_samples_cpu.set(m,n,0);
 
     // For each image in the series
 

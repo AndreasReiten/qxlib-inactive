@@ -12,6 +12,22 @@
 #include "../../qxfile/qxfilelib.h"
 #include "../../qxmath/qxmathlib.h"
 
+class SeriesToolShed
+{
+public:
+    SeriesToolShed();
+    ~SeriesToolShed();
+
+    // Background samples container and background interpolation container
+    cl_mem series_samples_gpu;
+    cl_mem series_interpol_gpu;
+    cl_mem series_interpol_gpu_3Dimg;
+
+    Matrix<float> series_samples_cpu;
+    Matrix<float> series_interpol_cpu;
+
+
+};
 
 class ImagePreviewWorker : public OpenGLWorker
 {
@@ -65,6 +81,7 @@ public slots:
 private:
     
     // Series
+    SeriesToolShed main_series;
     void populateSeriesBackgroundSamples(ImageSeries * series);
 
 
@@ -302,7 +319,59 @@ private:
                                                         const char *kernel_name,
                                                         cl_int *errcode_ret);
 
+    typedef cl_int (*PROTOTYPE_QOpenCLReleaseSampler) ( 	cl_sampler sampler);
 
+    typedef cl_int (*PROTOTYPE_QOpenCLEnqueueReadImage)( 	cl_command_queue command_queue,
+                                                            cl_mem image,
+                                                            cl_bool blocking_read,
+                                                            const size_t origin[3],
+                                                            const size_t region[3],
+                                                            size_t row_pitch,
+                                                            size_t slice_pitch,
+                                                            void *ptr,
+                                                            cl_uint num_events_in_wait_list,
+                                                            const cl_event *event_wait_list,
+                                                            cl_event *event);
+
+    typedef cl_mem (*PROTOTYPE_QOpenCLCreateImage2D)( 	cl_context context,
+                                                        cl_mem_flags flags,
+                                                        const cl_image_format *image_format,
+                                                        size_t image_width,
+                                                        size_t image_height,
+                                                        size_t image_row_pitch,
+                                                        void *host_ptr,
+                                                        cl_int *errcode_ret);
+
+
+    typedef cl_mem (*PROTOTYPE_QOpenCLCreateImage3D) ( 	cl_context context,
+                                                        cl_mem_flags flags,
+                                                        const cl_image_format *image_format,
+                                                        size_t image_width,
+                                                        size_t image_height,
+                                                        size_t image_depth,
+                                                        size_t image_row_pitch,
+                                                        size_t image_slice_pitch,
+                                                        void *host_ptr,
+                                                        cl_int *errcode_ret);
+
+    typedef cl_int (*PROTOTYPE_QOpenCLEnqueueCopyBufferToImage) ( 	cl_command_queue command_queue,
+                                                                    cl_mem src_buffer,
+                                                                    cl_mem  dst_image,
+                                                                    size_t src_offset,
+                                                                    const size_t dst_origin[3],
+                                                                    const size_t region[3],
+                                                                    cl_uint num_events_in_wait_list,
+                                                                    const cl_event *event_wait_list,
+                                                                    cl_event *event);
+
+    typedef cl_int (*PROTOTYPE_QOpenCLReleaseKernel)  ( 	cl_kernel kernel);
+
+    PROTOTYPE_QOpenCLReleaseKernel QOpenCLReleaseKernel;
+    PROTOTYPE_QOpenCLCreateImage2D QOpenCLCreateImage2D;
+    PROTOTYPE_QOpenCLReleaseSampler QOpenCLReleaseSampler;
+    PROTOTYPE_QOpenCLEnqueueCopyBufferToImage QOpenCLEnqueueCopyBufferToImage;
+    PROTOTYPE_QOpenCLEnqueueReadImage QOpenCLEnqueueReadImage;
+    PROTOTYPE_QOpenCLCreateImage3D QOpenCLCreateImage3D;
     PROTOTYPE_QOpenCLSetKernelArg QOpenCLSetKernelArg;
     PROTOTYPE_QOpenCLEnqueueNDRangeKernel QOpenCLEnqueueNDRangeKernel;
     PROTOTYPE_QOpenCLFinish QOpenCLFinish;
@@ -356,22 +425,6 @@ private:
 
     SharedContextWindow * shared_window;
     ImagePreviewWorker * gl_worker;
-};
-
-class SeriesToolShed
-{
-public:
-    SeriesToolShed();
-    ~SeriesToolShed();
-
-    // Background samples container and background interpolation container
-    cl_mem series_samples_gpu;
-    cl_mem series_interpol_gpu;
-
-    Matrix<float> series_samples_cpu;
-    Matrix<float> series_interpol_cpu;
-
-
 };
 
 #endif // IMAGEPREVIEW_H
