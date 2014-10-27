@@ -64,6 +64,7 @@ class Matrix {
 
 //        void normalize();
         void setIdentity(size_t p_n);
+        void set(size_t p_m, size_t p_n);
         void set(size_t p_m, size_t p_n, T value);
         void setDeep(size_t p_m, size_t p_n, T * p_buffer);
         void reserve(size_t p_m, size_t p_n);
@@ -966,6 +967,15 @@ Matrix<T>& Matrix<T>::operator = (Matrix<T> other)
     return * this;
 }
 
+
+template <class T>
+void Matrix<T>::set(size_t m, size_t n)
+{
+    this->clear();
+    this->p_m = m;
+    this->p_n = n;
+    this->p_buffer.resize(m*n);
+}
 
 template <class T>
 void Matrix<T>::set(size_t m, size_t n, T value)

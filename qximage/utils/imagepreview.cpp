@@ -810,7 +810,10 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         size_t m = frame.getSlowDimension()/sample_equidistance;
         size_t n = frame.getFastDimension()/sample_equidistance;
 
-        main_series.series_samples_cpu.set(m, n, set.current()->size());
+        main_series.series_samples_cpu.set(1, m*n*set.current()->size());
+        main_series.series_interpol_cpu.set(1, m*n*set.current()->size());
+
+//        qDebug() << m << n << set.current()->size() << main_series.series_samples_cpu.size();
 
         // For each image in the series
         for (int j = 0; j < set.current()->size(); j++)
@@ -820,6 +823,7 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
             {
                 for (int l = 0; l < m; l++)
                 {
+                    // Note: In a better world this memeory would be aligned in according to gpu memory optimization. This is bank conflict incarnate. Easy enough to fix.
                     main_series.series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
                 }
             }
@@ -840,8 +844,26 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
                 &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-        // Do GPU magic on series, saving an interpolation object in gpu memory
 
+
+        // Do GPU magic on series, saving an interpolation object in gpu memory
+        err =   QOpenCLSetKernelArg(cl_glowstick,  0, sizeof(cl_mem), (void *) &main_series.series_samples_gpu);
+        err |=   QOpenCLSetKernelArg(cl_glowstick, 1, sizeof(cl_mem), (void *) &main_series.series_interpol_gpu);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        Matrix<size_t> global_ws(1,2);
+        Matrix<size_t> local_ws(1,2);
+        local_ws[0] = 16;
+        local_ws[1] = 16;
+
+        global_ws[0] = m + local_ws[0] - n%local_ws[0];
+        global_ws[1] = n + local_ws[1] - m%local_ws[1];
+
+        err =   QOpenCLEnqueueNDRangeKernel(context_cl->queue(), cl_glowstick, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        err =   QOpenCLFinish(context_cl->queue());
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         // Copy data over to image buffer and release some buffers
         Matrix<size_t> dst_origin(1,3,0);
@@ -849,6 +871,21 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         region[0] = n;
         region[1] = m;
         region[2] = set.current()->size();
+
+        main_series.format_3Dimg.image_channel_order = CL_INTENSITY;
+        main_series.format_3Dimg.image_channel_data_type = CL_FLOAT;
+
+        main_series.series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
+            CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
+            &main_series.format_3Dimg,
+            region[0],
+            region[1],
+            region[2],
+            0,
+            0,
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         err = QOpenCLEnqueueCopyBufferToImage(  context_cl->queue(),
                                                 main_series.series_interpol_gpu,
@@ -860,7 +897,8 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         err =  QOpenCLReleaseMemObject(main_series.series_samples_gpu);
-        err |=  QOpenCLReleaseMemObject(main_series.series_samples_gpu);
+        err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu);
+        err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu_3Dimg);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
 
@@ -1049,6 +1087,7 @@ void ImagePreviewWorker::initOpenCL()
     // Build program from OpenCL kernel source
     QStringList paths;
     paths << "cl/image_preview.cl";
+    paths << "cl/background_filter.cl";
 
     program = context_cl->createProgram(paths, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -1060,6 +1099,9 @@ void ImagePreviewWorker::initOpenCL()
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     cl_image_calculus =  QOpenCLCreateKernel(program, "imageCalculus", &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    cl_glowstick =  QOpenCLCreateKernel(program, "glowstick", &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Image sampler

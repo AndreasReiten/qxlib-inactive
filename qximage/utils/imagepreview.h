@@ -23,6 +23,8 @@ public:
     cl_mem series_interpol_gpu;
     cl_mem series_interpol_gpu_3Dimg;
 
+    cl_image_format format_3Dimg;
+
     Matrix<float> series_samples_cpu;
     Matrix<float> series_interpol_cpu;
 
@@ -123,6 +125,7 @@ private:
     cl_program program;
     cl_kernel cl_display_image;
     cl_kernel cl_image_calculus;
+    cl_kernel cl_glowstick;
     cl_mem image_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
