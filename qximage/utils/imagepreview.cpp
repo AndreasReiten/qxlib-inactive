@@ -1346,11 +1346,11 @@ void ImagePreviewWorker::render(QPainter *painter)
     drawImage(painter);
     
     ColorMatrix<float> analysis_area_color(0.0,0,0,1);
-    ColorMatrix<float> background_area_color(0.0,1,0,1);
+//    ColorMatrix<float> background_area_color(0.0,1,0,1);
     ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
     
     drawSelection(frame_image.selection(), painter, analysis_area_color);
-    drawSelection(frame_image.background(), painter, background_area_color);
+//    drawSelection(frame_image.background(), painter, background_area_color);
     
     if (isWeightCenterActive) drawWeightpoint(frame_image.selection(), painter, analysis_wp_color);
     
