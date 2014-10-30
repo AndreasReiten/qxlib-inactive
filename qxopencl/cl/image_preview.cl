@@ -117,7 +117,8 @@ __kernel void imageCalculus(
             }
 
             // Post correction filter
-            value = clamp(value, pct_low, pct_high);
+            value = clamp(value, pct_low, pct_high); // Note: remove this filter at some point. It is bad.
+            value -= pct_low;
 
             out_buf[id_glb.y * image_size.x + id_glb.x] = value;
         }
