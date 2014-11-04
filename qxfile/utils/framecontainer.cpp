@@ -2,8 +2,8 @@
 
 ImageInfo::ImageInfo()
 {
-    p_selection = Selection(0,0,64,64);
-    p_background = Selection(64,0,64,64);
+    p_selection = Selection(0,0,1e5,1e5);
+    p_background = Selection(0,0,1e5,1e5);
 }
 
 ImageInfo::ImageInfo(const ImageInfo & other)
@@ -134,6 +134,14 @@ QStringList ImageSeries::paths()
     }
 
     return paths;
+}
+
+void ImageSeries::setSelection(Selection rect)
+{
+    for (int i = 0; i < p_images.size(); i++)
+    {
+        p_images[i].setSelection(rect);
+    }
 }
 
 void ImageSeries::setImages(QList<ImageInfo> list)
@@ -277,7 +285,7 @@ SeriesSet::SeriesSet()
 }
 SeriesSet::SeriesSet(const SeriesSet & other)
 {
-    p_seriess = other.seriess();
+    p_seriess = other.series();
     p_i = 0;
     p_i_memory = 0;
     
@@ -318,6 +326,8 @@ ImageSeries * SeriesSet::begin()
 void SeriesSet::setFolders(QList<ImageSeries> list)
 {
     p_seriess = list;
+    p_i = 0;
+    p_i_memory = 0;
 }
 
 bool SeriesSet::isEmpty()
@@ -337,7 +347,7 @@ void SeriesSet::rememberCurrent()
 
 void SeriesSet::restoreMemory()
 {
-    if (p_i_memory < seriess().size())
+    if (p_i_memory < series().size())
     {
         p_i = p_i_memory;
     }
@@ -397,7 +407,7 @@ int SeriesSet::size() const
     return p_seriess.size();
 }
 
-const QList<ImageSeries> &SeriesSet::seriess() const
+const QList<ImageSeries> &SeriesSet::series() const
 {
     return p_seriess;
 }
@@ -415,7 +425,7 @@ QDebug operator<<(QDebug dbg, const SeriesSet &series_set)
 
 QDataStream &operator<<(QDataStream &out, const SeriesSet &series_set)
 {
-    out << series_set.seriess();
+    out << series_set.series();
 
     return out;
 }

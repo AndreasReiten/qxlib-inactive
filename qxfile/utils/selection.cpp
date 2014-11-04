@@ -19,6 +19,15 @@ Selection::~Selection()
 
 }
 
+Matrix<int> Selection::lrtb()
+{
+    Matrix<int> buf(1,4);
+    buf[0] = this->left();
+    buf[1] = this->left() + this->width();
+    buf[2] = this->top();
+    buf[3] = this->top() + this->height();
+    return buf;
+}
 
 double Selection::integral() const
 {

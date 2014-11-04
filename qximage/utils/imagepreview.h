@@ -45,7 +45,8 @@ signals:
     void selectionBetaChanged(bool value);
     void noiseLowChanged(double value);
     void imageChanged(ImageInfo image);
-    
+    void selectionChanged(Selection selection);
+
 public slots:
     void setMode(int value);
     void setThresholdNoiseLow(double value);

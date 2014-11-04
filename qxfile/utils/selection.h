@@ -5,6 +5,7 @@
 #include <QString>
 #include <QRect>
 #include <QDebug>
+#include "../../qxmath/utils/matrix.h"
 
 class Selection : public QObject, public QRect
 {
@@ -36,13 +37,11 @@ public:
     Selection(const Selection & other);
     ~Selection();
 
-
-//    QRect area() const;
+    Matrix<int> lrtb();
     double integral() const;
     double weighted_x() const;
     double weighted_y() const;
 
-//    void setArea(QRect rect);
     void setSum(double value);
     void setWeightedX(double value);
     void setWeightedY(double value);
@@ -51,7 +50,6 @@ public:
     Selection &operator =(Selection other);
 
 private:
-//    QRect p_area;
     double p_integral;
     double p_weighted_x;
     double p_weighted_y;

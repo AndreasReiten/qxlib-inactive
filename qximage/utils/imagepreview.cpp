@@ -463,14 +463,14 @@ void ImagePreviewWorker::setFrame(ImageInfo image)
     setParameter(parameter);
     
     // Do relevant calculations and render
-    refreshBackground(&background_area);
+//    refreshBackground(&background_area);
     
     calculus();
     refreshDisplay();
     refreshSelection(&analysis_area);
     
     frame_image.setSelection(analysis_area);
-    frame_image.setBackground(background_area);
+//    frame_image.setBackground(background_area);
     
     // Emit the image instead of components
     emit imageChanged(frame_image);
@@ -552,6 +552,9 @@ void ImagePreviewWorker::refreshSelection(Selection * area)
     Matrix<size_t> image_size(1,2);
     image_size[0] = frame.getFastDimension();
     image_size[1] = frame.getSlowDimension();
+    
+//    if(area->width() > frame.getFastDimension()) area->setWidth(frame.getFastDimension());
+//    if(area->height() > frame.getSlowDimension()) area->setHeight(frame.getSlowDimension();
 
     if (mode == 0)
     {
@@ -1345,7 +1348,7 @@ void ImagePreviewWorker::render(QPainter *painter)
 
     drawImage(painter);
     
-    ColorMatrix<float> analysis_area_color(0.0,0,0,1);
+    ColorMatrix<float> analysis_area_color(0.0,0,0,0.7);
 //    ColorMatrix<float> background_area_color(0.0,1,0,1);
     ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
     
@@ -1448,41 +1451,43 @@ void ImagePreviewWorker::centerImage()
 
 void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix<float> &color)
 {
-    // Change to draw a faded polygon
-//    ColorMatrix<float> selection_lines_color(0.0f,0.0f,0.0f,1.0f);
-    
     glLineWidth(2.0);
 
-    float x0 = (((qreal) area.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
-    float x1 = (((qreal) area.x() + area.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+    float selection_left = (((qreal) area.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+    float selection_right = (((qreal) area.x() + area.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
     
-    float y0 = (1.0 - (qreal) (area.top() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
-    float y1 = (1.0 - (qreal) (area.y() + area.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+    float selection_top = (1.0 - (qreal) (area.top() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+    float selection_bot = (1.0 - (qreal) (area.y() + area.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
     
-    Matrix<GLfloat> selection_lines(8,2);
-    selection_lines[0] = x0;
-    selection_lines[1] = y0;
-    selection_lines[2] = x0;
-    selection_lines[3] = y1;
+    float frame_left = (((qreal) -10 + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+    float frame_right = (((qreal) frame.getFastDimension() + 10  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
     
-    selection_lines[4] = x1;
-    selection_lines[5] = y0;
-    selection_lines[6] = x1;
-    selection_lines[7] = y1;
+    float frame_top = (1.0 - (qreal) (-10 + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+    float frame_bot = (1.0 - (qreal) (frame.getSlowDimension() + 10 + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
     
-    selection_lines[8] = x0;
-    selection_lines[9] = y0;
-    selection_lines[10] = x1;
-    selection_lines[11] = y0;
+    // Points
+    Matrix<GLfloat> point(8,2);
+    point[0] = frame_left;
+    point[1] = frame_top;
+    point[2] = frame_left;
+    point[3] = frame_bot;
     
-    selection_lines[12] = x0;
-    selection_lines[13] = y1;
-    selection_lines[14] = x1;
-    selection_lines[15] = y1;
+    point[4] = frame_right;
+    point[5] = frame_top;
+    point[6] = frame_right;
+    point[7] = frame_bot;
     
+    point[8] = selection_left;
+    point[9] = selection_top;
+    point[10] = selection_left;
+    point[11] = selection_bot;
     
+    point[12] = selection_right;
+    point[13] = selection_top;
+    point[14] = selection_right;
+    point[15] = selection_bot;
 
-    setVbo(selections_vbo[0], selection_lines.data(), selection_lines.size(), GL_DYNAMIC_DRAW);
+    setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
 
     beginRawGLCalls(painter);
 
@@ -1498,8 +1503,11 @@ void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix
     texture_view_matrix = zoom_matrix*translation_matrix;
 
     glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
-
-    glDrawArrays(GL_LINES,  0, 8);
+    
+    
+//    GLuint indices[] = {0,1,3,2,0, 4,6,7,5,4,0};
+    GLuint indices[] = {0,1,4, 1,4,5, 1,3,5, 3,5,7, 2,3,7, 2,6,7, 0,2,6, 0,4,6};
+    glDrawElements(GL_TRIANGLES,  3*8, GL_UNSIGNED_INT, indices);
 
     glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
@@ -1964,7 +1972,6 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     Q_UNUSED(mid_button);
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
-    Q_UNUSED(shift_button);
 
     float move_scaling = 1.0;
     
@@ -1972,26 +1979,27 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
 
     if (left_button)
     {
-        if (!isSelectionAlphaActive && !isSelectionBetaActive)
+        if (shift_button)
         {
-            if (shift_button)
-            {
-                Selection analysis_area = frame_image.selection();
-                
-                QPoint new_pos = analysis_area.topLeft() + (pos - prev_pos);
-                
-                analysis_area.moveTopLeft(new_pos);
-                        
-                frame_image.setSelection(analysis_area);
-            }
-            else
-            {
-                double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
-                double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
-    
-                translation_matrix[3] += dx*move_scaling;
-                translation_matrix[7] += dy*move_scaling;
-            }
+            Selection analysis_area = frame_image.selection();
+            
+            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+            
+            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+        
+            analysis_area = analysis_area.normalized();
+            
+            refreshSelection(&analysis_area);
+            
+            frame_image.setSelection(analysis_area);
+        }
+        else
+        {
+            double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
+            double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
+
+            translation_matrix[3] += dx*move_scaling;
+            translation_matrix[7] += dy*move_scaling;
         }
     }
 
@@ -2005,6 +2013,23 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
     
+    pos = QPoint(x,y);
+    
+    if (shift_button && left_button)
+    {
+        Selection analysis_area = frame_image.selection();
+        
+        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+        
+        analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
+    
+        analysis_area = analysis_area.normalized();
+        
+        refreshSelection(&analysis_area);
+        
+        frame_image.setSelection(analysis_area);
+    }
+    
     
 }
 
@@ -2017,57 +2042,25 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
 
     pos = QPoint(x,y);
     
-    Selection analysis_area = frame_image.selection();
-    Selection background_area = frame_image.background();
-    
-    if (left_button)
+    if (shift_button && left_button)
     {
-        if (isSelectionAlphaActive)
-        {
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-            
-            analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
-            
-            analysis_area = analysis_area.normalized();
-        }
-        else if (isSelectionBetaActive)
-        {
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-            
-            background_area.setTopLeft(QPoint(pixel[0], pixel[1]));
-            
-            background_area = background_area.normalized();
-        }
-    }
-    else if (right_button)
-    {
-        if (isSelectionAlphaActive)
-        {
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-            
-            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+        Selection analysis_area = frame_image.selection();
+        
+        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+        
+        analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
     
-            analysis_area = analysis_area.normalized();
-        }
-        else if (isSelectionBetaActive)
-        {
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
-    
-            background_area.setBottomRight(QPoint(pixel[0], pixel[1]));
-    
-            background_area = background_area.normalized();
-        }
+        analysis_area = analysis_area.normalized();
+        
+        refreshSelection(&analysis_area);
+        
+        frame_image.setSelection(analysis_area);
+        
+        emit selectionChanged(frame_image.selection());
+        emit imageChanged(frame_image);
     }
     
-    refreshSelection(&analysis_area);
     
-    frame_image.setSelection(analysis_area);
-    
-    refreshBackground(&background_area);
-    
-    frame_image.setBackground(background_area);
-    
-    emit imageChanged(frame_image);
 }   
 
 void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)

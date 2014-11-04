@@ -53,6 +53,7 @@ public:
     
     QStringList paths();
     
+    void setSelection(Selection rect);
     void setImages(QList<ImageInfo> list);
     void clear();
     void removeCurrent();
@@ -110,7 +111,7 @@ public:
     void append(ImageSeries image_series);
     void removeCurrent();
     void setFolders(QList<ImageSeries> list);
-    const QList<ImageSeries> &seriess() const;
+    const QList<ImageSeries> &series() const;
     int size() const;
     
 private:

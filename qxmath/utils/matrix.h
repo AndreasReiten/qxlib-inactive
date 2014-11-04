@@ -556,16 +556,12 @@ Matrix<T> Matrix<T>::inverse4x4(int verbose)  const
     INV = INV * det;
 
     return INV.colmajor();
-//        for (i = 0; i < 16; i++)
-//            INVOut[i] = INV[i] * det;
 }
 
 
 template <class T>
 Matrix<T> Matrix<T>::inverse(int verbose)  const
 {
-//    qDebug() << "LU decomp" << m << n;
-
     if(p_m != p_n) qDebug() << "Matrix is can not be inverted: m (= " << p_m  << ") != n (=" << p_n << ")";
     Matrix<T> L, y, I, U, x;
     L.set(p_n, p_n, 0);
