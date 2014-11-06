@@ -1,5 +1,4 @@
 #include "imagepreview.h"
-#include <QPen>
 #include <QBrush>
 #include <QRect>
 #include <QColor>
@@ -14,7 +13,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isTsfTexInitialized(false),
     isCLInitialized(false),
     isFrameValid(false),
-    isWeightCenterActive(false),
+    isWeightCenterActive(true),
     isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
     alpha_style(2),
@@ -816,7 +815,6 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         main_series.series_samples_cpu.set(1, m*n*set.current()->size());
         main_series.series_interpol_cpu.set(1, m*n*set.current()->size());
 
-//        qDebug() << m << n << set.current()->size() << main_series.series_samples_cpu.size();
 
         // For each image in the series
         for (int j = 0; j < set.current()->size(); j++)
@@ -942,7 +940,7 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         
         series_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
         
-        series_integral << QString(QString::number(integral,'E')+"\n"); //+" "+set.current()->path()+
+        series_integral << QString(QString::number(integral,'E')+"\n");
         integral = 0;
         
         series_frames << str;
@@ -1076,7 +1074,6 @@ void ImagePreviewWorker::selectionCalculus(Selection * area, cl_mem image_data_c
         area->setWeightedX(0);
         area->setWeightedY(0);
     }
-//    qDebug() << area->integral() << area->weighted_x() << area->weighted_y();
     
     err =  QOpenCLReleaseMemObject(selection_intensity_cl);
     err |=  QOpenCLReleaseMemObject(selection_pos_weight_x_cl);
@@ -1207,8 +1204,6 @@ void ImagePreviewWorker::setTsf(TransferFunction & tsf)
 
     isTsfTexInitialized = true;
 
-//    qDebug() << "A tsf was set";
-
     tsf_tex_cl =  QOpenCLCreateFromGLTexture2D(context_cl->context(), CL_MEM_READ_ONLY, GL_TEXTURE_2D, 0, tsf_tex_gl, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 }
@@ -1217,7 +1212,6 @@ void ImagePreviewWorker::initialize()
 {
     initOpenCL();
 
-//    glGenBuffers(2, texel_line_vbo);
     glGenBuffers(5, selections_vbo);
     glGenBuffers(5, weightpoints_vbo);
 }
@@ -1230,7 +1224,6 @@ void ImagePreviewWorker::setTsfTexture(int value)
     tsf.setColorScheme(rgb_style, alpha_style);
     tsf.setSpline(256);
 
-//    qDebug() << "now we try to set tsf" << isInitialized;
     if (isInitialized) setTsf(tsf);
     
     refreshDisplay();
@@ -1349,19 +1342,13 @@ void ImagePreviewWorker::render(QPainter *painter)
     drawImage(painter);
     
     ColorMatrix<float> analysis_area_color(0.0,0,0,0.7);
-//    ColorMatrix<float> background_area_color(0.0,1,0,1);
     ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
     
     drawSelection(frame_image.selection(), painter, analysis_area_color);
-//    drawSelection(frame_image.background(), painter, background_area_color);
     
     if (isWeightCenterActive) drawWeightpoint(frame_image.selection(), painter, analysis_wp_color);
     
     drawToolTip(painter);
-    
-    // Fps
-//    QString fps_string("Fps: "+QString::number(getFps(), 'f', 0));
-//    painter->drawText(QPointF(5,render_surface->height()-5), fps_string);
 }
 
 void ImagePreviewWorker::drawImage(QPainter * painter)
@@ -1390,12 +1377,10 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     texture_view_matrix = zoom_matrix*translation_matrix;
 
     glUniformMatrix4fv(shared_window->rect_hl_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
-//    if ( glGetError() != GL_NO_ERROR) qFatal(gl_error_cstring(glGetError()));
     
     // The bounds that enclose the highlighted area of the texture are passed to the shader
     Matrix<double> bounds(1,4); // left, top, right, bottom
     
-//    qDebug() << selection << selection.right();
 
     bounds[0] = (double) frame_image.selection().left() / (double) frame.getFastDimension();
     bounds[1] = 1.0 - (double) (frame_image.selection().y()+frame_image.selection().height()) / (double) frame.getSlowDimension();
@@ -1403,15 +1388,6 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     bounds[3] = 1.0 - (double) (frame_image.selection().top()) / (double) frame.getSlowDimension();
     
     glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
-    
-    // The center of the intensity maximum
-//    Matrix<double> center(1,4); // left, top, right, bottom
-    
-//    center[0] = analysis_area.weighted_x() / (double) frame.getFastDimension();
-//    center[1] = 1.0 - analysis_area.weighted_y() / (double) frame.getSlowDimension();
-    
-//    glUniform2fv(shared_window->rect_hl_2d_tex_center, 1, center.toFloat().data());
-    
     
     // Set the size of a pixel (in image units)
     GLfloat pixel_size = (1.0f / (float) frame.getFastDimension()) / zoom_matrix[0];
@@ -1535,25 +1511,25 @@ void ImagePreviewWorker::drawWeightpoint(Selection area, QPainter *painter, Matr
     float y_offset = (y2 - y0)*0.02;
     
     Matrix<GLfloat> selection_lines(8,2);
-    selection_lines[0] = x0 - x_offset;
+    selection_lines[0] = x0;
     selection_lines[1] = y1;
     selection_lines[2] = x1 - x_offset;
     selection_lines[3] = y1;
     
     selection_lines[4] = x1 + x_offset;
     selection_lines[5] = y1;
-    selection_lines[6] = x2 + x_offset;
+    selection_lines[6] = x2;
     selection_lines[7] = y1;
     
     selection_lines[8] = x1;
     selection_lines[9] = y1 - y_offset;
     selection_lines[10] = x1;
-    selection_lines[11] = y0 - y_offset;
+    selection_lines[11] = y0;
     
     selection_lines[12] = x1;
     selection_lines[13] = y1 + y_offset;
     selection_lines[14] = x1;
-    selection_lines[15] = y2 + y_offset;
+    selection_lines[15] = y2 ;
     
     
 
@@ -1621,11 +1597,6 @@ double ImagePreviewWorker::getScatteringAngle(DetectorFile & f, double x, double
     k_f[2] =    f.pixel_size_y * ((double) x - f.beam_y);
     k_f = vecNormalize(k_f);
     k_f = k*k_f;
-
-
-//    k_i.print(2,"k_i");
-//    k_f.print(2,"k_f");
-//    qDebug() << vecDot(k_f, k_i) << vecDot(k_f, k_i)/(2*k) << acos(vecDot(k_f, k_i)/(k*k));
 
     return acos(vecDot(k_f, k_i)/(k*k));
 }
@@ -1699,8 +1670,6 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     tip += "Intensity "+QString::number(value,'g',4)+"\n";
     
     // The scattering angle 2-theta
-//    float lab_theta = 180*asin(Q[1] / (1.0/frame.wavelength))/pi*0.5;
-    
     tip += "Scattering angle (2ϴ) "+QString::number(180*getScatteringAngle(frame, pixel_x, pixel_y)/pi,'f',2)+"°\n";
     
     // Position
@@ -1717,7 +1686,7 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     tip += "Integral "+QString::number(frame_image.selection().integral(),'f',2);
     
     
-    QFont font("monospace", 10);
+    QFont font("Helvetica", 10);
     QFontMetrics fm(font);
     
     QBrush brush;
@@ -1743,118 +1712,6 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
 
 }
 
-
-//void ImagePreviewWorker::drawTexelOverlay(QPainter *painter)
-//{
-    /*
-     * Draw lines between the texels to better distinguish them.
-     * Only happens when the texels occupy a certain number of pixels.
-     */
-
-    // Find size of texels in GL coordinates
-//    double w = zoom_matrix[0] * 2.0 /(double) render_surface->width();
-//    double h = zoom_matrix[0] * 2.0 /(double) render_surface->height();
-
-//    // Find size of texels in pixels
-//    double wh_pix = zoom_matrix[0];
-
-//    // The number of texels that fit in
-//    double n_texel_x = 2.0 / w;
-//    double n_texel_y = 2.0 / h;
-
-//    if((wh_pix > 26.0) && (n_texel_x < 64) && (n_texel_y < 64))
-//    {
-//        beginRawGLCalls(painter);
-
-//        // Move to resize event
-//            Matrix<float> vertical_lines_buf(65,4);
-//            for (int i = 0; i < vertical_lines_buf.m(); i++)
-//            {
-//                vertical_lines_buf[i*4+0] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
-//                vertical_lines_buf[i*4+1] = 1;
-//                vertical_lines_buf[i*4+2] = ((float) (i - (int) vertical_lines_buf.m()/2)) * 2.0 / (float) render_surface->width();
-//                vertical_lines_buf[i*4+3] = -1;
-//            }
-//            setVbo(texel_line_vbo[0], vertical_lines_buf.data(), vertical_lines_buf.size(), GL_DYNAMIC_DRAW);
-
-//            Matrix<float> horizontal_lines_buf(65,4);
-//            for (int i = 0; i < horizontal_lines_buf.m(); i++)
-//            {
-//                horizontal_lines_buf[i*4+0] = 1.0;
-//                horizontal_lines_buf[i*4+1] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
-//                horizontal_lines_buf[i*4+2] = -1.0;
-//                horizontal_lines_buf[i*4+3] = ((float) (i - (int) horizontal_lines_buf.m()/2)) * 2.0 / (float) render_surface->height();
-//            }
-//            setVbo(texel_line_vbo[1], horizontal_lines_buf.data(), horizontal_lines_buf.size(), GL_DYNAMIC_DRAW);
-
-//        // Draw lines
-//        ColorMatrix<float> texel_line_color(0.0f,0.0f,0.0f,0.7f);
-
-//        glLineWidth(2.0);
-
-//        shared_window->std_2d_col_program->bind();
-//        glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
-
-//        glUniform4fv(shared_window->std_2d_col_color, 1, texel_line_color.data());
-
-//        // Vertical
-//        texel_offset_matrix[3] = fmod(translation_matrix[3], 2.0 /(double) render_surface->width());
-//        texel_offset_matrix[7] = 0;
-//        texel_view_matrix = zoom_matrix*texel_offset_matrix;
-
-//        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[0]);
-//        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
-//        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-//        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
-
-//        glDrawArrays(GL_LINES,  0, vertical_lines_buf.m()*2);
-
-//        // Horizontal
-//        texel_offset_matrix[3] = 0;
-//        texel_offset_matrix[7] = fmod(translation_matrix[7], 2.0 /(double) render_surface->height());
-//        texel_view_matrix = zoom_matrix*texel_offset_matrix;
-
-//        glBindBuffer(GL_ARRAY_BUFFER, texel_line_vbo[1]);
-//        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
-//        glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-//        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texel_view_matrix.colmajor().toFloat().data());
-
-//        glDrawArrays(GL_LINES,  0, horizontal_lines_buf.m()*2);
-
-
-//        glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
-
-//        shared_window->std_2d_col_program->release();
-
-//        endRawGLCalls(painter);
-
-//        // Draw intensity numbers over each texel
-
-//        // For each visible vertical line
-//        for (int i = 0; i < vertical_lines_buf.m(); i++)
-//        {
-//            if ((vertical_lines_buf[i*4] >= -1) && (vertical_lines_buf[i*4] <= 1))
-//            {
-//                // For each visible horizontal line
-//                for (int j = 0; j < horizontal_lines_buf.m(); j++)
-//                {
-//                    if ((horizontal_lines_buf[j*4+1] >= -1) && (horizontal_lines_buf[j*4+1] <= 1))
-//                    {
-//                        // Find the corresponding texel in the data buffer and display the intensity value at the current position
-////                        translation_matrix[3]
-
-//                    }
-//                }
-//            }
-//        }
-
-
-
-
-//    }
-//}
 
 void ImagePreviewWorker::setMode(int value)
 {
