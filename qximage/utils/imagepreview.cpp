@@ -902,6 +902,8 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu_3Dimg);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
+        // (The 3D buffer can now be used for BG approximation in other kernels)
+
 
         Matrix<double> weightpoint(1,3,0);
         

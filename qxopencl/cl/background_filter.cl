@@ -3,5 +3,5 @@ __kernel void glowstick(
     __global float * interpol
     )
 {
-
+    // Do magic
 }
