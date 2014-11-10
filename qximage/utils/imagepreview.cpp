@@ -790,6 +790,10 @@ void ImagePreviewWorker::analyzeFolder(ImageSeries series)
     emit resultFinished(result);
 }
 
+// A function to approximate background for the current set
+void ImagePreviewWorker::guessBackground()
+
+
 void ImagePreviewWorker::analyzeSet(SeriesSet set)
 {
     double integral = 0;
@@ -805,7 +809,7 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         setFrame(*set.current()->current());
 
 
-        // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid.
+        // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid. Samples are taken from the entire frame.
         size_t sample_equidistance = 8;
 
         // Prepare the storage buffer
@@ -820,11 +824,11 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         for (int j = 0; j < set.current()->size(); j++)
         {
             // Move relevant samples into a separate buffer
-            for (int k = 0; k < n; k++)
+            for (int k = 0; k < m; k++) // Slow dimension
             {
-                for (int l = 0; l < m; l++)
+                for (int l = 0; l < n; l++) // Fast dimension
                 {
-                    // Note: In a better world this memeory would be aligned in according to gpu memory optimization. This is bank conflict incarnate. Easy enough to fix.
+                    // Note: In a better world this memory would be aligned in according to gpu memory optimization. This is bank conflict incarnate. Easy enough to fix. For example: Pad n and m with empty values to put adjacent pixel lines in adjacent memory banks.
                     main_series.series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
                 }
             }
@@ -848,8 +852,14 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
 
 
         // Do GPU magic on series, saving an interpolation object in gpu memory
+        Matrix<size_t> dim(1,3);
+        dim[0] = n;
+        dim[1] = m;
+        dim[2] = set.current()->size();
+        
         err =   QOpenCLSetKernelArg(cl_glowstick,  0, sizeof(cl_mem), (void *) &main_series.series_samples_gpu);
         err |=   QOpenCLSetKernelArg(cl_glowstick, 1, sizeof(cl_mem), (void *) &main_series.series_interpol_gpu);
+        err |=   QOpenCLSetKernelArg(cl_glowstick, 2, sizeof(cl_int3), dim.data());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         Matrix<size_t> global_ws(1,2);
@@ -857,8 +867,11 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         local_ws[0] = 16;
         local_ws[1] = 16;
 
-        global_ws[0] = m + local_ws[0] - n%local_ws[0];
-        global_ws[1] = n + local_ws[1] - m%local_ws[1];
+        global_ws[0] = n + local_ws[0] - n%local_ws[0];
+        global_ws[1] = m + local_ws[1] - m%local_ws[1];
+        
+        local_ws.print(0,"local_ws");
+        global_ws.print(0,"global_ws");
 
         err =   QOpenCLEnqueueNDRangeKernel(context_cl->queue(), cl_glowstick, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
