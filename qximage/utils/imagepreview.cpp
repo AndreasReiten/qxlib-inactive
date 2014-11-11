@@ -472,7 +472,8 @@ void ImagePreviewWorker::setFrame(ImageInfo image)
 //    frame_image.setBackground(background_area);
     
     // Emit the image instead of components
-    emit imageChanged(frame_image);
+//    emit imageChanged(frame_image);
+    emit pathChanged(frame_image.path());
 
 }
 
@@ -718,14 +719,15 @@ void ImagePreviewWorker::peakHuntSet(SeriesSet set)
 {
 }
 
-void ImagePreviewWorker::analyzeSingle(ImageInfo image)
+void ImagePreviewWorker::analyzeSingle()
 {
     // Draw the frame and update the intensity OpenCL buffer prior to further operations 
-    setFrame(image);
+    setFrame(*p_set.current()->current());
     {
         QPainter painter(paint_device_gl);
         render(&painter);
     }
+    
     // Force a buffer swap
     context_gl->swapBuffers(render_surface);
 
@@ -739,16 +741,16 @@ void ImagePreviewWorker::analyzeSingle(ImageInfo image)
     emit resultFinished(result);
 }
 
-void ImagePreviewWorker::analyzeFolder(ImageSeries series)
+void ImagePreviewWorker::analyzeFolder()
 {
     double integral = 0;
     Matrix<double> weightpoint(1,3,0);
     
     QString frames;        
-    for (int i = 0; i < series.size(); i++)
+    for (int i = 0; i < p_set.current()->size(); i++)
     {
         // Draw the frame and update the intensity OpenCL buffer prior to further operations 
-        setFrame(*series.current());
+        setFrame(*p_set.current()->current());
         {
             QPainter painter(paint_device_gl);
             render(&painter);
@@ -766,7 +768,7 @@ void ImagePreviewWorker::analyzeFolder(ImageSeries series)
         
         frames += integrationFrameString(frame, frame_image);
     
-        series.next();
+        p_set.current()->next();
     }
     
     if (integral > 0)
@@ -779,7 +781,7 @@ void ImagePreviewWorker::analyzeFolder(ImageSeries series)
     }
     
     QString result;
-    result += "# Analysis of frames in series "+series.path()+"\n";
+    result += "# Analysis of frames in series "+p_set.current()->path()+"\n";
     result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
     result += "#\n";
     result += "# Sum of total integrated area in series "+QString::number(integral,'E')+"\n";
@@ -790,14 +792,131 @@ void ImagePreviewWorker::analyzeFolder(ImageSeries series)
     emit resultFinished(result);
 }
 
-// A function to approximate background for the current set
-void ImagePreviewWorker::estimateBackground(SeriesSet set)
+void ImagePreviewWorker::applySelectionToSeriesSet()
 {
-    for (int i = 0; i < set.size(); i++)
+    if (p_set.size() > 0)
+    {
+        Selection selection = p_set.current()->current()->selection();
+        Selection background = p_set.current()->current()->background();
+        
+        p_set.rememberCurrent();
+
+        p_set.begin();
+
+        for (int i = 0; i < p_set.size(); i++)
+        {        
+            p_set.current()->rememberCurrent();
+            p_set.current()->begin();
+            
+            for (int i = 0; i < p_set.current()->size(); i++)
+            {
+                p_set.current()->current()->setSelection(selection);
+                p_set.current()->current()->setBackground(background);
+                p_set.current()->next();
+            }
+            p_set.current()->restoreMemory();
+
+            p_set.next();
+        }
+        p_set.restoreMemory();
+    }
+}
+
+void ImagePreviewWorker::applySelectionToSeries()
+{
+    if (p_set.size() > 0)
+    {
+        Selection selection = p_set.current()->current()->selection();
+        Selection background = p_set.current()->current()->background();
+        
+        p_set.current()->rememberCurrent();
+        
+        p_set.current()->begin();
+        
+        for (int i = 0; i < p_set.current()->size(); i++)
+        {
+            p_set.current()->current()->setSelection(selection);
+            p_set.current()->current()->setBackground(background);
+            p_set.current()->next();
+        }
+        
+        p_set.current()->restoreMemory();
+    }
+}
+
+
+void ImagePreviewWorker::setSet(SeriesSet s)
+{
+    
+    if (!s.isEmpty())
+    {
+        p_set = s;
+        
+        emit imageRangeChanged(0,p_set.current()->size()-1);
+        setFrame(*p_set.current()->current());
+        
+        emit selectionChanged(p_set.current()->current()->selection());
+        centerImage();
+    }
+}
+
+void ImagePreviewWorker::removeCurrentImage()
+{
+    if (!p_set.isEmpty())
+    {
+        emit pathRemoved(p_set.current()->current()->path());
+        
+        p_set.current()->removeCurrent();
+
+        setFrame(*p_set.current()->next());
+    }
+}
+
+
+void ImagePreviewWorker::setFrameByIndex(int i)
+{
+    if (!p_set.isEmpty())
+    {
+        setFrame(*p_set.current()->at(i));
+    }
+}
+
+void ImagePreviewWorker::nextSeries()
+{
+    if (!p_set.isEmpty())
+    {
+        p_set.current()->rememberCurrent();
+        p_set.next();
+        p_set.current()->restoreMemory();
+
+        emit imageRangeChanged(0,p_set.current()->size()-1);
+        emit currentIndexChanged(p_set.current()->i());
+        setFrame(*p_set.current()->current());
+    }
+}
+void ImagePreviewWorker::prevSeries()
+{
+    if (!p_set.isEmpty())
+    {
+        p_set.current()->rememberCurrent();
+        p_set.previous();
+        p_set.current()->restoreMemory();
+
+        emit imageRangeChanged(0,p_set.current()->size()-1);
+        emit currentIndexChanged(p_set.current()->i());
+        setFrame(*p_set.current()->current());
+    }
+}
+
+
+// A function to approximate background for the current set
+void ImagePreviewWorker::estimateBackground()
+{
+    for (int i = 0; i < p_set.size(); i++)
     {
         // Background correction: Note: It is assumed that all images a series have the same dimensions
         // Use the first frame as an example:
-        setFrame(*set.current()->current());
+        setFrame(*p_set.current()->current());
 
 
         // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid. Samples are taken from the entire frame.
@@ -807,12 +926,12 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
         size_t m = frame.getSlowDimension()/sample_equidistance;
         size_t n = frame.getFastDimension()/sample_equidistance;
 
-        main_series.series_samples_cpu.set(1, m*n*set.current()->size());
-        main_series.series_interpol_cpu.set(1, m*n*set.current()->size());
+        set_tools.series_samples_cpu.set(1, m*n*p_set.current()->size());
+        set_tools.series_interpol_cpu.set(1, m*n*p_set.current()->size());
 
 
         // For each image in the series
-        for (int j = 0; j < set.current()->size(); j++)
+        for (int j = 0; j < p_set.current()->size(); j++)
         {
             // Move relevant samples into a separate buffer
             for (int k = 0; k < m; k++) // Slow dimension
@@ -820,22 +939,22 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
                 for (int l = 0; l < n; l++) // Fast dimension
                 {
                     // Note: In a better world this memory would be aligned in according to gpu memory optimization. This is bank conflict incarnate. Easy enough to fix. For example: Pad n and m with empty values to put adjacent pixel lines in adjacent memory banks.
-                    main_series.series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
+                    set_tools.series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
                 }
             }
         }
 
         // Move series storage buffer into gpu memory
-        main_series.series_samples_gpu = QOpenCLCreateBuffer( context_cl->context(),
+        set_tools.series_samples_gpu = QOpenCLCreateBuffer( context_cl->context(),
                 CL_MEM_COPY_HOST_PTR,
-                main_series.series_samples_cpu.bytes(),
-                main_series.series_samples_cpu.data(),
+                set_tools.series_samples_cpu.bytes(),
+                set_tools.series_samples_cpu.data(),
                 &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-        main_series.series_interpol_gpu = QOpenCLCreateBuffer( context_cl->context(),
+        set_tools.series_interpol_gpu = QOpenCLCreateBuffer( context_cl->context(),
                 CL_MEM_ALLOC_HOST_PTR,
-                main_series.series_interpol_cpu.bytes(),
+                set_tools.series_interpol_cpu.bytes(),
                 NULL,
                 &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -846,10 +965,10 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
         Matrix<size_t> dim(1,3);
         dim[0] = n;
         dim[1] = m;
-        dim[2] = set.current()->size();
+        dim[2] = p_set.current()->size();
         
-        err =   QOpenCLSetKernelArg(cl_glowstick,  0, sizeof(cl_mem), (void *) &main_series.series_samples_gpu);
-        err |=   QOpenCLSetKernelArg(cl_glowstick, 1, sizeof(cl_mem), (void *) &main_series.series_interpol_gpu);
+        err =   QOpenCLSetKernelArg(cl_glowstick,  0, sizeof(cl_mem), (void *) &set_tools.series_samples_gpu);
+        err |=   QOpenCLSetKernelArg(cl_glowstick, 1, sizeof(cl_mem), (void *) &set_tools.series_interpol_gpu);
         err |=   QOpenCLSetKernelArg(cl_glowstick, 2, sizeof(cl_int3), dim.data());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
@@ -875,14 +994,14 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
         Matrix<size_t> region(1,3);
         region[0] = n;
         region[1] = m;
-        region[2] = set.current()->size();
+        region[2] = p_set.current()->size();
 
-        main_series.format_3Dimg.image_channel_order = CL_INTENSITY;
-        main_series.format_3Dimg.image_channel_data_type = CL_FLOAT;
+        set_tools.format_3Dimg.image_channel_order = CL_INTENSITY;
+        set_tools.format_3Dimg.image_channel_data_type = CL_FLOAT;
 
-        main_series.series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
+        set_tools.series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
             CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
-            &main_series.format_3Dimg,
+            &set_tools.format_3Dimg,
             region[0],
             region[1],
             region[2],
@@ -893,8 +1012,8 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         err = QOpenCLEnqueueCopyBufferToImage(  context_cl->queue(),
-                                                main_series.series_interpol_gpu,
-                                                main_series.series_interpol_gpu_3Dimg,
+                                                set_tools.series_interpol_gpu,
+                                                set_tools.series_interpol_gpu_3Dimg,
                                                 0,
                                                 dst_origin.data(),
                                                 region.data(),
@@ -903,9 +1022,9 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
 
         // (The 3D buffer can now be used for BG approximation in other kernels)
         
-        err =  QOpenCLReleaseMemObject(main_series.series_samples_gpu);
-        err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu);
-        err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu_3Dimg);
+        err =  QOpenCLReleaseMemObject(set_tools.series_samples_gpu);
+        err |=  QOpenCLReleaseMemObject(set_tools.series_interpol_gpu);
+        err |=  QOpenCLReleaseMemObject(set_tools.series_interpol_gpu_3Dimg);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
         
@@ -913,7 +1032,7 @@ void ImagePreviewWorker::estimateBackground(SeriesSet set)
 }
 
 
-void ImagePreviewWorker::analyzeSet(SeriesSet set)
+void ImagePreviewWorker::analyzeSet()
 {
     double integral = 0;
     QStringList series_integral;
@@ -922,14 +1041,14 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
     QString str;
 
     
-    for (int i = 0; i < set.size(); i++)
+    for (int i = 0; i < p_set.size(); i++)
     {
         Matrix<double> weightpoint(1,3,0);
         
-        for (int j = 0; j < set.current()->size(); j++)
+        for (int j = 0; j < p_set.current()->size(); j++)
         {
             // Draw the frame and update the intensity OpenCL buffer prior to further operations 
-            setFrame(*set.current()->current());
+            setFrame(*p_set.current()->current());
             {
                 QPainter painter(paint_device_gl);
                 render(&painter);
@@ -947,7 +1066,7 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
             
             str += integrationFrameString(frame, frame_image);
         
-            set.current()->next(); 
+            p_set.current()->next(); 
         }
         
         if (integral > 0)
@@ -967,7 +1086,7 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
         series_frames << str;
         str.clear();
         
-        set.next();
+        p_set.next();
     }
     
     QString result;
@@ -1935,7 +2054,7 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         frame_image.setSelection(analysis_area);
         
         emit selectionChanged(frame_image.selection());
-        emit imageChanged(frame_image);
+//        emit imageChanged(frame_image);
     }
     
     
@@ -2024,7 +2143,7 @@ void ImagePreviewWindow::setSharedWindow(SharedContextWindow * window)
     this->shared_window = window;
     shared_context = window->getGLContext();
 }
-ImagePreviewWorker * ImagePreviewWindow::getWorker()
+ImagePreviewWorker * ImagePreviewWindow::worker()
 {
     return gl_worker;
 }
@@ -2094,6 +2213,11 @@ SeriesToolShed::SeriesToolShed()
 SeriesToolShed::~SeriesToolShed()
 {
 
+}
+
+SeriesSet ImagePreviewWorker::set()
+{
+    return p_set;
 }
 
 void ImagePreviewWorker::populateSeriesBackgroundSamples(ImageSeries * series)

@@ -44,9 +44,14 @@ signals:
     void selectionAlphaChanged(bool value);
     void selectionBetaChanged(bool value);
     void noiseLowChanged(double value);
-    void imageChanged(ImageInfo image);
+//    void imageChanged(ImageInfo image);
     void selectionChanged(Selection selection);
-
+    
+    void pathRemoved(QString path);
+    void pathChanged(QString path);
+    void imageRangeChanged(int low, int high);
+    void currentIndexChanged(int value);
+    
 public slots:
     void setMode(int value);
     void setThresholdNoiseLow(double value);
@@ -71,21 +76,40 @@ public slots:
     void setSelectionAlphaActive(bool value);
     void setSelectionBetaActive(bool value);
     void centerImage();
-    void analyzeSingle(ImageInfo image);
-    void analyzeFolder(ImageSeries series);
-    void analyzeSet(SeriesSet set);
-    void estimateBackground(SeriesSet set);
+    void analyzeSingle();
+    void analyzeFolder();
+    void analyzeSet();
+    void estimateBackground();
     
     void peakHuntSingle(ImageInfo image);
     void peakHuntFolder(ImageSeries series);
-    void peakHuntSet(SeriesSet set);
+    void peakHuntSet(SeriesSet p_set);
     
     void showWeightCenter(bool value);
+    
+    void setSet(SeriesSet s);
+    void setFrameByIndex(int i);
+    void nextSeries();
+    void prevSeries();
+    void removeCurrentImage();
+    void applySelectionToSeriesSet();
+    void applySelectionToSeries();
+    //    void nextFrame();
+//    void prevFrame();
+//    void nextFrameMulti();
+//    void prevFrameMulti();
+    
+//    void setMulti
+    
+public: 
+    SeriesSet set();    
+    
     
 private:
     
     // Series
-    SeriesToolShed main_series;
+    SeriesToolShed set_tools;
+    SeriesSet p_set;
     void populateSeriesBackgroundSamples(ImageSeries * series);
 
 
@@ -416,7 +440,7 @@ public:
     ~ImagePreviewWindow();
 
     void setSharedWindow(SharedContextWindow * window);
-    ImagePreviewWorker *getWorker();
+    ImagePreviewWorker *worker();
 
     void initializeWorker();
 
