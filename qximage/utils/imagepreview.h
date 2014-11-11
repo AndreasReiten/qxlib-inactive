@@ -45,7 +45,7 @@ signals:
     void selectionBetaChanged(bool value);
     void noiseLowChanged(double value);
 //    void imageChanged(ImageInfo image);
-    void selectionChanged(Selection selection);
+//    void selectionChanged(Selection selection);
     
     void pathRemoved(QString path);
     void pathChanged(QString path);
@@ -61,8 +61,8 @@ public slots:
     void setTsfTexture(int value);
     void setTsfAlpha(int value);
     void setLog(bool value);
-    void setCorrection(bool value);
-    void setAutoBackgroundCorrection(bool value);
+    void setCorrectionLorentz(bool value);
+//    void setAutoBackgroundCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
     void calculus();
@@ -72,7 +72,7 @@ public slots:
     void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
-    void setFrame(ImageInfo image);
+    void setFrame();
     void setSelectionAlphaActive(bool value);
     void setSelectionBetaActive(bool value);
     void centerImage();
@@ -110,7 +110,7 @@ private:
     // Series
     SeriesToolShed set_tools;
     SeriesSet p_set;
-    void populateSeriesBackgroundSamples(ImageSeries * series);
+//    void populateSeriesBackgroundSamples(ImageSeries * series);
 
 
     // GPU functions
@@ -127,7 +127,7 @@ private:
     // Convenience 
     void refreshDisplay();
     void refreshSelection(Selection *area);
-    void refreshBackground(Selection *area);
+//    void refreshBackground(Selection *area);
     
     // GPU buffer management
     void maintainImageTexture(Matrix<size_t> &image_size);
@@ -173,7 +173,7 @@ private:
     
     // Eventually merge the following two objects into a single class, or at least name them appropriately
     DetectorFile frame;
-    ImageInfo frame_image;
+//    ImageInfo frame_image;
 
     void initOpenCL();
     void setParameter(Matrix<float> &data);
@@ -197,7 +197,7 @@ private:
     bool isCLInitialized;
     bool isFrameValid;
     bool isWeightCenterActive;
-    bool isAutoBackgroundCorrectionActive;
+//    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
     Matrix<double> translation_matrix;
@@ -213,7 +213,7 @@ private:
 
     // Display
     int isLog;
-    int isCorrected;
+    int isLorentzCorrected;
     int mode;
 
     // Selection
