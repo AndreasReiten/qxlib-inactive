@@ -791,17 +791,8 @@ void ImagePreviewWorker::analyzeFolder(ImageSeries series)
 }
 
 // A function to approximate background for the current set
-void ImagePreviewWorker::guessBackground()
-
-
-void ImagePreviewWorker::analyzeSet(SeriesSet set)
+void ImagePreviewWorker::estimateBackground(SeriesSet set)
 {
-    double integral = 0;
-    QStringList series_integral;
-    QStringList series_weightpoint;
-    QStringList series_frames;
-    QString str;
-
     for (int i = 0; i < set.size(); i++)
     {
         // Background correction: Note: It is assumed that all images a series have the same dimensions
@@ -910,14 +901,29 @@ void ImagePreviewWorker::analyzeSet(SeriesSet set)
                                                 0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
+        // (The 3D buffer can now be used for BG approximation in other kernels)
+        
         err =  QOpenCLReleaseMemObject(main_series.series_samples_gpu);
         err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu);
         err |=  QOpenCLReleaseMemObject(main_series.series_interpol_gpu_3Dimg);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-        // (The 3D buffer can now be used for BG approximation in other kernels)
+        
+    }
+}
 
 
+void ImagePreviewWorker::analyzeSet(SeriesSet set)
+{
+    double integral = 0;
+    QStringList series_integral;
+    QStringList series_weightpoint;
+    QStringList series_frames;
+    QString str;
+
+    
+    for (int i = 0; i < set.size(); i++)
+    {
         Matrix<double> weightpoint(1,3,0);
         
         for (int j = 0; j < set.current()->size(); j++)

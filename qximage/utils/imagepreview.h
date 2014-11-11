@@ -74,6 +74,7 @@ public slots:
     void analyzeSingle(ImageInfo image);
     void analyzeFolder(ImageSeries series);
     void analyzeSet(SeriesSet set);
+    void estimateBackground(SeriesSet set);
     
     void peakHuntSingle(ImageInfo image);
     void peakHuntFolder(ImageSeries series);
