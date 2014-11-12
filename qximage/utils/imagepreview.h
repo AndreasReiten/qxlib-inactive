@@ -19,14 +19,15 @@ public:
     ~SeriesToolShed();
 
     // Background samples container and background interpolation container
-    cl_mem series_samples_gpu;
-    cl_mem series_interpol_gpu;
-    cl_mem series_interpol_gpu_3Dimg;
+//    cl_mem series_samples_gpu;
+//    cl_mem series_interpol_gpu;
+//    cl_mem series_interpol_gpu_3Dimg;
 
-    cl_image_format format_3Dimg;
+//    cl_image_format format_3Dimg;
 
-    Matrix<float> series_samples_cpu;
+//    Matrix<float> series_samples_cpu;
     Matrix<float> series_interpol_cpu;
+    Matrix<size_t> dim;
 
 
 };
@@ -80,6 +81,7 @@ public slots:
     void analyzeFolder();
     void analyzeSet();
     void estimateBackground();
+    void setSeriesBackgroundBuffer();
     
     void peakHuntSingle(ImageInfo image);
     void peakHuntFolder(ImageSeries series);
@@ -108,8 +110,9 @@ public:
 private:
     
     // Series
-    SeriesToolShed set_tools;
+    QList<SeriesToolShed> set_tools;
     SeriesSet p_set;
+    cl_mem series_interpol_gpu_3Dimg;
 //    void populateSeriesBackgroundSamples(ImageSeries * series);
 
 
@@ -197,6 +200,7 @@ private:
     bool isCLInitialized;
     bool isFrameValid;
     bool isWeightCenterActive;
+    bool isInterpolGpuInitialized;
 //    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture

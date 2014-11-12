@@ -294,6 +294,11 @@ SeriesSet::~SeriesSet()
 {
 
 }
+int SeriesSet::i() const
+{
+    return p_i;
+}
+
 ImageSeries * SeriesSet::current()
 {
     return &p_seriess[p_i];

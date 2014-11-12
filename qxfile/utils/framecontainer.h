@@ -113,6 +113,7 @@ public:
     void setFolders(QList<ImageSeries> list);
     const QList<ImageSeries> &series() const;
     int size() const;
+    int i() const;
     
 private:
     QList<ImageSeries> p_seriess;

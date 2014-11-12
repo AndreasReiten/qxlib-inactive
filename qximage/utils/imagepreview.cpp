@@ -14,6 +14,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isCLInitialized(false),
     isFrameValid(false),
     isWeightCenterActive(true),
+    isInterpolGpuInitialized(false),
 //    isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
     alpha_style(2),
@@ -913,12 +914,16 @@ void ImagePreviewWorker::prevSeries()
 // A function to approximate background for the current set
 void ImagePreviewWorker::estimateBackground()
 {
+    set_tools.clear();
+    
     for (int i = 0; i < p_set.size(); i++)
     {
         // Background correction: Note: It is assumed that all images a series have the same dimensions
+        SeriesToolShed tool;
+        
         // Use the first frame as an example:
-        setFrame();
-
+        frame.set(p_set.begin()->begin()->path());
+        frame.readData();
 
         // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid. Samples are taken from the entire frame.
         size_t sample_equidistance = 8;
@@ -927,8 +932,8 @@ void ImagePreviewWorker::estimateBackground()
         size_t m = frame.getSlowDimension()/sample_equidistance;
         size_t n = frame.getFastDimension()/sample_equidistance;
 
-        set_tools.series_samples_cpu.set(1, m*n*p_set.current()->size());
-        set_tools.series_interpol_cpu.set(1, m*n*p_set.current()->size());
+        Matrix<float> series_samples_cpu(1, m*n*p_set.current()->size());
+        tool.series_interpol_cpu.set(1, m*n*p_set.current()->size());
 
 
         // For each image in the series
@@ -940,22 +945,24 @@ void ImagePreviewWorker::estimateBackground()
                 for (int l = 0; l < n; l++) // Fast dimension
                 {
                     // Note: In a better world this memory would be aligned in according to gpu memory optimization. This is bank conflict incarnate. Easy enough to fix. For example: Pad n and m with empty values to put adjacent pixel lines in adjacent memory banks.
-                    set_tools.series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
+                    series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
                 }
             }
+            frame.set(p_set.current()->next()->path());
+            frame.readData();
         }
 
         // Move series storage buffer into gpu memory
-        set_tools.series_samples_gpu = QOpenCLCreateBuffer( context_cl->context(),
+        cl_mem series_samples_gpu = QOpenCLCreateBuffer( context_cl->context(),
                 CL_MEM_COPY_HOST_PTR,
-                set_tools.series_samples_cpu.bytes(),
-                set_tools.series_samples_cpu.data(),
+                series_samples_cpu.bytes(),
+                series_samples_cpu.data(),
                 &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-        set_tools.series_interpol_gpu = QOpenCLCreateBuffer( context_cl->context(),
+        cl_mem series_interpol_gpu = QOpenCLCreateBuffer( context_cl->context(),
                 CL_MEM_ALLOC_HOST_PTR,
-                set_tools.series_interpol_cpu.bytes(),
+                tool.series_interpol_cpu.bytes(),
                 NULL,
                 &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -968,8 +975,8 @@ void ImagePreviewWorker::estimateBackground()
         dim[1] = m;
         dim[2] = p_set.current()->size();
         
-        err =   QOpenCLSetKernelArg(cl_glowstick,  0, sizeof(cl_mem), (void *) &set_tools.series_samples_gpu);
-        err |=   QOpenCLSetKernelArg(cl_glowstick, 1, sizeof(cl_mem), (void *) &set_tools.series_interpol_gpu);
+        err =   QOpenCLSetKernelArg(cl_glowstick,  0, sizeof(cl_mem), (void *) &series_samples_gpu);
+        err |=   QOpenCLSetKernelArg(cl_glowstick, 1, sizeof(cl_mem), (void *) &series_interpol_gpu);
         err |=   QOpenCLSetKernelArg(cl_glowstick, 2, sizeof(cl_int3), dim.data());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
@@ -989,49 +996,63 @@ void ImagePreviewWorker::estimateBackground()
 
         err =   QOpenCLFinish(context_cl->queue());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-        // Copy data over to image buffer and release some buffers
-        Matrix<size_t> dst_origin(1,3,0);
-        Matrix<size_t> region(1,3);
-        region[0] = n;
-        region[1] = m;
-        region[2] = p_set.current()->size();
-
-        set_tools.format_3Dimg.image_channel_order = CL_INTENSITY;
-        set_tools.format_3Dimg.image_channel_data_type = CL_FLOAT;
-
-        set_tools.series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
-            CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
-            &set_tools.format_3Dimg,
-            region[0],
-            region[1],
-            region[2],
-            0,
-            0,
-            NULL,
-            &err);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-        err = QOpenCLEnqueueCopyBufferToImage(  context_cl->queue(),
-                                                set_tools.series_interpol_gpu,
-                                                set_tools.series_interpol_gpu_3Dimg,
-                                                0,
-                                                dst_origin.data(),
-                                                region.data(),
-                                                0, NULL, NULL);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
-        // (The 3D buffer can now be used for BG approximation in other kernels)
         
-        err =  QOpenCLReleaseMemObject(set_tools.series_samples_gpu);
-        err |=  QOpenCLReleaseMemObject(set_tools.series_interpol_gpu);
-        err |=  QOpenCLReleaseMemObject(set_tools.series_interpol_gpu_3Dimg);
+        tool.dim = dim;
+        p_set.next();
+        
+        // Read back relevant data
+        err =   QOpenCLEnqueueReadBuffer ( context_cl->queue(),
+            series_interpol_gpu,
+            CL_TRUE,
+            0,
+            tool.series_interpol_cpu.bytes(),
+            tool.series_interpol_cpu.data(),
+            0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-
+        
+        set_tools << tool; 
+        
+        // (The 3D buffer can now be used for BG approximation in other kernels)
+        err =  QOpenCLReleaseMemObject(series_samples_gpu);
+        err |=  QOpenCLReleaseMemObject(series_interpol_gpu);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+        
         
     }
 }
 
+void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when swapping sets, and relevant dat will be put in gpu memory. This can then be used on demand by the imaging kernel
+{
+    // Copy interpolation data over to image buffer 
+    Matrix<size_t> region(1,3);
+    region[0] = set_tools[p_set.i()].dim[0];
+    region[1] = set_tools[p_set.i()].dim[1];
+    region[2] = set_tools[p_set.i()].dim[2];
+    
+    cl_image_format format_3Dimg;
+    format_3Dimg.image_channel_order = CL_INTENSITY;
+    format_3Dimg.image_channel_data_type = CL_FLOAT;
+    
+    if (isInterpolGpuInitialized)
+    {
+        err =  QOpenCLReleaseMemObject(series_interpol_gpu_3Dimg);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    }
+    
+    series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
+        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+        &format_3Dimg,
+        region[0],
+        region[1],
+        region[2],
+        0,
+        0,
+        set_tools[p_set.i()].series_interpol_cpu.data(),
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    isInterpolGpuInitialized = true;
+}
 
 void ImagePreviewWorker::analyzeSet()
 {
