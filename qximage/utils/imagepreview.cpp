@@ -15,11 +15,12 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isFrameValid(false),
     isWeightCenterActive(true),
     isInterpolGpuInitialized(false),
+    bgCorrectionMode(0),
 //    isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
     alpha_style(2),
-    isSelectionAlphaActive(false),
-    isSelectionBetaActive(false),
+//    isSelectionAlphaActive(false),
+//    isSelectionBetaActive(false),
     mode(0)
 {
     Q_UNUSED(parent);
@@ -140,7 +141,7 @@ void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
     this->shared_window = window;
 }
 
-void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> & param, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, int correction, float mean, float deviation, int task)
+void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> & param, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, float mean, float deviation, int task)
 {
     // Prepare kernel parameters
     Matrix<size_t> global_ws(1,2);
@@ -153,10 +154,16 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 1, sizeof(cl_mem), (void *) &out_buf_cl);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 2, sizeof(cl_mem), &parameter_cl);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 3, sizeof(cl_int2), image_size.toInt().data());
-    err |=   QOpenCLSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &correction);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &isLorentzCorrected);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 5, sizeof(cl_int), &task);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 6, sizeof(cl_float), &mean);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 7, sizeof(cl_float), &deviation);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 8, sizeof(cl_mem), (void *) &series_interpol_gpu_3Dimg);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 9, sizeof(cl_sampler), &bg_sampler);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 10, sizeof(cl_int), &bg_sample_interdist);
+    int image_number = p_set.current()->i();
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 11, sizeof(cl_int), &image_number);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 12, sizeof(cl_int), &bgCorrectionMode);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     
@@ -170,6 +177,10 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
 
 void ImagePreviewWorker::imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log)
 {
+    /*
+     * Display an image buffer object, matching intensity to color
+     * */
+    
     if (!isFrameValid) return;
         
     // Aquire shared CL/GL objects
@@ -331,6 +342,9 @@ float ImagePreviewWorker::sumGpuArray(cl_mem cl_data, unsigned int read_size, Ma
 
 void ImagePreviewWorker::calculus()
 {
+    /*
+     * Carry out calculations on an image buffer, such as corrections and calculation of variance and skewness 
+     * */
     if (!isFrameValid) return;
 
     Matrix<size_t> origin(2,1,0);
@@ -347,11 +361,11 @@ void ImagePreviewWorker::calculus()
     {
         // Normal intensity
         {
-            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 0);
+            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
             
             // Calculate the weighted intensity position
-            imageCalcuclus(image_data_corrected_cl, image_data_weight_x_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 3);
-            imageCalcuclus(image_data_corrected_cl, image_data_weight_y_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 4);
+            imageCalcuclus(image_data_corrected_cl, image_data_weight_x_cl, parameter, image_size, local_ws, 0, 0, 3);
+            imageCalcuclus(image_data_corrected_cl, image_data_weight_y_cl, parameter, image_size, local_ws, 0, 0, 4);
         }
 
     }
@@ -359,44 +373,44 @@ void ImagePreviewWorker::calculus()
     {
         // Variance
         {
-            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 0);
+            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
             
             // Calculate the variance
             copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
             
             float mean = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
             
-            imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, isLorentzCorrected, mean, 0, 1);
+            imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, mean, 0, 1);
             
             // Calculate the weighted intensity position
-            imageCalcuclus(image_data_variance_cl, image_data_weight_x_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 3);
-            imageCalcuclus(image_data_variance_cl, image_data_weight_y_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 4);
+            imageCalcuclus(image_data_variance_cl, image_data_weight_x_cl, parameter, image_size, local_ws, 0, 0, 3);
+            imageCalcuclus(image_data_variance_cl, image_data_weight_y_cl, parameter, image_size, local_ws, 0, 0, 4);
         }
     }
     else if (mode == 2)
     {
         // Skewness
         {
-            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 0);
+            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
             
             // Calculate the variance
             copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
             
             float mean = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
             
-            imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, isLorentzCorrected, mean, 0, 1);
+            imageCalcuclus(image_data_corrected_cl, image_data_variance_cl, parameter, image_size, local_ws, mean, 0, 1);
             
             // Calculate the skewness
             copyBufferRect(image_data_variance_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
             
             float variance = sumGpuArray(image_data_generic_cl, image_size[0]*image_size[1], local_ws)/(image_size[0]*image_size[1]);
             
-            imageCalcuclus(image_data_variance_cl, image_data_skewness_cl, parameter, image_size, local_ws, isLorentzCorrected, mean, sqrt(variance), 2);
+            imageCalcuclus(image_data_variance_cl, image_data_skewness_cl, parameter, image_size, local_ws, mean, sqrt(variance), 2);
             
             
             // Calculate the weighted intensity position
-            imageCalcuclus(image_data_skewness_cl, image_data_weight_x_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 3);
-            imageCalcuclus(image_data_skewness_cl, image_data_weight_y_cl, parameter, image_size, local_ws, isLorentzCorrected, 0, 0, 4);
+            imageCalcuclus(image_data_skewness_cl, image_data_weight_x_cl, parameter, image_size, local_ws, 0, 0, 3);
+            imageCalcuclus(image_data_skewness_cl, image_data_weight_y_cl, parameter, image_size, local_ws, 0, 0, 4);
         }
     }
     else
@@ -603,6 +617,10 @@ void ImagePreviewWorker::refreshSelection(Selection * area)
 
 void ImagePreviewWorker::refreshDisplay()
 {
+    /*
+     * Refresh the image buffer 
+     * */
+    
     Matrix<size_t> local_ws(1,2);
     local_ws[0] = 8;
     local_ws[1] = 8;
@@ -798,13 +816,13 @@ void ImagePreviewWorker::applySelectionToSeriesSet()
         Selection selection = p_set.current()->current()->selection();
         Selection background = p_set.current()->current()->background();
         
-        p_set.rememberCurrent();
+        p_set.saveCurrentIndex();
 
         p_set.begin();
 
         for (int i = 0; i < p_set.size(); i++)
         {        
-            p_set.current()->rememberCurrent();
+            p_set.current()->saveCurrentIndex();
             p_set.current()->begin();
             
             for (int i = 0; i < p_set.current()->size(); i++)
@@ -813,11 +831,11 @@ void ImagePreviewWorker::applySelectionToSeriesSet()
                 p_set.current()->current()->setBackground(background);
                 p_set.current()->next();
             }
-            p_set.current()->restoreMemory();
+            p_set.current()->loadSavedIndex();
 
             p_set.next();
         }
-        p_set.restoreMemory();
+        p_set.loadSavedIndex();
     }
 }
 
@@ -828,7 +846,7 @@ void ImagePreviewWorker::applySelectionToSeries()
         Selection selection = p_set.current()->current()->selection();
         Selection background = p_set.current()->current()->background();
         
-        p_set.current()->rememberCurrent();
+        p_set.current()->saveCurrentIndex();
         
         p_set.current()->begin();
         
@@ -839,7 +857,7 @@ void ImagePreviewWorker::applySelectionToSeries()
             p_set.current()->next();
         }
         
-        p_set.current()->restoreMemory();
+        p_set.current()->loadSavedIndex();
     }
 }
 
@@ -887,9 +905,9 @@ void ImagePreviewWorker::nextSeries()
 {
     if (!p_set.isEmpty())
     {
-        p_set.current()->rememberCurrent();
+        p_set.current()->saveCurrentIndex();
         p_set.next();
-        p_set.current()->restoreMemory();
+        p_set.current()->loadSavedIndex();
 
         emit imageRangeChanged(0,p_set.current()->size()-1);
         emit currentIndexChanged(p_set.current()->i());
@@ -900,9 +918,9 @@ void ImagePreviewWorker::prevSeries()
 {
     if (!p_set.isEmpty())
     {
-        p_set.current()->rememberCurrent();
+        p_set.current()->saveCurrentIndex();
         p_set.previous();
-        p_set.current()->restoreMemory();
+        p_set.current()->loadSavedIndex();
 
         emit imageRangeChanged(0,p_set.current()->size()-1);
         emit currentIndexChanged(p_set.current()->i());
@@ -916,8 +934,12 @@ void ImagePreviewWorker::estimateBackground()
 {
     set_tools.clear();
     
+    p_set.saveCurrentIndex();
+    
     for (int i = 0; i < p_set.size(); i++)
     {
+        p_set.current()->saveCurrentIndex();
+        
         // Background correction: Note: It is assumed that all images a series have the same dimensions
         SeriesToolShed tool;
         
@@ -926,11 +948,11 @@ void ImagePreviewWorker::estimateBackground()
         frame.readData();
 
         // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid. Samples are taken from the entire frame.
-        size_t sample_equidistance = 8;
+        bg_sample_interdist = 8;
 
         // Prepare the storage buffer
-        size_t m = frame.getSlowDimension()/sample_equidistance;
-        size_t n = frame.getFastDimension()/sample_equidistance;
+        size_t m = frame.getSlowDimension()/bg_sample_interdist;
+        size_t n = frame.getFastDimension()/bg_sample_interdist;
 
         Matrix<float> series_samples_cpu(1, m*n*p_set.current()->size());
         tool.series_interpol_cpu.set(1, m*n*p_set.current()->size());
@@ -945,7 +967,7 @@ void ImagePreviewWorker::estimateBackground()
                 for (int l = 0; l < n; l++) // Fast dimension
                 {
                     // Note: In a better world this memory would be aligned in according to gpu memory optimization. This is bank conflict incarnate. Easy enough to fix. For example: Pad n and m with empty values to put adjacent pixel lines in adjacent memory banks.
-                    series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*sample_equidistance*frame.getFastDimension()+l*sample_equidistance];
+                    series_samples_cpu[j*n*m+k*n+l] = frame.data()[k*bg_sample_interdist*frame.getFastDimension()+l*bg_sample_interdist];
                 }
             }
             frame.set(p_set.current()->next()->path());
@@ -991,10 +1013,10 @@ void ImagePreviewWorker::estimateBackground()
         local_ws.print(0,"local_ws");
         global_ws.print(0,"global_ws");
 
-        err =   QOpenCLEnqueueNDRangeKernel(context_cl->queue(), cl_glowstick, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
+        err = QOpenCLEnqueueNDRangeKernel(context_cl->queue(), cl_glowstick, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-        err =   QOpenCLFinish(context_cl->queue());
+        err = QOpenCLFinish(context_cl->queue());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
         tool.dim = dim;
@@ -1017,8 +1039,11 @@ void ImagePreviewWorker::estimateBackground()
         err |=  QOpenCLReleaseMemObject(series_interpol_gpu);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-        
+        p_set.current()->loadSavedIndex();
     }
+    
+    p_set.loadSavedIndex();
+    setFrame();
 }
 
 void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when swapping sets, and relevant dat will be put in gpu memory. This can then be used on demand by the imaging kernel
@@ -1033,11 +1058,11 @@ void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when 
     format_3Dimg.image_channel_order = CL_INTENSITY;
     format_3Dimg.image_channel_data_type = CL_FLOAT;
     
-    if (isInterpolGpuInitialized)
-    {
-        err =  QOpenCLReleaseMemObject(series_interpol_gpu_3Dimg);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-    }
+//    if (isInterpolGpuInitialized)
+//    {
+    err =  QOpenCLReleaseMemObject(series_interpol_gpu_3Dimg);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    }
     
     series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
         CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
@@ -1051,7 +1076,8 @@ void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when 
         &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
-    isInterpolGpuInitialized = true;
+//    isInterpolGpuInitialized = true;
+    bgCorrectionMode = 1;
 }
 
 void ImagePreviewWorker::analyzeSet()
@@ -1269,6 +1295,11 @@ void ImagePreviewWorker::initOpenCL()
     // Image sampler
     image_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
+    // Background sampler
+    bg_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    
 
     // Tsf sampler
     tsf_sampler =  QOpenCLCreateSampler(context_cl->context(), true, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
@@ -1331,6 +1362,28 @@ void ImagePreviewWorker::initOpenCL()
         &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
+    // BG buffer
+    Matrix<size_t> region(1,3);
+    region[0] = 16;
+    region[1] = 16;
+    region[2] = 16;
+    
+    cl_image_format format_3Dimg;
+    format_3Dimg.image_channel_order = CL_INTENSITY;
+    format_3Dimg.image_channel_data_type = CL_FLOAT;
+    
+    series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
+        CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR,
+        &format_3Dimg,
+        region[0],
+        region[1],
+        region[2],
+        0,
+        0,
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
     isCLInitialized = true;
     
     setParameter(parameter);
@@ -1971,19 +2024,19 @@ void ImagePreviewWorker::setParameter(Matrix<float> & data)
     }
 }
 
-void ImagePreviewWorker::setSelectionAlphaActive(bool value)
-{
-    isSelectionAlphaActive = value;
-    if (value) isSelectionBetaActive = false;
-    emit selectionBetaChanged(isSelectionBetaActive);
-}
+//void ImagePreviewWorker::setSelectionAlphaActive(bool value)
+//{
+//    isSelectionAlphaActive = value;
+//    if (value) isSelectionBetaActive = false;
+//    emit selectionBetaChanged(isSelectionBetaActive);
+//}
 
-void ImagePreviewWorker::setSelectionBetaActive(bool value)
-{
-    isSelectionBetaActive = value;
-    if (value) isSelectionAlphaActive = false;
-    emit selectionAlphaChanged(isSelectionAlphaActive);
-}
+//void ImagePreviewWorker::setSelectionBetaActive(bool value)
+//{
+//    isSelectionBetaActive = value;
+//    if (value) isSelectionAlphaActive = false;
+//    emit selectionAlphaChanged(isSelectionAlphaActive);
+//}
 
 Matrix<int> ImagePreviewWorker::getImagePixel(int x, int y)
 {
@@ -2256,7 +2309,7 @@ void ImagePreviewWindow::renderNow()
 
 SeriesToolShed::SeriesToolShed()
 {
-
+    dim.set(1,3,0);
 }
 
 SeriesToolShed::~SeriesToolShed()
@@ -2274,7 +2327,7 @@ SeriesSet ImagePreviewWorker::set()
     // Note: It is assumed that all images in a series have the same dimensions
 
     // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid.
-//    size_t sample_equidistance = 8;
+//    size_t bg_sample_interdist = 8;
 
     // Prepare the storage buffer
 //    size_t m = series->

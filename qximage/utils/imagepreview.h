@@ -74,8 +74,8 @@ public slots:
     void wheelEvent(QWheelEvent* ev);
     void resizeEvent(QResizeEvent * ev);
     void setFrame();
-    void setSelectionAlphaActive(bool value);
-    void setSelectionBetaActive(bool value);
+//    void setSelectionAlphaActive(bool value);
+//    void setSelectionBetaActive(bool value);
     void centerImage();
     void analyzeSingle();
     void analyzeFolder();
@@ -117,7 +117,7 @@ private:
 
 
     // GPU functions
-    void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, int correction, float mean, float deviation, int task);
+    void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, float mean, float deviation, int task);
     
     void imageDisplay(cl_mem data_buf_cl, cl_mem frame_image_cl, cl_mem tsf_image_cl, Matrix<float> &data_limit, Matrix<size_t> &image_size, Matrix<size_t> & local_ws, cl_sampler tsf_sampler, int log);
     
@@ -165,10 +165,12 @@ private:
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
+    cl_sampler bg_sampler;
 
     TransferFunction tsf;
     int rgb_style, alpha_style;
-
+    int bg_sample_interdist;
+    
     GLuint image_tex_gl;
     GLuint tsf_tex_gl;
     Matrix<size_t> image_tex_size;
@@ -201,6 +203,7 @@ private:
     bool isFrameValid;
     bool isWeightCenterActive;
     bool isInterpolGpuInitialized;
+    int bgCorrectionMode;
 //    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
@@ -223,8 +226,8 @@ private:
     // Selection
     GLuint selections_vbo[5];
     GLuint weightpoints_vbo[5];
-    bool isSelectionAlphaActive;
-    bool isSelectionBetaActive;
+//    bool isSelectionAlphaActive;
+//    bool isSelectionBetaActive;
     Matrix<int> getImagePixel(int x, int y);
 
     typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,

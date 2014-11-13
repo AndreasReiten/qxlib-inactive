@@ -58,8 +58,8 @@ public:
     void clear();
     void removeCurrent();
     void append(ImageInfo image);
-    void rememberCurrent();
-    void restoreMemory();
+    void saveCurrentIndex();
+    void loadSavedIndex();
     const QList<ImageInfo> &images() const;
 
     ImageInfo * current();
@@ -105,8 +105,8 @@ public:
     
     bool isEmpty();
 
-    void rememberCurrent();
-    void restoreMemory();
+    void saveCurrentIndex();
+    void loadSavedIndex();
     void clear();
     void append(ImageSeries image_series);
     void removeCurrent();

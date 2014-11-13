@@ -169,12 +169,12 @@ void ImageSeries::removeCurrent()
     }
 }
 
-void ImageSeries::rememberCurrent()
+void ImageSeries::saveCurrentIndex()
 {
     p_i_memory = p_i;
 }
 
-void ImageSeries::restoreMemory()
+void ImageSeries::loadSavedIndex()
 {
     if (p_i_memory < images().size())
     {
@@ -345,12 +345,12 @@ bool SeriesSet::isEmpty()
     return true;
 }
 
-void SeriesSet::rememberCurrent()
+void SeriesSet::saveCurrentIndex()
 {
     p_i_memory = p_i;
 }
 
-void SeriesSet::restoreMemory()
+void SeriesSet::loadSavedIndex()
 {
     if (p_i_memory < series().size())
     {

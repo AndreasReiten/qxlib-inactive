@@ -46,10 +46,15 @@ __kernel void imageCalculus(
     __global float * out_buf,
     __constant float * parameter,
     int2 image_size,
-    int correction,
+    int correction_lorentz,
     int task,
     float mean,
-    float deviation
+    float deviation,
+    __read_only image3d_t background,
+    sampler_t bg_sampler,
+    int sample_interdist,
+    int image_number,
+    int correction_background
     )
 {
     // The frame has its axes like this, looking from the source to
@@ -87,33 +92,41 @@ __kernel void imageCalculus(
 
         if (task == 0)
         {
+            // Estimated noise value
+            if (correction_background)
+            {
+                float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
+                float bg = read_imagef(background, bg_sampler, pos).w;
+                value = bg;
+            }
+
             // Noise filter
             value = clamp(value, noise_low, noise_high); // All readings within noise thresholds
-            value -= noise_low; // Subtracts the noise
-
+            value -= noise_low; // Subtracts noise
+            
             // Corrections
-            if (correction == 1)
+            float4 Q = (float4)(0.0f);
+            float k = 1.0f/wavelength; // Multiply with 2pi if desired
+
+            float3 k_i = (float3)(-k,0.0f,0.0f);
+            float3 k_f = k*normalize((float3)(
+                -det_dist,
+                pix_size_x * ((float) (image_size.y - id_glb.y) - beam_x), /* DANGER */
+                pix_size_y * ((float) id_glb.x - beam_y))); /* DANGER */
+
+            Q.xyz = k_f - k_i;
             {
-                float4 Q = (float4)(0.0f);
-                float k = 1.0f/wavelength; // Multiply with 2pi if desired
+                float lab_theta = asin(native_divide(Q.y, k)); // Not to be confused with 2-theta, the scattering angle
 
-                float3 k_i = (float3)(-k,0,0);
-                float3 k_f = k*normalize((float3)(
-                    -det_dist,
-                    pix_size_x * ((float) (image_size.y - id_glb.y) - beam_x), /* DANGER */
-                    pix_size_y * ((float) id_glb.x - beam_y))); /* DANGER */
-
-                Q.xyz = k_f - k_i;
+                // Lorentz correction: Assuming rotation around the z-axis of the lab frame:
+                if (correction_lorentz)
                 {
-                    float lab_theta = asin(native_divide(Q.y, k)); // Not to be confused with 2-theta, the scattering angle
-
-                    // Lorentz correction: Assuming rotation around the z-axis of the lab frame:
                     float L = fabs(native_sin(lab_theta));
 
                     value *= L;
-
-                    // Polarization correction begs implementation
                 }
+
+                // Polarization correction begs implementation
             }
 
             // Post correction filter
