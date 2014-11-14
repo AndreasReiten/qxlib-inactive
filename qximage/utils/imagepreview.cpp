@@ -955,7 +955,7 @@ void ImagePreviewWorker::estimateBackground()
         size_t n = frame.getFastDimension()/bg_sample_interdist;
 
         Matrix<float> series_samples_cpu(1, m*n*p_set.current()->size());
-        tool.series_interpol_cpu.set(1, m*n*p_set.current()->size());
+        tool.series_interpol_cpu.set(m*p_set.current()->size(), n);
 
 
         // For each image in the series
@@ -992,7 +992,7 @@ void ImagePreviewWorker::estimateBackground()
 
 
         // Do GPU magic on series, saving an interpolation object in gpu memory
-        Matrix<size_t> dim(1,3);
+        Matrix<int> dim(1,3);
         dim[0] = n;
         dim[1] = m;
         dim[2] = p_set.current()->size();
@@ -1019,7 +1019,9 @@ void ImagePreviewWorker::estimateBackground()
         err = QOpenCLFinish(context_cl->queue());
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-        tool.dim = dim;
+        tool.dim[0] = dim[0];
+        tool.dim[1] = dim[1];
+        tool.dim[2] = dim[2];
         p_set.next();
         
         // Read back relevant data
@@ -1032,7 +1034,12 @@ void ImagePreviewWorker::estimateBackground()
             0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
+        
+//        tool.series_interpol_cpu.print(1,"series interpol cpu");
+        
         set_tools << tool; 
+        
+        
         
         // (The 3D buffer can now be used for BG approximation in other kernels)
         err =  QOpenCLReleaseMemObject(series_samples_gpu);
@@ -1297,7 +1304,7 @@ void ImagePreviewWorker::initOpenCL()
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Background sampler
-    bg_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_NEAREST, &err);
+    bg_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
 
