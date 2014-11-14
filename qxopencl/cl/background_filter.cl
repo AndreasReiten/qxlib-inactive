@@ -10,7 +10,7 @@ __kernel void glowstick(
     {
         for (int i = 0; i < dim.z; i++)
         {
-            interpol[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] = samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x];
+            interpol[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] = 1.0;//samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x];
         }
     }
 }
