@@ -141,6 +141,7 @@ private:
     
     // GPU buffers
     cl_mem image_data_raw_cl;
+    cl_mem image_data_bg_cl;
     cl_mem image_data_corrected_cl;
     cl_mem image_data_variance_cl;
     cl_mem image_data_skewness_cl;
@@ -159,6 +160,7 @@ private:
     cl_kernel cl_image_calculus;
     cl_kernel cl_glowstick;
     cl_mem image_tex_cl;
+    cl_mem bg_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
@@ -175,6 +177,7 @@ private:
     int bg_sample_interdist;
     
     GLuint image_tex_gl;
+    GLuint bg_tex_gl;
     GLuint tsf_tex_gl;
     Matrix<size_t> image_tex_size;
     Matrix<size_t> image_buffer_size;

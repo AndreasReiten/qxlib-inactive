@@ -363,6 +363,7 @@ void ImagePreviewWorker::calculus()
         // Normal intensity
         {
             imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+            imageCalcuclus(image_data_raw_cl, image_data_bg_cl, parameter, image_size, local_ws, 0, 0, -1);
             
             // Calculate the weighted intensity position
             imageCalcuclus(image_data_corrected_cl, image_data_weight_x_cl, parameter, image_size, local_ws, 0, 0, 3);
@@ -375,6 +376,7 @@ void ImagePreviewWorker::calculus()
         // Variance
         {
             imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+            imageCalcuclus(image_data_raw_cl, image_data_bg_cl, parameter, image_size, local_ws, 0, 0, -1);
             
             // Calculate the variance
             copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
@@ -393,6 +395,7 @@ void ImagePreviewWorker::calculus()
         // Skewness
         {
             imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+            imageCalcuclus(image_data_raw_cl, image_data_bg_cl, parameter, image_size, local_ws, 0, 0, -1);
             
             // Calculate the variance
             copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
@@ -498,12 +501,20 @@ void ImagePreviewWorker::clMaintainImageBuffers(Matrix<size_t> &image_size)
     if ((image_size[0] != image_buffer_size[0]) || (image_size[1] != image_buffer_size[1]))
     {
         err =  QOpenCLReleaseMemObject(image_data_raw_cl);
+        err |=  QOpenCLReleaseMemObject(image_data_bg_cl);
         err |=  QOpenCLReleaseMemObject(image_data_corrected_cl);
         err |=  QOpenCLReleaseMemObject(image_data_weight_x_cl);
         err |=  QOpenCLReleaseMemObject(image_data_weight_y_cl);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
         image_data_raw_cl =  QOpenCLCreateBuffer( context_cl->context(),
+            CL_MEM_ALLOC_HOST_PTR,
+            image_size[0]*image_size[1]*sizeof(cl_float),
+            NULL,
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+        image_data_bg_cl =  QOpenCLCreateBuffer( context_cl->context(),
             CL_MEM_ALLOC_HOST_PTR,
             image_size[0]*image_size[1]*sizeof(cl_float),
             NULL,
@@ -640,16 +651,19 @@ void ImagePreviewWorker::refreshDisplay()
     {
         // Normal intensity
         imageDisplay(image_data_corrected_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+        imageDisplay(image_data_bg_cl, bg_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
     }
     if (mode == 1)
     {
         // Variance
         imageDisplay(image_data_variance_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+        imageDisplay(image_data_bg_cl, bg_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
     }
     else if (mode == 2)
     {
         // Skewness
         imageDisplay(image_data_skewness_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+        imageDisplay(image_data_bg_cl, bg_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
     }
     else
     {
@@ -664,8 +678,10 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
         if (isImageTexInitialized)
         {
             err =  QOpenCLReleaseMemObject(image_tex_cl);
+            err |=  QOpenCLReleaseMemObject(bg_tex_cl);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             glDeleteTextures(1, &image_tex_gl);
+            glDeleteTextures(1, &bg_tex_gl);
         }
         
         context_gl->makeCurrent(render_surface);
@@ -685,12 +701,29 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
             GL_FLOAT,
             NULL);
         glBindTexture(GL_TEXTURE_2D, 0);
+
+        glGenTextures(1, &bg_tex_gl);
+        glBindTexture(GL_TEXTURE_2D, bg_tex_gl);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA32F,
+            image_size[0],
+            image_size[1],
+            0,
+            GL_RGBA,
+            GL_FLOAT,
+            NULL);
+        glBindTexture(GL_TEXTURE_2D, 0);
         
         image_tex_size[0] = image_size[0];
         image_tex_size[1] = image_size[1];
         
         // Share the texture with the OpenCL runtime
         image_tex_cl =  QOpenCLCreateFromGLTexture2D(context_cl->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
+        bg_tex_cl =  QOpenCLCreateFromGLTexture2D(context_cl->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, bg_tex_gl, &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
         isImageTexInitialized = true;
@@ -1351,6 +1384,13 @@ void ImagePreviewWorker::initOpenCL()
         NULL,
         &err);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    image_data_bg_cl =  QOpenCLCreateBuffer( context_cl->context(),
+        CL_MEM_ALLOC_HOST_PTR,
+        image_buffer_size[0]*image_buffer_size[1]*sizeof(cl_float),
+        NULL,
+        &err);
+    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     image_data_corrected_cl =  QOpenCLCreateBuffer( context_cl->context(),
         CL_MEM_ALLOC_HOST_PTR,
@@ -1622,13 +1662,7 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     shared_window->rect_hl_2d_tex_program->bind();
 
-    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
     shared_window->rect_hl_2d_tex_program->setUniformValue(shared_window->rect_hl_2d_tex_texture, 0);
-
-    QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-    image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
-
-    Matrix<GLfloat> fragpos = glRect(image_rect);
 
     GLfloat texpos[] = {
         0.0, 0.0,
@@ -1659,18 +1693,38 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     
     glUniform1f(shared_window->rect_hl_2d_tex_pixel_size, pixel_size);
     
-
-    glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
-    glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
-
     glEnableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
     glEnableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
 
+    Matrix<GLfloat> fragpos;
+
+    // Draw image
+    QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+    image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
+
+    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
+    fragpos = glRect(image_rect);
+    glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
+    glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+
     glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
+
+    // Draw background
+    QRectF bg_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+    bg_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
+
+    glBindTexture(GL_TEXTURE_2D, bg_tex_gl);
+    fragpos = glRect(bg_rect);
+    glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
+    glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+
+    glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 
     glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
     glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
-    glBindTexture(GL_TEXTURE_2D, 0);
+
 
     shared_window->rect_hl_2d_tex_program->release();
 

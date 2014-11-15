@@ -90,14 +90,22 @@ __kernel void imageCalculus(
     {
         float value = data_buf[id_glb.y * image_size.x + id_glb.x];
 
-        if (task == 0)
+
+
+        if (task == -1)
+        {
+            float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
+            float bg = read_imagef(background, bg_sampler, pos).w;
+
+            out_buf[id_glb.y * image_size.x + id_glb.x] = bg;
+        }
+        else if (task == 0)
         {
             // Estimated noise value
             if (correction_background)
             {
                 float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
                 float bg = read_imagef(background, bg_sampler, pos).w;
-                value = bg;
             }
 
             // Noise filter
