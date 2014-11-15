@@ -13,9 +13,10 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isTsfTexInitialized(false),
     isCLInitialized(false),
     isFrameValid(false),
-    isWeightCenterActive(true),
+    isWeightCenterActive(false),
     isInterpolGpuInitialized(false),
     bgCorrectionMode(0),
+    isBGEstimated(true),
 //    isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
     alpha_style(2),
@@ -875,6 +876,8 @@ void ImagePreviewWorker::setSet(SeriesSet s)
 
 //        emit selectionChanged(p_set.current()->current()->selection());
         centerImage();
+
+        isBGEstimated = false;
     }
 }
 
@@ -888,6 +891,8 @@ void ImagePreviewWorker::removeCurrentImage()
         p_set.current()->next();
 
         setFrame();
+
+        isBGEstimated = false;
     }
 }
 
@@ -911,6 +916,8 @@ void ImagePreviewWorker::nextSeries()
 
         emit imageRangeChanged(0,p_set.current()->size()-1);
         emit currentIndexChanged(p_set.current()->i());
+
+        setSeriesBackgroundBuffer();
         setFrame();
     }
 }
@@ -924,6 +931,8 @@ void ImagePreviewWorker::prevSeries()
 
         emit imageRangeChanged(0,p_set.current()->size()-1);
         emit currentIndexChanged(p_set.current()->i());
+
+        setSeriesBackgroundBuffer();
         setFrame();
     }
 }
@@ -932,12 +941,17 @@ void ImagePreviewWorker::prevSeries()
 // A function to approximate background for the current set
 void ImagePreviewWorker::estimateBackground()
 {
+    emit visibilityChanged(false);
+
     set_tools.clear();
     
     p_set.saveCurrentIndex();
     
     for (int i = 0; i < p_set.size(); i++)
     {
+
+        emit progressRangeChanged(0, p_set.current()->size());
+
         p_set.current()->saveCurrentIndex();
         
         // Background correction: Note: It is assumed that all images a series have the same dimensions
@@ -972,6 +986,8 @@ void ImagePreviewWorker::estimateBackground()
             }
             frame.set(p_set.current()->next()->path());
             frame.readData();
+
+            emit progressChanged(j+1);
         }
 
         // Move series storage buffer into gpu memory
@@ -1010,8 +1026,8 @@ void ImagePreviewWorker::estimateBackground()
         global_ws[0] = n + local_ws[0] - n%local_ws[0];
         global_ws[1] = m + local_ws[1] - m%local_ws[1];
         
-        local_ws.print(0,"local_ws");
-        global_ws.print(0,"global_ws");
+//        local_ws.print(0,"local_ws");
+//        global_ws.print(0,"global_ws");
 
         err = QOpenCLEnqueueNDRangeKernel(context_cl->queue(), cl_glowstick, 2, NULL, global_ws.data(), local_ws.data(), 0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -1051,40 +1067,49 @@ void ImagePreviewWorker::estimateBackground()
     
     p_set.loadSavedIndex();
     setFrame();
+
+    emit visibilityChanged(true);
+
+    isBGEstimated = true;
+
+    setSeriesBackgroundBuffer();
 }
 
 void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when swapping sets, and relevant dat will be put in gpu memory. This can then be used on demand by the imaging kernel
 {
-    // Copy interpolation data over to image buffer 
-    Matrix<size_t> region(1,3);
-    region[0] = set_tools[p_set.i()].dim[0];
-    region[1] = set_tools[p_set.i()].dim[1];
-    region[2] = set_tools[p_set.i()].dim[2];
-    
-    cl_image_format format_3Dimg;
-    format_3Dimg.image_channel_order = CL_INTENSITY;
-    format_3Dimg.image_channel_data_type = CL_FLOAT;
-    
-//    if (isInterpolGpuInitialized)
-//    {
-    err =  QOpenCLReleaseMemObject(series_interpol_gpu_3Dimg);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
-//    }
-    
-    series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
-        CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-        &format_3Dimg,
-        region[0],
-        region[1],
-        region[2],
-        0,
-        0,
-        set_tools[p_set.i()].series_interpol_cpu.data(),
-        &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    if (isBGEstimated)
+    {
+        // Copy interpolation data over to image buffer
+        Matrix<size_t> region(1,3);
+        region[0] = set_tools[p_set.i()].dim[0];
+        region[1] = set_tools[p_set.i()].dim[1];
+        region[2] = set_tools[p_set.i()].dim[2];
 
-//    isInterpolGpuInitialized = true;
-    bgCorrectionMode = 1;
+        cl_image_format format_3Dimg;
+        format_3Dimg.image_channel_order = CL_INTENSITY;
+        format_3Dimg.image_channel_data_type = CL_FLOAT;
+
+    //    if (isInterpolGpuInitialized)
+    //    {
+        err =  QOpenCLReleaseMemObject(series_interpol_gpu_3Dimg);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+    //    }
+
+        series_interpol_gpu_3Dimg = QOpenCLCreateImage3D ( context_cl->context(),
+            CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+            &format_3Dimg,
+            region[0],
+            region[1],
+            region[2],
+            0,
+            0,
+            set_tools[p_set.i()].series_interpol_cpu.data(),
+            &err);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+
+    //    isInterpolGpuInitialized = true;
+        bgCorrectionMode = 1;
+    }
 }
 
 void ImagePreviewWorker::analyzeSet()

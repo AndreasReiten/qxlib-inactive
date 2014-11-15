@@ -52,6 +52,9 @@ signals:
     void pathChanged(QString path);
     void imageRangeChanged(int low, int high);
     void currentIndexChanged(int value);
+    void progressChanged(int value);
+    void progressRangeChanged(int min, int max);
+    void visibilityChanged(bool value);
     
 public slots:
     void setMode(int value);
@@ -204,6 +207,7 @@ private:
     bool isWeightCenterActive;
     bool isInterpolGpuInitialized;
     int bgCorrectionMode;
+    bool isBGEstimated;
 //    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
