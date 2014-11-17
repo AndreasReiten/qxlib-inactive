@@ -704,8 +704,8 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
 
         glGenTextures(1, &bg_tex_gl);
         glBindTexture(GL_TEXTURE_2D, bg_tex_gl);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexImage2D(
             GL_TEXTURE_2D,
             0,
@@ -980,6 +980,16 @@ void ImagePreviewWorker::estimateBackground()
     
     p_set.saveCurrentIndex();
     
+    // Use the first frame as an example:
+    frame.set(p_set.begin()->begin()->path());
+    frame.readData();
+    
+    bg_sample_interdist = 8;
+    
+    // Prepare the storage buffer
+    size_t m = frame.getSlowDimension()/bg_sample_interdist;
+    size_t n = frame.getFastDimension()/bg_sample_interdist;
+    
     for (int i = 0; i < p_set.size(); i++)
     {
 
@@ -990,17 +1000,7 @@ void ImagePreviewWorker::estimateBackground()
         // Background correction: Note: It is assumed that all images a series have the same dimensions
         SeriesToolShed tool;
         
-        // Use the first frame as an example:
-        frame.set(p_set.begin()->begin()->path());
-        frame.readData();
-
         // Given a set of rules for sample selection. Samples are taken on a regular, equidistant grid. Samples are taken from the entire frame.
-        bg_sample_interdist = 8;
-
-        // Prepare the storage buffer
-        size_t m = frame.getSlowDimension()/bg_sample_interdist;
-        size_t n = frame.getFastDimension()/bg_sample_interdist;
-
         Matrix<float> series_samples_cpu(1, m*n*p_set.current()->size());
         tool.series_interpol_cpu.set(m*p_set.current()->size(), n);
 
@@ -1099,13 +1099,15 @@ void ImagePreviewWorker::estimateBackground()
     }
     
     p_set.loadSavedIndex();
-    setFrame();
+    
 
     emit visibilityChanged(true);
 
     isBGEstimated = true;
 
     setSeriesBackgroundBuffer();
+    
+    setFrame();
 }
 
 void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when swapping sets, and relevant dat will be put in gpu memory. This can then be used on demand by the imaging kernel
@@ -1117,7 +1119,9 @@ void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when 
         region[0] = set_tools[p_set.i()].dim[0];
         region[1] = set_tools[p_set.i()].dim[1];
         region[2] = set_tools[p_set.i()].dim[2];
-
+        
+//        region.print(0,"Region on buffer load");
+        
         cl_image_format format_3Dimg;
         format_3Dimg.image_channel_order = CL_INTENSITY;
         format_3Dimg.image_channel_data_type = CL_FLOAT;

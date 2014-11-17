@@ -8,9 +8,30 @@ __kernel void glowstick(
     
     if ((id_glb.x < dim.x) && (id_glb.y < dim.y))
     {
+        float average = 0;    
+
         for (int i = 0; i < dim.z; i++)
         {
-            interpol[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] = samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x];
+            average += samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x];
+        }
+        average /= (float)(dim.z);
+        
+
+        float variance = 0;
+        for (int i = 0; i < dim.z; i++)
+        {
+            variance += pow(samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] - variance, 2.0f);
+        }
+        
+        variance /= (float)(dim.z); 
+        
+        float std_dev = sqrt(variance); 
+        
+        for (int i = 0; i < dim.z; i++)
+        {
+            
+            if (samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] > average + std_dev) interpol[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] = 1000;
+            else interpol[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x] = samples[dim.x*dim.y*i +  dim.x*id_glb.y + id_glb.x];
         }
     }
 }
