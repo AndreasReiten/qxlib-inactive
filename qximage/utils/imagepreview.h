@@ -66,6 +66,7 @@ public slots:
     void setTsfAlpha(int value);
     void setLog(bool value);
     void setCorrectionLorentz(bool value);
+    void setCorrectionBackground(bool value);
 //    void setAutoBackgroundCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
@@ -209,7 +210,7 @@ private:
     bool isFrameValid;
     bool isWeightCenterActive;
     bool isInterpolGpuInitialized;
-    int bgCorrectionMode;
+//    int bgCorrectionMode;
     bool isBGEstimated;
 //    bool isAutoBackgroundCorrectionActive;
 
@@ -228,6 +229,7 @@ private:
     // Display
     int isLog;
     int isLorentzCorrected;
+    int isBackgroundCorrected;
     int mode;
 
     // Selection

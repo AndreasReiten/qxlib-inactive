@@ -15,7 +15,7 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isFrameValid(false),
     isWeightCenterActive(false),
     isInterpolGpuInitialized(false),
-    bgCorrectionMode(0),
+//    bgCorrectionMode(0),
     isBGEstimated(true),
 //    isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
@@ -164,7 +164,7 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 10, sizeof(cl_int), &bg_sample_interdist);
     int image_number = p_set.current()->i();
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 11, sizeof(cl_int), &image_number);
-    err |=   QOpenCLSetKernelArg(cl_image_calculus, 12, sizeof(cl_int), &bgCorrectionMode);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 12, sizeof(cl_int), &isBackgroundCorrected);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     
@@ -1145,7 +1145,7 @@ void ImagePreviewWorker::setSeriesBackgroundBuffer() // Call this function when 
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
 
     //    isInterpolGpuInitialized = true;
-        bgCorrectionMode = 1;
+//        bgCorrectionMode = 1;
     }
 }
 
@@ -2053,6 +2053,21 @@ void ImagePreviewWorker::setMode(int value)
 void ImagePreviewWorker::setCorrectionLorentz(bool value)
 {
     isLorentzCorrected = (int) value;
+
+    calculus();
+    refreshDisplay();
+
+    if(!p_set.isEmpty())
+    {
+        Selection analysis_area = p_set.current()->current()->selection();
+        refreshSelection(&analysis_area);
+        p_set.current()->current()->setSelection(analysis_area);
+    }
+}
+
+void ImagePreviewWorker::setCorrectionBackground(bool value)
+{
+    isBackgroundCorrected = (int) value;
 
     calculus();
     refreshDisplay();
