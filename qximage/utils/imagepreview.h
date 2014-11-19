@@ -203,7 +203,7 @@ private:
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawToolTip(QPainter * painter);
 
-    // Boolean checks
+    // Boolean checks, yep
     bool isImageTexInitialized;
     bool isTsfTexInitialized;
     bool isCLInitialized;
