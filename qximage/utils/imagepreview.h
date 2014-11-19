@@ -84,6 +84,7 @@ public slots:
     void analyzeSingle();
     void analyzeFolder();
     void analyzeSet();
+    void traceSeries();
     void estimateBackground();
     void setSeriesBackgroundBuffer();
     

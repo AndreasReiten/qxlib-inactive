@@ -970,6 +970,52 @@ void ImagePreviewWorker::prevSeries()
     }
 }
 
+void ImagePreviewWorker::traceSeries()
+{
+    emit visibilityChanged(false);
+
+    p_set.saveCurrentIndex();
+    
+    frame.set(p_set.begin()->begin()->path());
+    
+    // For each series
+    for (int i = 0; i < p_set.size(); i++)
+    {
+        emit progressRangeChanged(0, p_set.current()->size());
+
+        p_set.current()->saveCurrentIndex();
+        
+        // For each image in the series
+        for (int j = 0; j < p_set.current()->size(); j++)
+        {
+            // Read data and send to a VRAM buffer. 
+            frame.readData();
+            
+            // Use OpenCL to check data against a second VRAM buffer, keeping the max value
+            
+            
+            
+            
+            frame.set(p_set.current()->next()->path());
+            
+
+            emit progressChanged(j+1);
+        }
+        p_set.current()->loadSavedIndex();
+    
+        // Read back the second VRAM buffer and store in system RAM for later usage 
+    
+    }
+    
+    
+    
+    p_set.loadSavedIndex();
+
+    emit visibilityChanged(true);
+
+    setFrame();    
+}
+
 
 // A function to approximate background for the current set
 void ImagePreviewWorker::estimateBackground()
