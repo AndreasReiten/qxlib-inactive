@@ -15,8 +15,9 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isFrameValid(false),
     isWeightCenterActive(false),
     isInterpolGpuInitialized(false),
+    isSetTraced(false),
 //    bgCorrectionMode(0),
-    isBGEstimated(true),
+//    isBGEstimated(true),
 //    isAutoBackgroundCorrectionActive(false),
     rgb_style(1),
     alpha_style(2),
@@ -758,17 +759,47 @@ QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, ImageInfo & 
 }
 
 
-void ImagePreviewWorker::peakHuntSingle(ImageInfo image)
+//void ImagePreviewWorker::peakHuntSingle(ImageInfo image)
+//{
+//}
+
+//void ImagePreviewWorker::peakHuntFolder(ImageSeries series)
+//{
+//}
+
+//void ImagePreviewWorker::peakHuntSet(SeriesSet set)
+//{
+//}
+
+void ImagePreviewWorker::setCorrectionNoise()
 {
+    
+}
+void ImagePreviewWorker::setCorrectionPlane()
+{
+    
+}
+void ImagePreviewWorker::setCorrectionClutter()
+{
+    
+}
+void ImagePreviewWorker::setCorrectionMedian()
+{
+    
+}
+void ImagePreviewWorker::setCorrectionPolarization()
+{
+    
+}
+void ImagePreviewWorker::setCorrectionFlux()
+{
+    
+}
+void ImagePreviewWorker::setCorrectionExposure()
+{
+    
 }
 
-void ImagePreviewWorker::peakHuntFolder(ImageSeries series)
-{
-}
-
-void ImagePreviewWorker::peakHuntSet(SeriesSet set)
-{
-}
 
 void ImagePreviewWorker::analyzeSingle()
 {
@@ -792,7 +823,7 @@ void ImagePreviewWorker::analyzeSingle()
     emit resultFinished(result);
 }
 
-void ImagePreviewWorker::analyzeFolder()
+void ImagePreviewWorker::analyzeSeries()
 {
     double integral = 0;
     Matrix<double> weightpoint(1,3,0);
@@ -910,7 +941,7 @@ void ImagePreviewWorker::setSet(SeriesSet s)
 //        emit selectionChanged(p_set.current()->current()->selection());
         centerImage();
 
-        isBGEstimated = false;
+        isSetTraced = false;
     }
 }
 
@@ -925,7 +956,7 @@ void ImagePreviewWorker::removeCurrentImage()
 
         setFrame();
 
-        isBGEstimated = false;
+        isSetTraced = false;
     }
 }
 
@@ -950,7 +981,7 @@ void ImagePreviewWorker::nextSeries()
         emit imageRangeChanged(0,p_set.current()->size()-1);
         emit currentIndexChanged(p_set.current()->i());
 
-        setSeriesMaxFrame();
+        if (isSetTraced) setSeriesMaxFrame();
 //        setSeriesBackgroundBuffer();
         setFrame();
     }
@@ -966,13 +997,13 @@ void ImagePreviewWorker::prevSeries()
         emit imageRangeChanged(0,p_set.current()->size()-1);
         emit currentIndexChanged(p_set.current()->i());
 
-        setSeriesMaxFrame();
+        if (isSetTraced) setSeriesMaxFrame();
 //        setSeriesBackgroundBuffer();
         setFrame();
     }
 }
 
-void ImagePreviewWorker::traceSeries()
+void ImagePreviewWorker::traceSet()
 {
     emit visibilityChanged(false);
 
@@ -1067,7 +1098,9 @@ void ImagePreviewWorker::traceSeries()
     p_set.loadSavedIndex();
 
     emit visibilityChanged(true);
-
+    
+    isSetTraced = true;
+    
     setSeriesMaxFrame();
     setFrame();    
 }
@@ -1214,7 +1247,7 @@ void ImagePreviewWorker::traceSeries()
 
 void ImagePreviewWorker::setSeriesMaxFrame()
 {
-    qDebug() << p_set.i();
+//    qDebug() << p_set.i();
 
     err =  QOpenCLReleaseMemObject(image_data_max_cl);
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
@@ -1837,21 +1870,22 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
     glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
 
     // Draw max frame
-    QRectF bg_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-    bg_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
-
-    glBindTexture(GL_TEXTURE_2D, max_tex_gl);
-    fragpos = glRect(bg_rect);
-    glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
-    glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
-
-    glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-
+    if (isSetTraced) 
+    {
+        QRectF bg_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+        bg_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
+    
+        glBindTexture(GL_TEXTURE_2D, max_tex_gl);
+        fragpos = glRect(bg_rect);
+        glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
+        glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+    
+        glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
+    
+        glBindTexture(GL_TEXTURE_2D, 0);
+    }
     glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
     glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
-
 
     shared_window->rect_hl_2d_tex_program->release();
 

@@ -83,15 +83,15 @@ public slots:
 //    void setSelectionBetaActive(bool value);
     void centerImage();
     void analyzeSingle();
-    void analyzeFolder();
+    void analyzeSeries();
     void analyzeSet();
-    void traceSeries();
+    void traceSet();
 //    void estimateBackground();
 //    void setSeriesBackgroundBuffer();
     
-    void peakHuntSingle(ImageInfo image);
-    void peakHuntFolder(ImageSeries series);
-    void peakHuntSet(SeriesSet p_set);
+//    void peakHuntSingle(ImageInfo image);
+//    void peakHuntFolder(ImageSeries series);
+//    void peakHuntSet(SeriesSet p_set);
     
     void showWeightCenter(bool value);
     
@@ -102,6 +102,13 @@ public slots:
     void removeCurrentImage();
     void applySelectionToSeriesSet();
     void applySelectionToSeries();
+    void setCorrectionNoise();
+    void setCorrectionPlane();
+    void setCorrectionClutter();
+    void setCorrectionMedian();
+    void setCorrectionPolarization();
+    void setCorrectionFlux();
+    void setCorrectionExposure();
     //    void nextFrame();
 //    void prevFrame();
 //    void nextFrameMulti();
@@ -214,8 +221,9 @@ private:
     bool isFrameValid;
     bool isWeightCenterActive;
     bool isInterpolGpuInitialized;
+    bool isSetTraced;
 //    int bgCorrectionMode;
-    bool isBGEstimated;
+//    bool isBGEstimated;
 //    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
