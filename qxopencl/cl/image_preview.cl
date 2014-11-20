@@ -41,6 +41,19 @@ __kernel void imageDisplay(
     }
 }
 
+__kernel void bufferMax(
+__global float * data_buf,
+__global float * out_buf,
+int2 image_size)
+{
+    int2 id_glb = (int2)(get_global_id(0),get_global_id(1));
+
+    if ((id_glb.x < image_size.x) && (id_glb.y < image_size.y))
+    {
+        out_buf[id_glb.y * image_size.x + id_glb.x] = max(out_buf[id_glb.y * image_size.x + id_glb.x], data_buf[id_glb.y * image_size.x + id_glb.x]);
+    }
+}
+
 __kernel void imageCalculus(
     __global float * data_buf,
     __global float * out_buf,
@@ -49,12 +62,12 @@ __kernel void imageCalculus(
     int correction_lorentz,
     int task,
     float mean,
-    float deviation,
-    __read_only image3d_t background,
-    sampler_t bg_sampler,
-    int sample_interdist,
-    int image_number,
-    int correction_background
+    float deviation
+//    __read_only image3d_t background,
+//    sampler_t bg_sampler,
+//    int sample_interdist,
+//    int image_number,
+//    int correction_background
     )
 {
     // The frame has its axes like this, looking from the source to
@@ -92,24 +105,24 @@ __kernel void imageCalculus(
 
 
 
-        if (task == -1)
-        {
-            float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
-            float bg = read_imagef(background, bg_sampler, pos).w;
+//        if (task == -1)
+//        {
+//            float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
+//            float bg = read_imagef(background, bg_sampler, pos).w;
 
-            out_buf[id_glb.y * image_size.x + id_glb.x] = bg;
-        }
-        else if (task == 0)
+//            out_buf[id_glb.y * image_size.x + id_glb.x] = bg;
+//        }
+        if (task == 0)
         {
             // Background subtraction based on estimate
-            if (correction_background)
-            {
-                float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
-                float bg = read_imagef(background, bg_sampler, pos).w;
+//            if (correction_background)
+//            {
+//                float4 pos = (float4)(((float)id_glb.x+0.5f)/(float)sample_interdist, ((float)id_glb.y+0.5f)/(float)sample_interdist, (float)image_number+0.5, 0.0f);
+//                float bg = read_imagef(background, bg_sampler, pos).w;
                 
-                value = clamp(value, bg, noise_high); // Set to at least the value of the background
-                value -= bg; // Subtract
-            }
+//                value = clamp(value, bg, noise_high); // Set to at least the value of the background
+//                value -= bg; // Subtract
+//            }
 
             // Flat noise filter
             value = clamp(value, noise_low, noise_high); // All readings within noise thresholds

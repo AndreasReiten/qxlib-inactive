@@ -18,19 +18,20 @@ public:
     SeriesToolShed();
     ~SeriesToolShed();
 
-    // Background samples container and background interpolation container
-//    cl_mem series_samples_gpu;
-//    cl_mem series_interpol_gpu;
-//    cl_mem series_interpol_gpu_3Dimg;
-
-//    cl_image_format format_3Dimg;
-
-//    Matrix<float> series_samples_cpu;
     Matrix<float> series_interpol_cpu;
     Matrix<size_t> dim;
 
 
 };
+
+//class SeriesTrace
+//{
+//public:
+//    SeriesTrace();
+//    ~SeriesTrace();
+
+//    Matrix<float> trace_image;
+//};
 
 class ImagePreviewWorker : public OpenGLWorker
 {
@@ -85,8 +86,8 @@ public slots:
     void analyzeFolder();
     void analyzeSet();
     void traceSeries();
-    void estimateBackground();
-    void setSeriesBackgroundBuffer();
+//    void estimateBackground();
+//    void setSeriesBackgroundBuffer();
     
     void peakHuntSingle(ImageInfo image);
     void peakHuntFolder(ImageSeries series);
@@ -115,11 +116,12 @@ public:
 private:
     
     // Series
-    QList<SeriesToolShed> set_tools;
+//    QList<SeriesToolShed> set_tools;
+    QList<Matrix<float>> set_trace;
     SeriesSet p_set;
     cl_mem series_interpol_gpu_3Dimg;
 //    void populateSeriesBackgroundSamples(ImageSeries * series);
-
+    void setSeriesMaxFrame();
 
     // GPU functions
     void imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, Matrix<float> &param, Matrix<size_t> &image_size, Matrix<size_t> &local_ws, float mean, float deviation, int task);
@@ -143,7 +145,7 @@ private:
     
     // GPU buffers
     cl_mem image_data_raw_cl;
-    cl_mem image_data_bg_cl;
+    cl_mem image_data_max_cl;
     cl_mem image_data_corrected_cl;
     cl_mem image_data_variance_cl;
     cl_mem image_data_skewness_cl;
@@ -160,9 +162,10 @@ private:
     cl_program program;
     cl_kernel cl_display_image;
     cl_kernel cl_image_calculus;
-    cl_kernel cl_glowstick;
+    cl_kernel cl_buffer_max;
+//    cl_kernel cl_glowstick;
     cl_mem image_tex_cl;
-    cl_mem bg_tex_cl;
+    cl_mem max_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
@@ -179,7 +182,7 @@ private:
     int bg_sample_interdist;
     
     GLuint image_tex_gl;
-    GLuint bg_tex_gl;
+    GLuint max_tex_gl;
     GLuint tsf_tex_gl;
     Matrix<size_t> image_tex_size;
     Matrix<size_t> image_buffer_size;
