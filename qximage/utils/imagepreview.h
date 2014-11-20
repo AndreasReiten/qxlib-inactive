@@ -227,7 +227,7 @@ private:
     void drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color);
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawToolTip(QPainter * painter);
-    void drawMarkerToolTip(QList<Selection> *marker, QPainter *painter);
+    void drawPlaneMarkerToolTip(QList<Selection> *marker, QPainter *painter);
     
 
     // Boolean checks

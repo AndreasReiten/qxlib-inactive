@@ -1853,7 +1853,7 @@ void ImagePreviewWorker::render(QPainter *painter)
             drawPlaneMarker(p_set.current()->current()->planeMarker()[1], painter, marker_b_color);
             drawPlaneMarker(p_set.current()->current()->planeMarker()[2], painter, marker_c_color);
             
-            drawMarkerToolTip(p_set.current()->current()->planeMarkerPtr(), painter);
+            drawPlaneMarkerToolTip(p_set.current()->current()->planeMarkerPtr(), painter);
         }
         
         if (isWeightCenterActive) drawWeightpoint(p_set.current()->current()->selection(), painter, analysis_wp_color);
@@ -2289,7 +2289,7 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
 
 }
 
-void ImagePreviewWorker::drawMarkerToolTip(QList<Selection> * marker, QPainter *painter)
+void ImagePreviewWorker::drawPlaneMarkerToolTip(QList<Selection> * marker, QPainter *painter)
 {
     QPoint position(2,5);
     
@@ -2310,17 +2310,17 @@ void ImagePreviewWorker::drawMarkerToolTip(QList<Selection> * marker, QPainter *
         Matrix<size_t> host_origin(1,3,0);
         Matrix<size_t> region(1,3,1);
         region[0] = marker->at(i).width()*sizeof(float);
-        region[1] = marker->at(i).height()*sizeof(float);
+        region[1] = marker->at(i).height(); // The 1.1 OpenCL doc is unclear on this, but based on how slice pitches are calculated region[1] should not be in bytes, but elements
         
-        buffer_origin.print(0,"buffer_origin");
-        host_origin.print(0,"host_origin");
-        region.print(0,"region");
-        image_buffer_size.print(0,"image_buffer_size");
+//        buffer_origin.print(0,"buffer_origin");
+//        host_origin.print(0,"host_origin");
+//        region.print(0,"region");
+//        image_buffer_size.print(0,"image_buffer_size");
         
-        Matrix<float> marker_buf(marker->at(i).height(), marker->at(i).width());
+        Matrix<float> marker_buf(marker->at(i).height(), marker->at(i).width()); // Too small in comparison to region
         
-        marker_buf.print(0,"marker_buf");
-        qDebug() << *marker;
+//        marker_buf.print(0,"marker_buf");
+//        qDebug() << *marker;
         
         err =   QOpenCLEnqueueReadBufferRect ( context_cl->queue(),
             image_data_corrected_cl,
@@ -2336,9 +2336,11 @@ void ImagePreviewWorker::drawMarkerToolTip(QList<Selection> * marker, QPainter *
             0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));    
         
-        marker_buf.print();
+//        marker_buf.print();
+
+        (*marker)[i].setSum(marker_buf.sum());
         
-        tip += "Avg intensity "+QString::number(marker_buf.sum()/(double)(marker_buf.size()),'g',4);
+        tip += "Avg intensity "+QString::number(marker->at(i).integral()/(double)(marker_buf.size()),'g',3);
         
         QFont font("Helvetica", 8);
         QFontMetrics fm(font);
@@ -2552,7 +2554,39 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
     
     pos = QPoint(x,y);
     
-    if (shift_button && left_button)
+    if (!shift_button && left_button)
+    {
+        //Position
+        Matrix<double> screen_pixel_pos(4,1,0); // Uses GL coordinates
+        screen_pixel_pos[0] = 2.0 * (double) pos.x()/(double) render_surface->width() - 1.0;
+        screen_pixel_pos[1] = 2.0 * (1.0 - (double) pos.y()/(double) render_surface->height()) - 1.0;
+        screen_pixel_pos[2] = 0;
+        screen_pixel_pos[3] = 1.0;
+
+        Matrix<double> image_pixel_pos(4,1); // Uses GL coordinates
+
+        image_pixel_pos = texture_view_matrix.inverse4x4() * screen_pixel_pos;
+
+        double pixel_x = image_pixel_pos[0] * render_surface->width() * 0.5;
+        double pixel_y = - image_pixel_pos[1] * render_surface->height() * 0.5;
+
+        if (pixel_x < 0) pixel_x = 0;
+        if (pixel_y < 0) pixel_y = 0;
+        if (pixel_x >= frame.getFastDimension()) pixel_x = frame.getFastDimension()-1;
+        if (pixel_y >= frame.getSlowDimension()) pixel_y = frame.getSlowDimension()-1;
+
+        QList<Selection> marker(p_set.current()->current()->planeMarker());
+
+
+        for (int i = 0; i < marker.size(); i++)
+        {
+            if (((pixel_x >= marker[i].x()) && (pixel_x <= marker[i].x() + marker[i].width())) && ((pixel_y >= marker[i].y()) && (pixel_y <= marker[i].y() + marker[i].height())))
+            {
+                qDebug() << "Boom!";
+            }
+        }
+    }
+    else if (shift_button && left_button)
     {
         Selection analysis_area = p_set.current()->current()->selection();
         
