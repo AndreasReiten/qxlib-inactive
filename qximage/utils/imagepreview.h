@@ -12,17 +12,30 @@
 #include "../../qxfile/qxfilelib.h"
 #include "../../qxmath/qxmathlib.h"
 
-class SeriesToolShed
-{
-public:
-    SeriesToolShed();
-    ~SeriesToolShed();
+//class SeriesToolShed
+//{
+//public:
+//    SeriesToolShed();
+//    ~SeriesToolShed();
 
-    Matrix<float> series_interpol_cpu;
-    Matrix<size_t> dim;
+//    Matrix<float> series_interpol_cpu;
+//    Matrix<size_t> dim;
 
 
-};
+//};
+
+//class AreaSample
+//{
+//public:
+//    AreaSample();
+//    ~AreaSample();
+
+//    Selection * area();
+    
+//private:
+//    Selection p_area;
+//};
+
 
 //class SeriesTrace
 //{
@@ -102,13 +115,13 @@ public slots:
     void removeCurrentImage();
     void applySelectionToSeriesSet();
     void applySelectionToSeries();
-    void setCorrectionNoise();
-    void setCorrectionPlane();
-    void setCorrectionClutter();
-    void setCorrectionMedian();
-    void setCorrectionPolarization();
-    void setCorrectionFlux();
-    void setCorrectionExposure();
+    void setCorrectionNoise(bool value);
+    void setCorrectionPlane(bool value);
+    void setCorrectionClutter(bool value);
+    void setCorrectionMedian(bool value);
+    void setCorrectionPolarization(bool value);
+    void setCorrectionFlux(bool value);
+    void setCorrectionExposure(bool value);
     //    void nextFrame();
 //    void prevFrame();
 //    void nextFrameMulti();
@@ -211,10 +224,13 @@ private:
     // Draw
     void drawImage(QPainter *painter);
     void drawSelection(Selection area, QPainter *painter, Matrix<float> &color);
+    void drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color);
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawToolTip(QPainter * painter);
+    void drawMarkerToolTip(QList<Selection> *marker, QPainter *painter);
+    
 
-    // Boolean checks, yep
+    // Boolean checks
     bool isImageTexInitialized;
     bool isTsfTexInitialized;
     bool isCLInitialized;
@@ -222,6 +238,13 @@ private:
     bool isWeightCenterActive;
     bool isInterpolGpuInitialized;
     bool isSetTraced;
+    int isCorrectionNoiseActive; // Happens in calculus function
+    int isCorrectionPlaneActive; // Happens in calculus function
+    int isCorrectionClutterActive; // Should happen in a kernel that works on image objects
+    int isCorrectionMedianActive; // Should happen in a kernel that works on image objects
+    int isCorrectionPolarizationActive; // Happens in calculus function
+    int isCorrectionFluxActive; // Happens in calculus function
+    int isCorrectionExposureActive; // Happens in calculus function
 //    int bgCorrectionMode;
 //    bool isBGEstimated;
 //    bool isAutoBackgroundCorrectionActive;
@@ -240,7 +263,7 @@ private:
 
     // Display
     int isLog;
-    int isLorentzCorrected;
+    int isCorrectionLorentzActive;
     int isBackgroundCorrected;
     int mode;
 
@@ -420,6 +443,21 @@ private:
                                                                     cl_uint num_events_in_wait_list,
                                                                     const cl_event *event_wait_list,
                                                                     cl_event *event);
+    
+    typedef cl_int (*PROTOTYPE_QOpenCLEnqueueReadBufferRect) ( 	 	cl_command_queue command_queue,
+                                                                    cl_mem buffer,
+                                                                    cl_bool blocking_read,
+                                                                    const size_t buffer_origin[3],
+                                                                    const size_t host_origin[3],
+                                                                    const size_t region[3],
+                                                                    size_t buffer_row_pitch,
+                                                                    size_t buffer_slice_pitch,
+                                                                    size_t host_row_pitch,
+                                                                    size_t host_slice_pitch,
+                                                                    void *ptr,
+                                                                    cl_uint num_events_in_wait_list,
+                                                                    const cl_event *event_wait_list,
+                                                                    cl_event *event);
 
     typedef cl_int (*PROTOTYPE_QOpenCLReleaseKernel)  ( 	cl_kernel kernel);
 
@@ -449,6 +487,7 @@ private:
     PROTOTYPE_QOpenCLGetDeviceIDs QOpenCLGetDeviceIDs;
     PROTOTYPE_QOpenCLGetPlatformInfo QOpenCLGetPlatformInfo;
     PROTOTYPE_QOpenCLGetDeviceInfo QOpenCLGetDeviceInfo;
+    PROTOTYPE_QOpenCLEnqueueReadBufferRect QOpenCLEnqueueReadBufferRect;
 
 
 protected:

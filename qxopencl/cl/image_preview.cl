@@ -62,7 +62,12 @@ __kernel void imageCalculus(
     int correction_lorentz,
     int task,
     float mean,
-    float deviation
+    float deviation,
+    int isCorrectionNoiseActive,
+    int isCorrectionPlaneActive,
+    int isCorrectionPolarizationActive,
+    int isCorrectionFluxActive,
+    int isCorrectionExposureActive
 //    __read_only image3d_t background,
 //    sampler_t bg_sampler,
 //    int sample_interdist,
@@ -125,8 +130,11 @@ __kernel void imageCalculus(
 //            }
 
             // Flat noise filter
-            value = clamp(value, noise_low, noise_high); // All readings within noise thresholds
-            value -= noise_low; // Subtracts noise
+            if (isCorrectionNoiseActive)
+            {
+                value = clamp(value, noise_low, noise_high); // All readings within noise thresholds
+                value -= noise_low; // Subtracts noise
+            }
             
             // Corrections
             float4 Q = (float4)(0.0f);

@@ -3,13 +3,20 @@
 ImageInfo::ImageInfo()
 {
     p_selection = Selection(0,0,1e5,1e5);
-    p_background = Selection(0,0,1e5,1e5);
+    
+    Selection marker_a(0,0,32,32);
+    Selection marker_b(0,32+4,32,32);
+    Selection marker_c(0,(32+4)*2,32,32);
+    
+    plane_marker << marker_a << marker_b << marker_c;
+//    p_background = Selection(0,0,1e5,1e5);
 }
 
 ImageInfo::ImageInfo(const ImageInfo & other)
 {
     p_selection = other.selection();
-    p_background = other.background();
+    plane_marker = other.planeMarker();
+//    p_background = other.background();
     p_path = other.path();
 }
 
@@ -33,39 +40,60 @@ void ImageInfo::setSelection(Selection rect)
     p_selection = rect;
 }
 
-void ImageInfo::setBackground(Selection rect)
-{
-    p_background = rect;
-}
+//void ImageInfo::setBackground(Selection rect)
+//{
+//    p_background = rect;
+//}
 
 Selection ImageInfo::selection() const
 {
     return p_selection;
 }
 
-Selection ImageInfo::background() const
+Selection * ImageInfo::selectionPtr() 
 {
-    return p_background;
+    return &p_selection;
 }
+
+//Selection ImageInfo::background() const
+//{
+//    return p_background;
+//}
 
 ImageInfo& ImageInfo::operator = (ImageInfo other)
 {
     p_path = other.path();
     p_selection = other.selection();
-    p_background = other.background();
+//    p_background = other.background();
 
     return * this;
 }
 
+void ImageInfo::setPlaneMarker(QList<Selection> marker)
+{
+    plane_marker = marker;
+}
+
+//    void setBackground(Selection rect);
+QList<Selection> ImageInfo::planeMarker() const
+{
+    return  plane_marker;
+}
+
+QList<Selection> * ImageInfo::planeMarkerPtr()
+{
+    return  &plane_marker;
+}
+
 QDebug operator<<(QDebug dbg, const ImageInfo &image)
 {
-    dbg.nospace() << "Image()" << image.path() << image.selection() << image.background();
+    dbg.nospace() << "Image()" << image.path() << image.selection();
     return dbg.maybeSpace();
 }
 
 QDataStream &operator<<(QDataStream &out, const ImageInfo &image)
 {
-    out << image.path() << image.selection() << image.background();
+    out << image.path() << image.selection() << image.planeMarker();
 
     return out;
 }
@@ -74,12 +102,14 @@ QDataStream &operator>>(QDataStream &in, ImageInfo &image)
 {
     QString path;
     Selection selection;
-    Selection background;
+//    Selection background;
+    QList<Selection> plane_marker;
 
-    in >> path >> selection >> background;
+    in >> path >> selection >> plane_marker;
     image.setPath(path);
     image.setSelection(selection);
-    image.setBackground(background);
+    image.setPlaneMarker(plane_marker);
+//    image.setBackground(background);
 
     return in;
 }

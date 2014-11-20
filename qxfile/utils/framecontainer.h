@@ -20,16 +20,21 @@ public:
     const QString path() const;
 
     void setSelection(Selection rect);
-    void setBackground(Selection rect);
+    void setPlaneMarker(QList<Selection> marker);
+//    void setBackground(Selection rect);
+    QList<Selection> planeMarker() const;
+    QList<Selection> * planeMarkerPtr();
     Selection selection() const;
-    Selection background() const;
+    Selection * selectionPtr();
+//    Selection background() const;
 
     ImageInfo &operator =(ImageInfo other);
 
 private:
     QString p_path;
     Selection p_selection;
-    Selection p_background;
+    QList<Selection> plane_marker;
+//    Selection p_background;
 };
 
 Q_DECLARE_METATYPE(ImageInfo);

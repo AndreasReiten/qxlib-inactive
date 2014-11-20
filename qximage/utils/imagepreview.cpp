@@ -6,7 +6,20 @@
 #include <QCoreApplication>
 #include <QFontMetrics>
 
+//AreaSample()
+//{
+    
+//}
 
+//~AreaSample()
+//{
+    
+//}
+
+//Selection * area()
+//{
+//    return &p_area;
+//}
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isImageTexInitialized(false),
@@ -129,7 +142,9 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     QOpenCLEnqueueCopyBufferToImage  = (PROTOTYPE_QOpenCLEnqueueCopyBufferToImage ) myLib.resolve("clEnqueueCopyBufferToImage");
     if (!QOpenCLEnqueueCopyBufferToImage ) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
 
-
+    QOpenCLEnqueueReadBufferRect  = (PROTOTYPE_QOpenCLEnqueueReadBufferRect ) myLib.resolve("clEnqueueReadBufferRect");
+    if (!QOpenCLEnqueueReadBufferRect ) qFatal(QString("Failed to resolve function:"+myLib.errorString()).toStdString().c_str());
+    
 }
 
 ImagePreviewWorker::~ImagePreviewWorker()
@@ -156,10 +171,18 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 1, sizeof(cl_mem), (void *) &out_buf_cl);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 2, sizeof(cl_mem), &parameter_cl);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 3, sizeof(cl_int2), image_size.toInt().data());
-    err |=   QOpenCLSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &isLorentzCorrected);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 4, sizeof(cl_int), &isCorrectionLorentzActive);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 5, sizeof(cl_int), &task);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 6, sizeof(cl_float), &mean);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 7, sizeof(cl_float), &deviation);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 8, sizeof(cl_int), &isCorrectionNoiseActive);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 9, sizeof(cl_int), &isCorrectionPlaneActive);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 10, sizeof(cl_int), &isCorrectionPolarizationActive);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 11, sizeof(cl_int), &isCorrectionFluxActive);
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 12, sizeof(cl_int), &isCorrectionExposureActive);
+    
+    
+    
 //    err |=   QOpenCLSetKernelArg(cl_image_calculus, 8, sizeof(cl_mem), (void *) &series_interpol_gpu_3Dimg);
 //    err |=   QOpenCLSetKernelArg(cl_image_calculus, 9, sizeof(cl_sampler), &bg_sampler);
 //    err |=   QOpenCLSetKernelArg(cl_image_calculus, 10, sizeof(cl_int), &bg_sample_interdist);
@@ -749,11 +772,11 @@ QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, ImageInfo & 
             +QString::number(Q[2],'E')+" "
             +QString::number(vecLength(Q),'E')+" "
             +QString::number(value,'E')+" "
-            +QString::number(image.background().integral()/(image.background().width()*image.background().height()),'E')+" "
-            +QString::number(image.background().left())+" "
-            +QString::number(image.background().top())+" "
-            +QString::number(image.background().width())+" "
-            +QString::number(image.background().height())+" "
+//            +QString::number(image.background().integral()/(image.background().width()*image.background().height()),'E')+" "
+//            +QString::number(image.background().left())+" "
+//            +QString::number(image.background().top())+" "
+//            +QString::number(image.background().width())+" "
+//            +QString::number(image.background().height())+" "
             +image.path()+"\n";
     return str;
 }
@@ -771,33 +794,43 @@ QString ImagePreviewWorker::integrationFrameString(DetectorFile &f, ImageInfo & 
 //{
 //}
 
-void ImagePreviewWorker::setCorrectionNoise()
+void ImagePreviewWorker::setCorrectionNoise(bool value)
 {
+    isCorrectionNoiseActive = (int) value;
     
+    calculus();
+    refreshDisplay();
+    
+    if(!p_set.isEmpty())
+    {
+        Selection analysis_area = p_set.current()->current()->selection();
+        refreshSelection(&analysis_area);
+        p_set.current()->current()->setSelection(analysis_area);
+    }
 }
-void ImagePreviewWorker::setCorrectionPlane()
+void ImagePreviewWorker::setCorrectionPlane(bool value)
 {
-    
+    isCorrectionPlaneActive = (int) value;
 }
-void ImagePreviewWorker::setCorrectionClutter()
+void ImagePreviewWorker::setCorrectionClutter(bool value)
 {
-    
+     isCorrectionClutterActive = (int) value;
 }
-void ImagePreviewWorker::setCorrectionMedian()
+void ImagePreviewWorker::setCorrectionMedian(bool value)
 {
-    
+     isCorrectionMedianActive = (int) value;
 }
-void ImagePreviewWorker::setCorrectionPolarization()
+void ImagePreviewWorker::setCorrectionPolarization(bool value)
 {
-    
+     isCorrectionPolarizationActive = (int) value;
 }
-void ImagePreviewWorker::setCorrectionFlux()
+void ImagePreviewWorker::setCorrectionFlux(bool value)
 {
-    
+     isCorrectionFluxActive = (int) value;
 }
-void ImagePreviewWorker::setCorrectionExposure()
+void ImagePreviewWorker::setCorrectionExposure(bool value)
 {
-    
+     isCorrectionExposureActive = (int) value;
 }
 
 
@@ -879,7 +912,7 @@ void ImagePreviewWorker::applySelectionToSeriesSet()
     if (p_set.size() > 0)
     {
         Selection selection = p_set.current()->current()->selection();
-        Selection background = p_set.current()->current()->background();
+//        Selection background = p_set.current()->current()->background();
         
         p_set.saveCurrentIndex();
 
@@ -893,7 +926,7 @@ void ImagePreviewWorker::applySelectionToSeriesSet()
             for (int i = 0; i < p_set.current()->size(); i++)
             {
                 p_set.current()->current()->setSelection(selection);
-                p_set.current()->current()->setBackground(background);
+//                p_set.current()->current()->setBackground(background);
                 p_set.current()->next();
             }
             p_set.current()->loadSavedIndex();
@@ -909,7 +942,7 @@ void ImagePreviewWorker::applySelectionToSeries()
     if (p_set.size() > 0)
     {
         Selection selection = p_set.current()->current()->selection();
-        Selection background = p_set.current()->current()->background();
+//        Selection background = p_set.current()->current()->background();
         
         p_set.current()->saveCurrentIndex();
         
@@ -918,7 +951,7 @@ void ImagePreviewWorker::applySelectionToSeries()
         for (int i = 0; i < p_set.current()->size(); i++)
         {
             p_set.current()->current()->setSelection(selection);
-            p_set.current()->current()->setBackground(background);
+//            p_set.current()->current()->setBackground(background);
             p_set.current()->next();
         }
         
@@ -1809,7 +1842,20 @@ void ImagePreviewWorker::render(QPainter *painter)
         ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
 
         drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
-
+        
+        if (isCorrectionPlaneActive) 
+        {
+            ColorMatrix<float> marker_a_color(1.0,0.0,0.0,0.8);
+            ColorMatrix<float> marker_b_color(0.0,1.0,0.0,0.8);
+            ColorMatrix<float> marker_c_color(0.0,0.0,1.0,0.8);
+            
+            drawPlaneMarker(p_set.current()->current()->planeMarker()[0], painter, marker_a_color);
+            drawPlaneMarker(p_set.current()->current()->planeMarker()[1], painter, marker_b_color);
+            drawPlaneMarker(p_set.current()->current()->planeMarker()[2], painter, marker_c_color);
+            
+            drawMarkerToolTip(p_set.current()->current()->planeMarkerPtr(), painter);
+        }
+        
         if (isWeightCenterActive) drawWeightpoint(p_set.current()->current()->selection(), painter, analysis_wp_color);
 
         drawToolTip(painter);
@@ -1965,6 +2011,57 @@ void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix
     GLuint indices[] = {0,1,4, 1,4,5, 1,3,5, 3,5,7, 2,3,7, 2,6,7, 0,2,6, 0,4,6};
     glDrawElements(GL_TRIANGLES,  3*8, GL_UNSIGNED_INT, indices);
 
+    glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
+
+    shared_window->std_2d_col_program->release();
+
+    endRawGLCalls(painter);
+}
+
+void ImagePreviewWorker::drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color)
+{
+    
+    
+    
+    beginRawGLCalls(painter);
+
+    shared_window->std_2d_col_program->bind();
+    
+    glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
+    
+    float selection_left = (((qreal) marker.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+    float selection_right = (((qreal) marker.x() + marker.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+    
+    float selection_top = (1.0 - (qreal) (marker.top() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+    float selection_bot = (1.0 - (qreal) (marker.y() + marker.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+    
+    // Points
+    Matrix<GLfloat> point(4,2);
+    point[0] = selection_left;
+    point[1] = selection_top;
+    point[2] = selection_left;
+    point[3] = selection_bot;
+    
+    point[4] = selection_right;
+    point[5] = selection_top;
+    point[6] = selection_right;
+    point[7] = selection_bot;
+    
+    setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
+
+    glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
+
+    glBindBuffer(GL_ARRAY_BUFFER, selections_vbo[0]);
+    glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    texture_view_matrix = zoom_matrix*translation_matrix;
+
+    glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
+    
+    GLuint indices[] = {0,1,2, 1,2,3};
+    glDrawElements(GL_TRIANGLES,  3*2, GL_UNSIGNED_INT, indices);
+    
     glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
     shared_window->std_2d_col_program->release();
@@ -2192,6 +2289,86 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
 
 }
 
+void ImagePreviewWorker::drawMarkerToolTip(QList<Selection> * marker, QPainter *painter)
+{
+    QPoint position(2,5);
+    
+    QList<QColor> color;
+    color << QColor(255,0,0,155) << QColor(0,255,0,155) << QColor(0,0,255,155);
+    
+    for (int i = 0; i < marker->size(); i++)
+    {
+        QString tip;
+        
+        // Position at marker center
+        tip += "Pos (x,y) "+QString::number((int) (marker->at(i).x() + 0.5 * marker->at(i).width()))+" "+QString::number((int) (marker->at(i).y() + 0.5 * marker->at(i).height()))+"\n";
+        
+        // Intensity average
+        Matrix<size_t> buffer_origin(1,3,0);
+        buffer_origin[0] = marker->at(i).x();
+        buffer_origin[1] = marker->at(i).y();
+        Matrix<size_t> host_origin(1,3,0);
+        Matrix<size_t> region(1,3,1);
+        region[0] = marker->at(i).width()*sizeof(float);
+        region[1] = marker->at(i).height()*sizeof(float);
+        
+        buffer_origin.print(0,"buffer_origin");
+        host_origin.print(0,"host_origin");
+        region.print(0,"region");
+        image_buffer_size.print(0,"image_buffer_size");
+        
+        Matrix<float> marker_buf(marker->at(i).height(), marker->at(i).width());
+        
+        marker_buf.print(0,"marker_buf");
+        qDebug() << *marker;
+        
+        err =   QOpenCLEnqueueReadBufferRect ( context_cl->queue(),
+            image_data_corrected_cl,
+            CL_TRUE,
+            buffer_origin.data(),
+            host_origin.data(),
+            region.data(),
+            image_buffer_size[0]*sizeof(float),
+            image_buffer_size[0]*image_buffer_size[1]*sizeof(float),
+            marker_buf.n()*sizeof(float),
+            marker_buf.m()*marker_buf.n()*sizeof(float),
+            marker_buf.data(),
+            0, NULL, NULL);
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));    
+        
+        marker_buf.print();
+        
+        tip += "Avg intensity "+QString::number(marker_buf.sum()/(double)(marker_buf.size()),'g',4);
+        
+        QFont font("Helvetica", 8);
+        QFontMetrics fm(font);
+        
+        QBrush brush;
+        brush.setStyle(Qt::SolidPattern);
+        brush.setColor(color[i]);
+                
+        painter->setFont(font);
+        painter->setBrush(brush);
+        
+        
+        
+        // Define the area assigned to displaying the tooltip
+        QRect area = fm.boundingRect (render_surface->geometry(), Qt::AlignLeft, tip);
+        
+        area.moveTopLeft(position);
+        
+        position.setY(position.y()+area.height()+6);
+        
+        area += QMargins(2,2,2,2);
+        painter->drawRoundedRect(area,2,2);
+        area -= QMargins(2,2,2,2);
+        
+        // Draw tooltip
+        painter->drawText(area, Qt::AlignLeft, tip);
+    }
+
+}
+
 
 void ImagePreviewWorker::setMode(int value)
 {
@@ -2209,7 +2386,7 @@ void ImagePreviewWorker::setMode(int value)
 
 void ImagePreviewWorker::setCorrectionLorentz(bool value)
 {
-    isLorentzCorrected = (int) value;
+    isCorrectionLorentzActive = (int) value;
 
     calculus();
     refreshDisplay();
@@ -2569,15 +2746,15 @@ void ImagePreviewWindow::renderNow()
     renderLater();
 }
 
-SeriesToolShed::SeriesToolShed()
-{
-    dim.set(1,3,0);
-}
+//SeriesToolShed::SeriesToolShed()
+//{
+//    dim.set(1,3,0);
+//}
 
-SeriesToolShed::~SeriesToolShed()
-{
+//SeriesToolShed::~SeriesToolShed()
+//{
 
-}
+//}
 
 //SeriesTrace::SeriesTrace()
 //{
