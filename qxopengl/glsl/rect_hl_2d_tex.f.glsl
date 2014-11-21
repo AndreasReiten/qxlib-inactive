@@ -1,15 +1,15 @@
 uniform sampler2D texture;
 varying vec2 f_texpos;
 //varying vec4 f_bounds;
-varying float f_pixel_size;
+//varying float f_pixel_size;
 //varying vec2 f_center;
 
 void main(void)
 {
     vec2 flipped_texpos = vec2(f_texpos.x, 1.0 - f_texpos.y); // The OpenGL convention (origin at the bottom-left corner) is different than in 2D applications (origin at the top-left corner)
-    vec4 color = texture2D(texture, flipped_texpos);
+    gl_FragColor = texture2D(texture, flipped_texpos);
  
-    vec4 dark = vec4(0.0,0.0,0.0,1.0);
+//    vec4 dark = vec4(0.0,0.0,0.0,1.0);
 //    vec4 blue = vec4(0.0,0.0,1.0,1.0);
 //    vec4 purple = vec4(1.0,0.0,1.0,1.0);
     
@@ -56,11 +56,11 @@ void main(void)
 
     
     // Draw border
-    if ((f_texpos.x < f_pixel_size) || (f_texpos.x > 1.0 - f_pixel_size) || (f_texpos.y < f_pixel_size) || (f_texpos.y > 1.0 - f_pixel_size))
-    {
-        color = 1.0 - color;
-        color = mix(color,dark,0.5);
-    }
+//    if ((f_texpos.x < f_pixel_size) || (f_texpos.x > 1.0 - f_pixel_size) || (f_texpos.y < f_pixel_size) || (f_texpos.y > 1.0 - f_pixel_size))
+//    {
+//        color = 1.0 - color;
+//        color = mix(color,dark,0.5);
+//    }
     
-    gl_FragColor = color;
+//    gl_FragColor = color;
 }

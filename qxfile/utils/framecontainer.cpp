@@ -74,6 +74,23 @@ void ImageInfo::setPlaneMarker(QList<Selection> marker)
     plane_marker = marker;
 }
 
+
+void ImageInfo::setPlaneMarkerTest(QList<Selection> marker)
+{
+//    qDebug() << "And so we copy";
+
+//    for (int i = 0; i < marker.size(); i++)
+//    {
+//        qDebug() << marker[i].selected() << marker[i].integral();
+//    }
+
+    plane_marker = marker;
+
+//    for (int i = 0; i < marker.size(); i++)
+//    {
+//        qDebug() << plane_marker[i].selected();
+//    }
+}
 //    void setBackground(Selection rect);
 QList<Selection> ImageInfo::planeMarker() const
 {
@@ -164,6 +181,14 @@ QStringList ImageSeries::paths()
     }
 
     return paths;
+}
+
+void ImageSeries::setPlaneMarker(QList<Selection> marker)
+{
+    for (int i = 0; i < p_images.size(); i++)
+    {
+        p_images[i].setPlaneMarker(marker);
+    }
 }
 
 void ImageSeries::setSelection(Selection rect)
@@ -315,7 +340,7 @@ SeriesSet::SeriesSet()
 }
 SeriesSet::SeriesSet(const SeriesSet & other)
 {
-    p_seriess = other.series();
+    p_series = other.series();
     p_i = 0;
     p_i_memory = 0;
     
@@ -331,48 +356,64 @@ int SeriesSet::i() const
 
 ImageSeries * SeriesSet::current()
 {
-    return &p_seriess[p_i];
+    return &p_series[p_i];
 }
 ImageSeries * SeriesSet::next()
 {
-    if (p_i < p_seriess.size() - 1)
+    if (p_i < p_series.size() - 1)
     {
         p_i++;
     }
 
-    return &p_seriess[p_i];
+    return &p_series[p_i];
 }
 ImageSeries * SeriesSet::previous()
 {
-    if ((p_i > 0) && (p_seriess.size() > 0))
+    if ((p_i > 0) && (p_series.size() > 0))
     {
         p_i--;
     }
 
-    return &p_seriess[p_i];
+    return &p_series[p_i];
 }
 
 ImageSeries * SeriesSet::begin()
 {
     p_i = 0;
-    return &p_seriess[p_i];
+    return &p_series[p_i];
 }
 
 void SeriesSet::setFolders(QList<ImageSeries> list)
 {
-    p_seriess = list;
+    p_series = list;
     p_i = 0;
     p_i_memory = 0;
 }
 
 bool SeriesSet::isEmpty()
 {
-    for (int i = 0; i < p_seriess.size(); i++)
+    for (int i = 0; i < p_series.size(); i++)
     {
-        if (p_seriess[i].size()) return false;
+        if (p_series[i].size()) return false;
     }
 
     return true;
+}
+
+void SeriesSet::setPlaneMarker(QList<Selection> marker)
+{
+    for (int i = 0; i < p_series.size(); i++)
+    {
+        p_series[i].setPlaneMarker(marker);
+    }
+}
+
+void SeriesSet::setSelection(Selection rect)
+{
+    for (int i = 0; i < p_series.size(); i++)
+    {
+        p_series[i].setSelection(rect);
+    }
 }
 
 void SeriesSet::saveCurrentIndex()
@@ -390,7 +431,7 @@ void SeriesSet::loadSavedIndex()
 
 void SeriesSet::clear()
 {
-    p_seriess.clear();
+    p_series.clear();
 
     p_i = 0;
     p_i_memory = 0;
@@ -398,7 +439,7 @@ void SeriesSet::clear()
 
 void SeriesSet::removeCurrent()
 {
-    p_seriess.removeAt(p_i);
+    p_series.removeAt(p_i);
 
     if (p_i > 0)
     {
@@ -410,11 +451,11 @@ QStringList SeriesSet::paths()
 {
     QStringList paths;
 
-    for (int i = 0; i < p_seriess.size(); i++)
+    for (int i = 0; i < p_series.size(); i++)
     {
-        for (int j = 0; j < p_seriess[i].images().size(); j++)
+        for (int j = 0; j < p_series[i].images().size(); j++)
         {
-            paths << p_seriess[i].images()[j].path();
+            paths << p_series[i].images()[j].path();
         }
     }
 
@@ -425,11 +466,11 @@ ImageSeries SeriesSet::oneSeries()
 {
     ImageSeries series;
     
-    for (int i = 0; i < p_seriess.size(); i++)
+    for (int i = 0; i < p_series.size(); i++)
     {
-        for (int j = 0; j < p_seriess[i].images().size(); j++)
+        for (int j = 0; j < p_series[i].images().size(); j++)
         {
-            series << p_seriess[i].images()[j];
+            series << p_series[i].images()[j];
         }
     }
 
@@ -439,17 +480,17 @@ ImageSeries SeriesSet::oneSeries()
 
 int SeriesSet::size() const
 {
-    return p_seriess.size();
+    return p_series.size();
 }
 
 const QList<ImageSeries> &SeriesSet::series() const
 {
-    return p_seriess;
+    return p_series;
 }
 
 void SeriesSet::append(ImageSeries image_series)
 {
-    p_seriess.append(image_series);
+    p_series.append(image_series);
 }
 
 QDebug operator<<(QDebug dbg, const SeriesSet &series_set)

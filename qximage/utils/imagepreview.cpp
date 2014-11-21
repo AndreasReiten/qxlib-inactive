@@ -909,54 +909,57 @@ void ImagePreviewWorker::analyzeSeries()
 
 void ImagePreviewWorker::applySelectionToSeriesSet()
 {
-    if (p_set.size() > 0)
-    {
-        Selection selection = p_set.current()->current()->selection();
-//        Selection background = p_set.current()->current()->background();
+    if (!p_set.isEmpty()) p_set.setSelection(p_set.current()->current()->selection());
+//    if (p_set.size() > 0)
+//    {
+//        Selection selection = p_set.current()->current()->selection();
+////        Selection background = p_set.current()->current()->background();
         
-        p_set.saveCurrentIndex();
+//        p_set.saveCurrentIndex();
 
-        p_set.begin();
+//        p_set.begin();
 
-        for (int i = 0; i < p_set.size(); i++)
-        {        
-            p_set.current()->saveCurrentIndex();
-            p_set.current()->begin();
+//        for (int i = 0; i < p_set.size(); i++)
+//        {
+//            p_set.current()->saveCurrentIndex();
+//            p_set.current()->begin();
             
-            for (int i = 0; i < p_set.current()->size(); i++)
-            {
-                p_set.current()->current()->setSelection(selection);
-//                p_set.current()->current()->setBackground(background);
-                p_set.current()->next();
-            }
-            p_set.current()->loadSavedIndex();
+//            for (int i = 0; i < p_set.current()->size(); i++)
+//            {
+//                p_set.current()->current()->setSelection(selection);
+////                p_set.current()->current()->setBackground(background);
+//                p_set.current()->next();
+//            }
+//            p_set.current()->loadSavedIndex();
 
-            p_set.next();
-        }
-        p_set.loadSavedIndex();
-    }
+//            p_set.next();
+//        }
+//        p_set.loadSavedIndex();
+//    }
 }
 
 void ImagePreviewWorker::applySelectionToSeries()
 {
-    if (p_set.size() > 0)
-    {
-        Selection selection = p_set.current()->current()->selection();
-//        Selection background = p_set.current()->current()->background();
+    if (!p_set.isEmpty()) p_set.current()->setSelection(p_set.current()->current()->selection());
+
+//    if (p_set.size() > 0)
+//    {
+//        Selection selection = p_set.current()->current()->selection();
+////        Selection background = p_set.current()->current()->background();
         
-        p_set.current()->saveCurrentIndex();
+//        p_set.current()->saveCurrentIndex();
         
-        p_set.current()->begin();
+//        p_set.current()->begin();
         
-        for (int i = 0; i < p_set.current()->size(); i++)
-        {
-            p_set.current()->current()->setSelection(selection);
-//            p_set.current()->current()->setBackground(background);
-            p_set.current()->next();
-        }
+//        for (int i = 0; i < p_set.current()->size(); i++)
+//        {
+//            p_set.current()->current()->setSelection(selection);
+////            p_set.current()->current()->setBackground(background);
+//            p_set.current()->next();
+//        }
         
-        p_set.current()->loadSavedIndex();
-    }
+//        p_set.current()->loadSavedIndex();
+//    }
 }
 
 
@@ -1812,12 +1815,14 @@ void ImagePreviewWorker::beginRawGLCalls(QPainter * painter)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_MULTISAMPLE);
+    glEnable(GL_SCISSOR_TEST);
 }
 
 void ImagePreviewWorker::endRawGLCalls(QPainter * painter)
 {
     glDisable(GL_BLEND);
     glDisable(GL_MULTISAMPLE);
+    glDisable(GL_SCISSOR_TEST);
     painter->endNativePainting();
 }
 
@@ -1830,18 +1835,68 @@ void ImagePreviewWorker::render(QPainter *painter)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     const qreal retinaScale = render_surface->devicePixelRatio();
-    glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+//    glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+//    glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
 
-    endRawGLCalls(painter);
+//    endRawGLCalls(painter);
+
+    glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+    glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
 
     if(!p_set.isEmpty())
     {
-        drawImage(painter);
 
         ColorMatrix<float> analysis_area_color(0.0,0,0,0.7);
         ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
 
+        if (isSetTraced)
+        {
+            beginRawGLCalls(painter);
+//            paint_device_gl->setSize(QSize(render_surface->width()*0.5, render_surface->height()));
+//            glViewport(0, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
+//            glScissor(0, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
+
+
+            QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+            image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
+
+            drawImage(image_rect, image_tex_gl, painter);
+
+//            drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
+
+//            glViewport(render_surface->width() * retinaScale * 0.5, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
+//            glScissor(render_surface->width() * retinaScale * 0.5, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
+
+            QRectF trace_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+            trace_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
+
+            drawImage(trace_rect, max_tex_gl, painter);
+
+            endRawGLCalls(painter);
+        }
+        else
+        {
+            beginRawGLCalls(painter);
+
+//            glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+//            glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+
+            QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+            image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
+
+            drawImage(image_rect, image_tex_gl, painter);
+
+//            drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
+
+            endRawGLCalls(painter);
+        }
+
+//        glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+//        glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+
+
         drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
+
         
         if (isCorrectionPlaneActive) 
         {
@@ -1852,23 +1907,30 @@ void ImagePreviewWorker::render(QPainter *painter)
             drawPlaneMarker(p_set.current()->current()->planeMarker()[0], painter, marker_a_color);
             drawPlaneMarker(p_set.current()->current()->planeMarker()[1], painter, marker_b_color);
             drawPlaneMarker(p_set.current()->current()->planeMarker()[2], painter, marker_c_color);
+
+            if (isSetTraced)
+            {
+                drawPlaneMarker(p_set.current()->current()->planeMarker()[0], painter, marker_a_color, QPoint(frame.getFastDimension() + 20,0));
+                drawPlaneMarker(p_set.current()->current()->planeMarker()[1], painter, marker_b_color, QPoint(frame.getFastDimension() + 20,0));
+                drawPlaneMarker(p_set.current()->current()->planeMarker()[2], painter, marker_c_color, QPoint(frame.getFastDimension() + 20,0));
+            }
             
-            drawPlaneMarkerToolTip(p_set.current()->current()->planeMarkerPtr(), painter);
+            drawPlaneMarkerToolTip(painter);
         }
         
         if (isWeightCenterActive) drawWeightpoint(p_set.current()->current()->selection(), painter, analysis_wp_color);
 
-        drawToolTip(painter);
+        drawPixelToolTip(painter);
     }
 }
 
-void ImagePreviewWorker::drawImage(QPainter * painter)
+void ImagePreviewWorker::drawImage(QRectF rect, GLuint texture, QPainter * painter)
 {
-    beginRawGLCalls(painter);
 
-    shared_window->rect_hl_2d_tex_program->bind();
 
-    shared_window->rect_hl_2d_tex_program->setUniformValue(shared_window->rect_hl_2d_tex_texture, 0);
+    shared_window->std_2d_tex_program->bind();
+
+    shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
 
     GLfloat texpos[] = {
         0.0, 0.0,
@@ -1881,61 +1943,45 @@ void ImagePreviewWorker::drawImage(QPainter * painter)
 
     texture_view_matrix = zoom_matrix*translation_matrix;
 
-    glUniformMatrix4fv(shared_window->rect_hl_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
-    
-    // The bounds that enclose the highlighted area of the texture are passed to the shader
-    Matrix<double> bounds(1,4); // left, top, right, bottom
+    glUniformMatrix4fv(shared_window->std_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
     
 
-    bounds[0] = (double) p_set.current()->current()->selection().left() / (double) frame.getFastDimension();
-    bounds[1] = 1.0 - (double) (p_set.current()->current()->selection().y()+p_set.current()->current()->selection().height()) / (double) frame.getSlowDimension();
-    bounds[2] = (double) (p_set.current()->current()->selection().x()+p_set.current()->current()->selection().width()) / (double) frame.getFastDimension();
-    bounds[3] = 1.0 - (double) (p_set.current()->current()->selection().top()) / (double) frame.getSlowDimension();
+
+
+    // The bounds that enclose the highlighted area of the texture are passed to the shader
+//    Matrix<double> bounds(1,4); // left, top, right, bottom
+
+//    bounds[0] = (double) p_set.current()->current()->selection().left() / (double) frame.getFastDimension();
+//    bounds[1] = 1.0 - (double) (p_set.current()->current()->selection().y()+p_set.current()->current()->selection().height()) / (double) frame.getSlowDimension();
+//    bounds[2] = (double) (p_set.current()->current()->selection().x()+p_set.current()->current()->selection().width()) / (double) frame.getFastDimension();
+//    bounds[3] = 1.0 - (double) (p_set.current()->current()->selection().top()) / (double) frame.getSlowDimension();
     
-    glUniform4fv(shared_window->rect_hl_2d_tex_bounds, 1, bounds.toFloat().data());
+//    glUniform4fv(shared_window->std_2d_tex_bounds, 1, bounds.toFloat().data());
     
     // Set the size of a pixel (in image units)
-    GLfloat pixel_size = (1.0f / (float) frame.getFastDimension()) / zoom_matrix[0];
+//    GLfloat pixel_size = (1.0f / (float) frame.getFastDimension()) / zoom_matrix[0];
     
-    glUniform1f(shared_window->rect_hl_2d_tex_pixel_size, pixel_size);
+//    glUniform1f(shared_window->std_2d_tex_pixel_size, pixel_size);
     
-    glEnableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
-    glEnableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
+    glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+    glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
 
     Matrix<GLfloat> fragpos;
 
     // Draw image
-    QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-    image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
-
-    glBindTexture(GL_TEXTURE_2D, image_tex_gl);
-    fragpos = glRect(image_rect);
-    glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
-    glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    fragpos = glRect(rect);
+    glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
+    glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
 
     glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
 
-    // Draw max frame
-    if (isSetTraced) 
-    {
-        QRectF bg_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-        bg_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
-    
-        glBindTexture(GL_TEXTURE_2D, max_tex_gl);
-        fragpos = glRect(bg_rect);
-        glVertexAttribPointer(shared_window->rect_hl_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos.data());
-        glVertexAttribPointer(shared_window->rect_hl_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
-    
-        glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
-    
-        glBindTexture(GL_TEXTURE_2D, 0);
-    }
-    glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_pos);
-    glDisableVertexAttribArray(shared_window->rect_hl_2d_tex_fragpos);
+    glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
+    glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
 
-    shared_window->rect_hl_2d_tex_program->release();
+    shared_window->std_2d_tex_program->release();
 
-    endRawGLCalls(painter);
+//    endRawGLCalls(painter);
 }
 
 void ImagePreviewWorker::centerImage()
@@ -2018,22 +2064,19 @@ void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix
     endRawGLCalls(painter);
 }
 
-void ImagePreviewWorker::drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color)
+void ImagePreviewWorker::drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color, QPoint offset)
 {
-    
-    
-    
     beginRawGLCalls(painter);
 
     shared_window->std_2d_col_program->bind();
     
     glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
     
-    float selection_left = (((qreal) marker.left() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
-    float selection_right = (((qreal) marker.x() + marker.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+    float selection_left = (((qreal) marker.left() + offset.x() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+    float selection_right = (((qreal) marker.x() + offset.x() + marker.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
     
-    float selection_top = (1.0 - (qreal) (marker.top() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
-    float selection_bot = (1.0 - (qreal) (marker.y() + marker.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+    float selection_top = (1.0 - (qreal) (marker.top() + offset.y() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+    float selection_bot = (1.0 - (qreal) (marker.y() + offset.y() + marker.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
     
     // Points
     Matrix<GLfloat> point(4,2);
@@ -2178,7 +2221,7 @@ double ImagePreviewWorker::getScatteringAngle(DetectorFile & f, double x, double
     return acos(vecDot(k_f, k_i)/(k*k));
 }
 
-void ImagePreviewWorker::drawToolTip(QPainter *painter)
+void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
 {
     if (isFrameValid == false) return;
     
@@ -2204,7 +2247,7 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     if (pixel_y >= frame.getSlowDimension()) pixel_y = frame.getSlowDimension()-1;
     
     QString tip;
-    tip += "Pixel (x,y) "+QString::number((int) pixel_x)+" "+QString::number((int) pixel_y)+"\n";
+    tip += "Pixel (x,y) "+QString::number((int) pixel_x)+", "+QString::number((int) pixel_y)+"\n";
     
     // Intensity
     float value = 0;
@@ -2253,22 +2296,22 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
     Matrix<double> Q(1,3);
     Q = getScatteringVector(frame, pixel_x, pixel_y);
 
-    tip += "Position (x,y,z) "+QString::number(Q[0],'f',2)+" "+QString::number(Q[1],'f',2)+" "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")\n";
+    tip += "Position (x,y,z) "+QString::number(Q[0],'f',2)+", "+QString::number(Q[1],'f',2)+", "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")\n";
     
     
-    // Intensity center
-    tip += "Weight center (x,y) "+QString::number(p_set.current()->current()->selection().weighted_x(),'f',2)+" "+QString::number(p_set.current()->current()->selection().weighted_y(),'f',2)+"\n";
+    // Weight center
+    tip += "Weight center (x,y) "+QString::number(p_set.current()->current()->selection().weighted_x(),'f',2)+", "+QString::number(p_set.current()->current()->selection().weighted_y(),'f',2)+"\n";
     
     // Sum
     tip += "Integral "+QString::number(p_set.current()->current()->selection().integral(),'f',2);
     
     
-    QFont font("Helvetica", 10);
+    QFont font("Helvetica", 9);
     QFontMetrics fm(font);
     
     QBrush brush;
     brush.setStyle(Qt::SolidPattern);
-    brush.setColor(QColor(255,255,255,155));
+    brush.setColor(QColor(200,200,255,215));
             
     painter->setFont(font);
     painter->setBrush(brush);
@@ -2289,35 +2332,37 @@ void ImagePreviewWorker::drawToolTip(QPainter *painter)
 
 }
 
-void ImagePreviewWorker::drawPlaneMarkerToolTip(QList<Selection> * marker, QPainter *painter)
+void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
 {
+    QList<Selection> marker = p_set.current()->current()->planeMarker();
+
     QPoint position(2,5);
     
     QList<QColor> color;
-    color << QColor(255,0,0,155) << QColor(0,255,0,155) << QColor(0,0,255,155);
+    color << QColor(255,155,155,215) << QColor(155,255,155,215) << QColor(155,155,255,215);
     
-    for (int i = 0; i < marker->size(); i++)
+    for (int i = 0; i < marker.size(); i++)
     {
         QString tip;
         
         // Position at marker center
-        tip += "Pos (x,y) "+QString::number((int) (marker->at(i).x() + 0.5 * marker->at(i).width()))+" "+QString::number((int) (marker->at(i).y() + 0.5 * marker->at(i).height()))+"\n";
+        tip += "Pos (x,y) "+QString::number((int) (marker.at(i).x() + 0.5 * marker.at(i).width()))+" "+QString::number((int) (marker.at(i).y() + 0.5 * marker.at(i).height()))+"\n";
         
         // Intensity average
         Matrix<size_t> buffer_origin(1,3,0);
-        buffer_origin[0] = marker->at(i).x();
-        buffer_origin[1] = marker->at(i).y();
+        buffer_origin[0] = marker.at(i).x()*sizeof(float); // In bytes (see comment below)
+        buffer_origin[1] = marker.at(i).y(); // In units
         Matrix<size_t> host_origin(1,3,0);
         Matrix<size_t> region(1,3,1);
-        region[0] = marker->at(i).width()*sizeof(float);
-        region[1] = marker->at(i).height(); // The 1.1 OpenCL doc is unclear on this, but based on how slice pitches are calculated region[1] should not be in bytes, but elements
+        region[0] = marker.at(i).width()*sizeof(float);
+        region[1] = marker.at(i).height(); // The 1.1 OpenCL doc is unclear on this, but based on how slice pitches are calculated region[1] should not be in bytes, but elements
         
 //        buffer_origin.print(0,"buffer_origin");
 //        host_origin.print(0,"host_origin");
 //        region.print(0,"region");
 //        image_buffer_size.print(0,"image_buffer_size");
         
-        Matrix<float> marker_buf(marker->at(i).height(), marker->at(i).width()); // Too small in comparison to region
+        Matrix<float> marker_buf(marker.at(i).height(), marker.at(i).width()); // Too small in comparison to region
         
 //        marker_buf.print(0,"marker_buf");
 //        qDebug() << *marker;
@@ -2334,15 +2379,15 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QList<Selection> * marker, QPain
             marker_buf.m()*marker_buf.n()*sizeof(float),
             marker_buf.data(),
             0, NULL, NULL);
-        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));    
+        if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-//        marker_buf.print();
+//        if (i == 0) marker_buf.print();
 
-        (*marker)[i].setSum(marker_buf.sum());
+        marker[i].setSum(marker_buf.sum());
         
-        tip += "Avg intensity "+QString::number(marker->at(i).integral()/(double)(marker_buf.size()),'g',3);
+        tip += "Avg intensity "+QString::number(marker.at(i).integral()/(double)(marker_buf.size()),'g',3);
         
-        QFont font("Helvetica", 8);
+        QFont font("Helvetica", 9);
         QFontMetrics fm(font);
         
         QBrush brush;
@@ -2368,6 +2413,8 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QList<Selection> * marker, QPain
         // Draw tooltip
         painter->drawText(area, Qt::AlignLeft, tip);
     }
+
+    p_set.current()->current()->setPlaneMarker(marker);
 
 }
 
@@ -2479,12 +2526,12 @@ void ImagePreviewWorker::setParameter(Matrix<float> & data)
 //    emit selectionAlphaChanged(isSelectionAlphaActive);
 //}
 
-Matrix<int> ImagePreviewWorker::getImagePixel(int x, int y)
+QPoint ImagePreviewWorker::getImagePixel(QPoint pos)
 {
     // Find the OpenGL coordinate of the cursor
     Matrix<double> screen_pos_gl(4,1); 
-    screen_pos_gl[0] = 2.0 * (double) x / (double) render_surface->width() - 1.0;
-    screen_pos_gl[1] = - 2.0 * (double) y / (double) render_surface->height() + 1.0;
+    screen_pos_gl[0] = 2.0 * (double) pos.x() / (double) render_surface->width() - 1.0;
+    screen_pos_gl[1] = - 2.0 * (double) pos.y() / (double) render_surface->height() + 1.0;
     screen_pos_gl[2] = 0;
     screen_pos_gl[3] = 1.0;
     
@@ -2492,16 +2539,16 @@ Matrix<int> ImagePreviewWorker::getImagePixel(int x, int y)
     Matrix<double> image_pos_gl(4,1); 
     image_pos_gl = texture_view_matrix.inverse4x4()*screen_pos_gl;
     
-    Matrix<int> image_pixel(2,1);
+    QPoint image_pixel;
     
-    image_pixel[0] = 0.5*image_pos_gl[0]*render_surface->width();
-    image_pixel[1] = -0.5*image_pos_gl[1]*render_surface->height();
+    image_pixel.setX(0.5*image_pos_gl[0]*render_surface->width());
+    image_pixel.setY(-0.5*image_pos_gl[1]*render_surface->height());
     
-    if (image_pixel[0] < 0) image_pixel[0] = 0;
-    if (image_pixel[0] >= frame.getFastDimension()) image_pixel[0] = frame.getFastDimension() - 1;
+    if (image_pixel.x() < 0) image_pixel.setX(0);
+    if (image_pixel.x() >= frame.getFastDimension()) image_pixel.setX(frame.getFastDimension() - 1);
     
-    if (image_pixel[1] < 0) image_pixel[1] = 0;
-    if (image_pixel[1] >= frame.getSlowDimension()) image_pixel[1] = frame.getSlowDimension() - 1;
+    if (image_pixel.y() < 0) image_pixel.setY(0);
+    if (image_pixel.y() >= frame.getSlowDimension()) image_pixel.setY(frame.getSlowDimension() - 1);
     
     return image_pixel;
 }
@@ -2522,9 +2569,9 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
         {
             Selection analysis_area = p_set.current()->current()->selection();
             
-            Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+            QPoint pixel = getImagePixel(pos);
             
-            analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+            analysis_area.setBottomRight(pixel);
         
             analysis_area = analysis_area.normalized();
             
@@ -2534,11 +2581,69 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
         }
         else
         {
-            double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
-            double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
+            // Check for selected objects
+            QPoint pixel = getImagePixel(pos);
 
-            translation_matrix[3] += dx*move_scaling;
-            translation_matrix[7] += dy*move_scaling;
+            bool isSomethingSelected = false;
+
+            QList<Selection> marker(p_set.current()->current()->planeMarker());
+            for (int i = 0; i < marker.size(); i++)
+            {
+//                qDebug() << marker[i].selected();
+
+                if (marker[i].selected() == true)
+                {
+//                    qDebug() << "marker move:" << marker[i].topLeft() << getImagePixel(pos) << getImagePixel(prev_pos);
+                    isSomethingSelected = true;
+                    marker[i].moveTo(marker[i].topLeft() + (getImagePixel(pos) - getImagePixel(prev_pos)));
+                    marker[i].restrictToRect(QRect(0,0,frame.getFastDimension(),frame.getSlowDimension()));
+                }
+            }
+            p_set.current()->current()->setPlaneMarker(marker);
+
+            if (!isSomethingSelected)
+            {
+                double dx = (pos.x() - prev_pos.x())*2.0/(render_surface->width()*zoom_matrix[0]);
+                double dy = -(pos.y() - prev_pos.y())*2.0/(render_surface->height()*zoom_matrix[0]);
+
+                translation_matrix[3] += dx*move_scaling;
+                translation_matrix[7] += dy*move_scaling;
+            }
+
+//            if (isSomethingSelected)
+//            {
+                //Position
+//                Matrix<double> screen_pixel_pos(4,1,0); // Uses GL coordinates
+//                screen_pixel_pos[0] = 2.0 * (double) pos.x()/(double) render_surface->width() - 1.0;
+//                screen_pixel_pos[1] = 2.0 * (1.0 - (double) pos.y()/(double) render_surface->height()) - 1.0;
+//                screen_pixel_pos[2] = 0;
+//                screen_pixel_pos[3] = 1.0;
+
+//                Matrix<double> image_pixel_pos(4,1); // Uses GL coordinates
+
+//                image_pixel_pos = texture_view_matrix.inverse4x4() * screen_pixel_pos;
+
+//                double pixel_x = image_pixel_pos[0] * render_surface->width() * 0.5;
+//                double pixel_y = - image_pixel_pos[1] * render_surface->height() * 0.5;
+
+//                if (pixel_x < 0) pixel_x = 0;
+//                if (pixel_y < 0) pixel_y = 0;
+//                if (pixel_x >= frame.getFastDimension()) pixel_x = frame.getFastDimension()-1;
+//                if (pixel_y >= frame.getSlowDimension()) pixel_y = frame.getSlowDimension()-1;
+
+
+//                for (int i = 0; i < marker.size(); i++)
+//                {
+//                    if (((pixel_x >= marker[i].x()) && (pixel_x <= marker[i].x() + marker[i].width())) && ((pixel_y >= marker[i].y()) && (pixel_y <= marker[i].y() + marker[i].height())))
+//                    {
+//                        marker[i].setSelected(true);
+//                    }
+//                }
+
+//                p_set.current()->current()->setPlaneMarker(marker);
+//            }
+
+
         }
     }
 
@@ -2577,22 +2682,42 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
 
         QList<Selection> marker(p_set.current()->current()->planeMarker());
 
-
         for (int i = 0; i < marker.size(); i++)
         {
             if (((pixel_x >= marker[i].x()) && (pixel_x <= marker[i].x() + marker[i].width())) && ((pixel_y >= marker[i].y()) && (pixel_y <= marker[i].y() + marker[i].height())))
             {
-                qDebug() << "Boom!";
+//                qDebug() << "marker press:" << marker[i];
+                marker[i].setSelected(true);
+                break;
+//                qDebug() << "marker press:" << marker[i].selected();
             }
         }
+//        for (int i = 0; i < marker.size(); i++)
+//        {
+//            qDebug() << marker[i].selected();
+//        }
+
+//        for (int i = 0; i < marker.size(); i++)
+//        {
+//            qDebug() << marker[i].selected() << marker[i].integral();;
+//        }
+
+        p_set.current()->current()->setPlaneMarkerTest(marker);
+
+//        for (int i = 0; i < marker.size(); i++)
+//        {
+//            qDebug() << p_set.current()->current()->planeMarker()[i].selected();
+//        }
+
+
     }
     else if (shift_button && left_button)
     {
         Selection analysis_area = p_set.current()->current()->selection();
         
-        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+        QPoint pixel = getImagePixel(pos);
         
-        analysis_area.setTopLeft(QPoint(pixel[0], pixel[1]));
+        analysis_area.setTopLeft(pixel);
     
         analysis_area = analysis_area.normalized();
         
@@ -2601,7 +2726,7 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
         p_set.current()->current()->setSelection(analysis_area);
     }
     
-    
+
 }
 
 void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button)
@@ -2617,9 +2742,9 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     {
         Selection analysis_area = p_set.current()->current()->selection();
         
-        Matrix<int> pixel = getImagePixel(pos.x(), pos.y());
+        QPoint pixel = getImagePixel(pos);
         
-        analysis_area.setBottomRight(QPoint(pixel[0], pixel[1]));
+        analysis_area.setBottomRight(pixel);
     
         analysis_area = analysis_area.normalized();
         
@@ -2631,6 +2756,15 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
 //        emit selectionChanged(p_set.current()->current()->selection());
 //        emit imageChanged(frame_image);
     }
+
+    // Deselect objects
+    QList<Selection> marker(p_set.current()->current()->planeMarker());
+    for (int i = 0; i < marker.size(); i++)
+    {
+//        qDebug() << "marker released:" << marker[i];
+        marker[i].setSelected(false);
+    }
+    p_set.current()->setPlaneMarker(marker);
     
     
 }   

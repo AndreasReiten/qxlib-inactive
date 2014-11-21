@@ -21,6 +21,7 @@ public:
 
     void setSelection(Selection rect);
     void setPlaneMarker(QList<Selection> marker);
+    void setPlaneMarkerTest(QList<Selection> marker);
 //    void setBackground(Selection rect);
     QList<Selection> planeMarker() const;
     QList<Selection> * planeMarkerPtr();
@@ -58,6 +59,7 @@ public:
     
     QStringList paths();
     
+    void setPlaneMarker(QList<Selection> marker);
     void setSelection(Selection rect);
     void setImages(QList<ImageInfo> list);
     void clear();
@@ -110,6 +112,8 @@ public:
     
     bool isEmpty();
 
+    void setPlaneMarker(QList<Selection> marker);
+    void setSelection(Selection rect);
     void saveCurrentIndex();
     void loadSavedIndex();
     void clear();
@@ -121,7 +125,7 @@ public:
     int i() const;
     
 private:
-    QList<ImageSeries> p_seriess;
+    QList<ImageSeries> p_series;
     int p_i;
     int p_i_memory;
 };

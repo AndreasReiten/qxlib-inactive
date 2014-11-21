@@ -5,6 +5,7 @@ Selection::Selection()
     p_integral = 0;
     p_weighted_x = 0;
     p_weighted_y = 0;
+    p_isMouseSelected = false;
 }
 
 Selection::Selection(const Selection & other)
@@ -13,6 +14,7 @@ Selection::Selection(const Selection & other)
     p_integral = other.integral();
     p_weighted_x = other.weighted_x();
     p_weighted_y = other.weighted_y();
+    p_isMouseSelected = other.selected();
 }
 Selection::~Selection()
 {
@@ -56,10 +58,40 @@ void Selection::setWeightedY(double value)
     p_weighted_y = value;
 }
 
+void Selection::setSelected(bool value)
+{
+    p_isMouseSelected = value;
+}
+
+void Selection::restrictToRect(QRect rect)
+{
+//    qDebug() << "Restrict to:" << rect;
+
+//    qDebug() << "UnRestricted:" << *this;
+
+    // First ensure the size is ok
+    if (this->width() > rect.width()) this->setWidth(rect.width());
+    if (this->height() > rect.height()) this->setHeight(rect.height());
+
+    // Then move the rectangle so it lies within the bounding rect
+    if (this->left() < rect.left()) this->moveLeft(rect.left());
+    if (this->right() > rect.right()) this->moveRight(rect.right());
+    if (this->top() < rect.top()) this->moveTop(rect.top());
+    if (this->bottom() > rect.bottom()) this->moveBottom(rect.bottom());
+
+//    qDebug() << "Restricted:" << *this;
+}
+
+bool Selection::selected() const
+{
+    return p_isMouseSelected;
+}
+
 Selection& Selection::operator = (QRect other)
 {
     this->setRect(other.x(),other.y(),other.width(),other.height());
 
+//    qDebug() << "Used rect copy";
     return * this;
 }
 
@@ -70,7 +102,10 @@ Selection& Selection::operator = (Selection other)
     p_integral = other.integral();
     p_weighted_x = other.weighted_x();
     p_weighted_y = other.weighted_y();
+    p_isMouseSelected = other.selected();
 
+
+//    qDebug() << p_isMouseSelected << other.selected();
     return * this;
 }
 
@@ -88,7 +123,7 @@ QDataStream &operator<<(QDataStream &out, const Selection &selection)
     QRect tmp;
     tmp.setRect(selection.x(), selection.y(),selection.width(), selection.height());
     
-    out << tmp << selection.integral() << selection.weighted_x() << selection.weighted_y();
+    out << tmp << selection.integral() << selection.weighted_x() << selection.weighted_y() << selection.selected();
 
     return out;
 }
@@ -99,12 +134,14 @@ QDataStream &operator>>(QDataStream &in, Selection &selection)
     double integral;
     double weighted_x;
     double weighted_y;
+    bool selected;
 
-    in >> tmp >> integral >> weighted_x >> weighted_y;
+    in >> tmp >> integral >> weighted_x >> weighted_y >> selected;
     selection = tmp;
     selection.setSum(integral);
     selection.setWeightedX(weighted_x);
     selection.setWeightedY(weighted_y);
+    selection.setSelected(selected);
 
     return in;
 }

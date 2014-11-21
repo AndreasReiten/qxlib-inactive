@@ -1,7 +1,7 @@
-attribute highp vec2 fragpos;
-attribute highp vec2 texpos;
-varying highp vec2 f_texpos;
-uniform highp mat4 transform;
+attribute vec2 fragpos;
+attribute vec2 texpos;
+varying vec2 f_texpos;
+uniform mat4 transform;
 
 void main(void)
 {

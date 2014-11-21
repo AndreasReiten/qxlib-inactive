@@ -17,6 +17,7 @@ public:
         p_integral = 0;
         p_weighted_x = 0;
         p_weighted_y = 0;
+        p_isMouseSelected = false;
     }
     explicit Selection(const QPoint & topLeft, const QSize & size)
                 : QRect(topLeft, size)
@@ -24,6 +25,7 @@ public:
         p_integral = 0;
         p_weighted_x = 0;
         p_weighted_y = 0;
+        p_isMouseSelected = false;
     }
     explicit Selection(int x, int y, int width, int height)
                 : QRect(x, y, width, height)
@@ -31,6 +33,7 @@ public:
         p_integral = 0;
         p_weighted_x = 0;
         p_weighted_y = 0;
+        p_isMouseSelected = false;
     }
 
     Selection();
@@ -45,6 +48,9 @@ public:
     void setSum(double value);
     void setWeightedX(double value);
     void setWeightedY(double value);
+    void setSelected(bool value);
+    bool selected() const;
+    void restrictToRect(QRect rect);
 
     Selection &operator =(QRect other);
     Selection &operator =(Selection other);
@@ -53,6 +59,7 @@ private:
     double p_integral;
     double p_weighted_x;
     double p_weighted_y;
+    bool p_isMouseSelected;
 };
 
 Q_DECLARE_METATYPE(Selection);

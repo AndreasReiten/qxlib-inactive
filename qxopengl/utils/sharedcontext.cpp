@@ -55,7 +55,7 @@ void SharedContextWindow::initialize()
     if ((rect_hl_2d_tex_pos = rect_hl_2d_tex_program->attributeLocation("texpos")) == -1) qCritical("Invalid attribute");
     if ((rect_hl_2d_tex_texture = rect_hl_2d_tex_program->uniformLocation("texture")) == -1) qCritical("Invalid uniform");
     if ((rect_hl_2d_tex_transform = rect_hl_2d_tex_program->uniformLocation("transform")) == -1) qCritical("Invalid uniform");
-    if ((rect_hl_2d_tex_pixel_size = rect_hl_2d_tex_program->uniformLocation("pixel_size")) == -1) qCritical("Invalid uniform");
+//    if ((rect_hl_2d_tex_pixel_size = rect_hl_2d_tex_program->uniformLocation("pixel_size")) == -1) qCritical("Invalid uniform");
 
     // Shader for drawing lines and similar in 3D
     std_3d_col_program = new QOpenGLShaderProgram(this);

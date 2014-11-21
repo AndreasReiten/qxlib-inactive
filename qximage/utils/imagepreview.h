@@ -222,12 +222,12 @@ private:
     void endRawGLCalls(QPainter * painter);
 
     // Draw
-    void drawImage(QPainter *painter);
+    void drawImage(QRectF rect, GLuint texture, QPainter * painter);
     void drawSelection(Selection area, QPainter *painter, Matrix<float> &color);
-    void drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color);
+    void drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color, QPoint offset = QPoint(0,0));
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
-    void drawToolTip(QPainter * painter);
-    void drawPlaneMarkerToolTip(QList<Selection> *marker, QPainter *painter);
+    void drawPixelToolTip(QPainter * painter);
+    void drawPlaneMarkerToolTip(QPainter *painter);
     
 
     // Boolean checks
@@ -272,7 +272,7 @@ private:
     GLuint weightpoints_vbo[5];
 //    bool isSelectionAlphaActive;
 //    bool isSelectionBetaActive;
-    Matrix<int> getImagePixel(int x, int y);
+    QPoint getImagePixel(QPoint pos);
 
     typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,
                                                             cl_platform_id *platforms,
