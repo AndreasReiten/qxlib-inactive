@@ -11,6 +11,9 @@
 
 class ImageInfo
 {
+    static int MAX_LSQ_SAMPLES;
+    static int LSQ_SAMPLE_SIZE;
+    
 public:
     ImageInfo();
     ImageInfo(const ImageInfo & other);
@@ -34,7 +37,7 @@ public:
 private:
     QString p_path;
     Selection p_selection;
-    QList<Selection> plane_marker;
+    QList<Selection> plane_sample;
 //    Selection p_background;
 };
 

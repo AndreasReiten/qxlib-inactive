@@ -1,21 +1,23 @@
 #include "framecontainer.h"
 
+int ImageInfo::MAX_LSQ_SAMPLES = 3;
+int ImageInfo::LSQ_SAMPLE_SIZE = 32;
+
 ImageInfo::ImageInfo()
 {
     p_selection = Selection(0,0,1e5,1e5);
     
-    Selection marker_a(0,0,32,32);
-    Selection marker_b(0,32+4,32,32);
-    Selection marker_c(0,(32+4)*2,32,32);
-    
-    plane_marker << marker_a << marker_b << marker_c;
-//    p_background = Selection(0,0,1e5,1e5);
+    for (int i = 0; i < MAX_LSQ_SAMPLES; i++)
+    {
+        plane_sample <<  Selection(40*(i%2), (i/2)*(LSQ_SAMPLE_SIZE+8), LSQ_SAMPLE_SIZE, LSQ_SAMPLE_SIZE);
+    }
+    //    p_background = Selection(0,0,1e5,1e5);
 }
 
 ImageInfo::ImageInfo(const ImageInfo & other)
 {
     p_selection = other.selection();
-    plane_marker = other.planeMarker();
+    plane_sample = other.planeMarker();
 //    p_background = other.background();
     p_path = other.path();
 }
@@ -71,7 +73,7 @@ ImageInfo& ImageInfo::operator = (ImageInfo other)
 
 void ImageInfo::setPlaneMarker(QList<Selection> marker)
 {
-    plane_marker = marker;
+    plane_sample = marker;
 }
 
 
@@ -84,7 +86,7 @@ void ImageInfo::setPlaneMarkerTest(QList<Selection> marker)
 //        qDebug() << marker[i].selected() << marker[i].integral();
 //    }
 
-    plane_marker = marker;
+    plane_sample = marker;
 
 //    for (int i = 0; i < marker.size(); i++)
 //    {
@@ -94,12 +96,12 @@ void ImageInfo::setPlaneMarkerTest(QList<Selection> marker)
 //    void setBackground(Selection rect);
 QList<Selection> ImageInfo::planeMarker() const
 {
-    return  plane_marker;
+    return  plane_sample;
 }
 
 QList<Selection> * ImageInfo::planeMarkerPtr()
 {
-    return  &plane_marker;
+    return  &plane_sample;
 }
 
 QDebug operator<<(QDebug dbg, const ImageInfo &image)

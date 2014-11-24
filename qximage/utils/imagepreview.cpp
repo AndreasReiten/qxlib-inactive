@@ -2110,19 +2110,11 @@ void ImagePreviewWorker::render(QPainter *painter)
         
         if (isCorrectionPlaneActive) 
         {
-            ColorMatrix<float> marker_a_color(1.0,0.0,0.0,0.8);
-            ColorMatrix<float> marker_b_color(0.0,1.0,0.0,0.8);
-            ColorMatrix<float> marker_c_color(0.0,0.0,1.0,0.8);
-            
-            drawPlaneMarker(p_set.current()->current()->planeMarker()[0], painter, marker_a_color);
-            drawPlaneMarker(p_set.current()->current()->planeMarker()[1], painter, marker_b_color);
-            drawPlaneMarker(p_set.current()->current()->planeMarker()[2], painter, marker_c_color);
+            drawPlaneMarker(p_set.current()->current()->planeMarker(), painter);
 
             if (isSetTraced)
             {
-                drawPlaneMarker(p_set.current()->current()->planeMarker()[0], painter, marker_a_color, QPoint(frame.getFastDimension() + 20,0));
-                drawPlaneMarker(p_set.current()->current()->planeMarker()[1], painter, marker_b_color, QPoint(frame.getFastDimension() + 20,0));
-                drawPlaneMarker(p_set.current()->current()->planeMarker()[2], painter, marker_c_color, QPoint(frame.getFastDimension() + 20,0));
+                drawPlaneMarker(p_set.current()->current()->planeMarker(), painter, QPoint(frame.getFastDimension() + 20,0));
             }
             
             drawPlaneMarkerToolTip(painter);
@@ -2274,7 +2266,7 @@ void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix
     endRawGLCalls(painter);
 }
 
-void ImagePreviewWorker::drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color, QPoint offset)
+void ImagePreviewWorker::drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset)
 {
     beginRawGLCalls(painter);
 
@@ -2282,38 +2274,43 @@ void ImagePreviewWorker::drawPlaneMarker(Selection marker, QPainter *painter, Co
     
     glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
     
-    float selection_left = (((qreal) marker.left() + offset.x() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
-    float selection_right = (((qreal) marker.x() + offset.x() + marker.width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+    for (int i = 0; i < marker.size(); i++)
+    {
+        float selection_left = (((qreal) marker[i].left() + offset.x() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+        float selection_right = (((qreal) marker[i].x() + offset.x() + marker[i].width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+        
+        float selection_top = (1.0 - (qreal) (marker[i].top() + offset.y() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+        float selection_bot = (1.0 - (qreal) (marker[i].y() + offset.y() + marker[i].height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+        
+        // Points
+        Matrix<GLfloat> point(4,2);
+        point[0] = selection_left;
+        point[1] = selection_top;
+        point[2] = selection_left;
+        point[3] = selection_bot;
+        
+        point[4] = selection_right;
+        point[5] = selection_top;
+        point[6] = selection_right;
+        point[7] = selection_bot;
+        
+        setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
     
-    float selection_top = (1.0 - (qreal) (marker.top() + offset.y() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
-    float selection_bot = (1.0 - (qreal) (marker.y() + offset.y() + marker.height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+        ColorMatrix<float> color(1,1,1,1);
+        
+        glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
     
-    // Points
-    Matrix<GLfloat> point(4,2);
-    point[0] = selection_left;
-    point[1] = selection_top;
-    point[2] = selection_left;
-    point[3] = selection_bot;
+        glBindBuffer(GL_ARRAY_BUFFER, selections_vbo[0]);
+        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
     
-    point[4] = selection_right;
-    point[5] = selection_top;
-    point[6] = selection_right;
-    point[7] = selection_bot;
+        texture_view_matrix = zoom_matrix*translation_matrix;
     
-    setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
-
-    glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
-
-    glBindBuffer(GL_ARRAY_BUFFER, selections_vbo[0]);
-    glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    texture_view_matrix = zoom_matrix*translation_matrix;
-
-    glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
-    
-    GLuint indices[] = {0,1,2, 1,2,3};
-    glDrawElements(GL_TRIANGLES,  3*2, GL_UNSIGNED_INT, indices);
+        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
+        
+        GLuint indices[] = {0,1,2, 1,2,3};
+        glDrawElements(GL_TRIANGLES,  3*2, GL_UNSIGNED_INT, indices);
+    }
     
     glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
@@ -2600,9 +2597,12 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
         QFont font("Helvetica", 9);
         QFontMetrics fm(font);
         
-        QBrush brush;
-        brush.setStyle(Qt::SolidPattern);
-        brush.setColor(color[i]);
+        
+        QLinearGradient lgrad(0,0,32,32);
+        lgrad.setColorAt(0.0, Qt::red);
+        lgrad.setColorAt(1.0, Qt::yellow);
+                    
+        QBrush brush(lgrad);
                 
         painter->setFont(font);
         painter->setBrush(brush);

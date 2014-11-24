@@ -229,7 +229,7 @@ private:
     // Draw
     void drawImage(QRectF rect, GLuint texture, QPainter * painter);
     void drawSelection(Selection area, QPainter *painter, Matrix<float> &color);
-    void drawPlaneMarker(Selection marker, QPainter *painter, ColorMatrix<float> &color, QPoint offset = QPoint(0,0));
+    void drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset = QPoint(0,0));
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawPixelToolTip(QPainter * painter);
     void drawPlaneMarkerToolTip(QPainter *painter);
