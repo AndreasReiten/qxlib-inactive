@@ -180,8 +180,7 @@ void ImagePreviewWorker::imageCalcuclus(cl_mem data_buf_cl, cl_mem out_buf_cl, M
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 10, sizeof(cl_int), &isCorrectionPolarizationActive);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 11, sizeof(cl_int), &isCorrectionFluxActive);
     err |=   QOpenCLSetKernelArg(cl_image_calculus, 12, sizeof(cl_int), &isCorrectionExposureActive);
-    
-    
+    err |=   QOpenCLSetKernelArg(cl_image_calculus, 13, sizeof(cl_float4), getPlane(p_set.current()->current()->planeMarker()).toFloat().data());
     
 //    err |=   QOpenCLSetKernelArg(cl_image_calculus, 8, sizeof(cl_mem), (void *) &series_interpol_gpu_3Dimg);
 //    err |=   QOpenCLSetKernelArg(cl_image_calculus, 9, sizeof(cl_sampler), &bg_sampler);
@@ -811,6 +810,16 @@ void ImagePreviewWorker::setCorrectionNoise(bool value)
 void ImagePreviewWorker::setCorrectionPlane(bool value)
 {
     isCorrectionPlaneActive = (int) value;
+
+    calculus();
+    refreshDisplay();
+
+    if(!p_set.isEmpty())
+    {
+        Selection analysis_area = p_set.current()->current()->selection();
+        refreshSelection(&analysis_area);
+        p_set.current()->current()->setSelection(analysis_area);
+    }
 }
 void ImagePreviewWorker::setCorrectionClutter(bool value)
 {
@@ -833,83 +842,284 @@ void ImagePreviewWorker::setCorrectionExposure(bool value)
      isCorrectionExposureActive = (int) value;
 }
 
-
-void ImagePreviewWorker::analyzeSingle()
+void ImagePreviewWorker::analyze(QString str)
 {
-    // Draw the frame and update the intensity OpenCL buffer prior to further operations 
-    setFrame();
+    if (str == "undef")
     {
-        QPainter painter(paint_device_gl);
-        render(&painter);
-    }
-    
-    // Force a buffer swap
-    context_gl->swapBuffers(render_surface);
-
-    QString result;
-    result += "# Analysis of single frame\n";
-    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
-    result += "#\n";
-    result += "# (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
-
-    result += integrationFrameString(frame, *p_set.current()->current());
-    emit resultFinished(result);
-}
-
-void ImagePreviewWorker::analyzeSeries()
-{
-    double integral = 0;
-    Matrix<double> weightpoint(1,3,0);
-    
-    QString frames;        
-    for (int i = 0; i < p_set.current()->size(); i++)
-    {
-        // Draw the frame and update the intensity OpenCL buffer prior to further operations 
         setFrame();
         {
             QPainter painter(paint_device_gl);
             render(&painter);
         }
+
         // Force a buffer swap
         context_gl->swapBuffers(render_surface);
 
-        // Math
-        Matrix<double> Q = getScatteringVector(frame, p_set.current()->current()->selection().weighted_x(), p_set.current()->current()->selection().weighted_y());
-        
-        weightpoint += p_set.current()->current()->selection().integral()*Q;
-        
-        
-        integral += p_set.current()->current()->selection().integral();
-        
-        frames += integrationFrameString(frame, *p_set.current()->current());
-    
-        p_set.current()->next();
+        QString result;
+        result += "# Analysis of single frame\n";
+        result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+        result += "#\n";
+        result += "# (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+
+        result += integrationFrameString(frame, *p_set.current()->current());
+        emit resultFinished(result);
     }
-    
-    if (integral > 0)
+    else if(str == "Seriers")
     {
-        weightpoint = weightpoint / integral;
+        double integral = 0;
+        Matrix<double> weightpoint(1,3,0);
+
+        QString frames;
+        for (int i = 0; i < p_set.current()->size(); i++)
+        {
+            // Draw the frame and update the intensity OpenCL buffer prior to further operations
+            setFrame();
+            {
+                QPainter painter(paint_device_gl);
+                render(&painter);
+            }
+            // Force a buffer swap
+            context_gl->swapBuffers(render_surface);
+
+            // Math
+            Matrix<double> Q = getScatteringVector(frame, p_set.current()->current()->selection().weighted_x(), p_set.current()->current()->selection().weighted_y());
+
+            weightpoint += p_set.current()->current()->selection().integral()*Q;
+
+
+            integral += p_set.current()->current()->selection().integral();
+
+            frames += integrationFrameString(frame, *p_set.current()->current());
+
+            p_set.current()->next();
+        }
+
+        if (integral > 0)
+        {
+            weightpoint = weightpoint / integral;
+        }
+        else
+        {
+            weightpoint.set(1,3,0);
+        }
+
+        QString result;
+        result += "# Analysis of frames in series "+p_set.current()->path()+"\n";
+        result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+        result += "#\n";
+        result += "# Sum of total integrated area in series "+QString::number(integral,'E')+"\n";
+        result += "# Weightpoint xyz "+QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+        result += "# Analysis of the individual frames (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+        result += frames;
+
+        emit resultFinished(result);
     }
-    else
+    else if(str == "Set")
     {
-        weightpoint.set(1,3,0);
+        double integral = 0;
+        QStringList series_integral;
+        QStringList series_weightpoint;
+        QStringList series_frames;
+        QString str;
+
+
+        for (int i = 0; i < p_set.size(); i++)
+        {
+            Matrix<double> weightpoint(1,3,0);
+
+            for (int j = 0; j < p_set.current()->size(); j++)
+            {
+                // Draw the frame and update the intensity OpenCL buffer prior to further operations
+                setFrame();
+                {
+                    QPainter painter(paint_device_gl);
+                    render(&painter);
+                }
+                // Force a buffer swap
+                context_gl->swapBuffers(render_surface);
+
+
+                // Math
+                Matrix<double> Q = getScatteringVector(frame, p_set.current()->current()->selection().weighted_x(), p_set.current()->current()->selection().weighted_y());
+
+                weightpoint += p_set.current()->current()->selection().integral()*Q;
+
+                integral += p_set.current()->current()->selection().integral();
+
+                str += integrationFrameString(frame, *p_set.current()->current());
+
+                p_set.current()->next();
+            }
+
+            if (integral > 0)
+            {
+                weightpoint = weightpoint / integral;
+            }
+            else
+            {
+                weightpoint.set(1,3,0);
+            }
+
+            series_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+
+            series_integral << QString(QString::number(integral,'E')+"\n");
+            integral = 0;
+
+            series_frames << str;
+            str.clear();
+
+            p_set.next();
+        }
+
+        QString result;
+
+        result += "# Analysis of frames in several seriess\n";
+        result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+        result += "#\n";
+        result += "# Sum of total integrated area in seriess\n";
+        foreach(const QString &str, series_integral)
+        {
+            result += str;
+        }
+        result += "# Weightpoints in seriess (Qx, Qy, Qz, |Q|)\n";
+        foreach(const QString &str, series_weightpoint)
+        {
+            result += str;
+        }
+
+        result += "# Analysis of the individual frames for each series (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+        for (int i = 0; i < series_integral.size(); i++)
+        {
+            result += "# Folder integral "+series_integral.at(i);
+            result += series_frames.at(i);
+        }
+
+        emit resultFinished(result);
     }
-    
-    QString result;
-    result += "# Analysis of frames in series "+p_set.current()->path()+"\n";
-    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
-    result += "#\n";
-    result += "# Sum of total integrated area in series "+QString::number(integral,'E')+"\n";
-    result += "# Weightpoint xyz "+QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
-    result += "# Analysis of the individual frames (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
-    result += frames;
-    
-    emit resultFinished(result);
 }
 
-void ImagePreviewWorker::applySelectionToSeriesSet()
+
+//void ImagePreviewWorker::analyzeSingle()
+//{
+//    // Draw the frame and update the intensity OpenCL buffer prior to further operations
+//    setFrame();
+//    {
+//        QPainter painter(paint_device_gl);
+//        render(&painter);
+//    }
+    
+//    // Force a buffer swap
+//    context_gl->swapBuffers(render_surface);
+
+//    QString result;
+//    result += "# Analysis of single frame\n";
+//    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+//    result += "#\n";
+//    result += "# (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+
+//    result += integrationFrameString(frame, *p_set.current()->current());
+//    emit resultFinished(result);
+//}
+
+//void ImagePreviewWorker::analyzeSeries()
+//{
+//    double integral = 0;
+//    Matrix<double> weightpoint(1,3,0);
+    
+//    QString frames;
+//    for (int i = 0; i < p_set.current()->size(); i++)
+//    {
+//        // Draw the frame and update the intensity OpenCL buffer prior to further operations
+//        setFrame();
+//        {
+//            QPainter painter(paint_device_gl);
+//            render(&painter);
+//        }
+//        // Force a buffer swap
+//        context_gl->swapBuffers(render_surface);
+
+//        // Math
+//        Matrix<double> Q = getScatteringVector(frame, p_set.current()->current()->selection().weighted_x(), p_set.current()->current()->selection().weighted_y());
+        
+//        weightpoint += p_set.current()->current()->selection().integral()*Q;
+        
+        
+//        integral += p_set.current()->current()->selection().integral();
+        
+//        frames += integrationFrameString(frame, *p_set.current()->current());
+    
+//        p_set.current()->next();
+//    }
+    
+//    if (integral > 0)
+//    {
+//        weightpoint = weightpoint / integral;
+//    }
+//    else
+//    {
+//        weightpoint.set(1,3,0);
+//    }
+    
+//    QString result;
+//    result += "# Analysis of frames in series "+p_set.current()->path()+"\n";
+//    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+//    result += "#\n";
+//    result += "# Sum of total integrated area in series "+QString::number(integral,'E')+"\n";
+//    result += "# Weightpoint xyz "+QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+//    result += "# Analysis of the individual frames (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+//    result += frames;
+    
+//    emit resultFinished(result);
+//}
+
+void ImagePreviewWorker::applyPlaneMarker(QString str)
 {
-    if (!p_set.isEmpty()) p_set.setSelection(p_set.current()->current()->selection());
+//    qDebug() << str;
+
+    if (!p_set.isEmpty())
+    {
+        if (str == "Series") p_set.current()->setPlaneMarker(p_set.current()->current()->planeMarker());
+        else if (str == "Set") p_set.setPlaneMarker(p_set.current()->current()->planeMarker());
+    }
+}
+
+Matrix<double> ImagePreviewWorker::getPlane(QList<Selection> points)
+{
+    Matrix<double> A(3,3);
+    Matrix<double> B(3,1);
+    Matrix<double> C(3,1,-1);
+
+    A[0] = points[0].center().x();
+    A[1] = points[0].center().y();
+    A[2] = points[0].integral()/(points[0].width()*points[0].height());
+
+    A[3] = points[1].center().x();
+    A[4] = points[1].center().y();
+    A[5] = points[1].integral()/(points[1].width()*points[1].height());
+
+    A[6] = points[2].center().x();
+    A[7] = points[2].center().y();
+    A[8] = points[2].integral()/(points[2].width()*points[2].height());
+
+    B = A.inverse()*C;
+
+    B.resize(4,1);
+    B[3] = 1;
+
+//    B.print(4,"B");
+
+    return B;
+}
+
+void ImagePreviewWorker::applySelection(QString str)
+{
+//    qDebug() << str;
+
+    if (!p_set.isEmpty())
+    {
+        if (str == "Series") p_set.current()->setSelection(p_set.current()->current()->selection());
+        else if (str == "Set") p_set.setSelection(p_set.current()->current()->selection());
+    }
 //    if (p_set.size() > 0)
 //    {
 //        Selection selection = p_set.current()->current()->selection();
@@ -938,9 +1148,9 @@ void ImagePreviewWorker::applySelectionToSeriesSet()
 //    }
 }
 
-void ImagePreviewWorker::applySelectionToSeries()
-{
-    if (!p_set.isEmpty()) p_set.current()->setSelection(p_set.current()->current()->selection());
+//void ImagePreviewWorker::applySelectionToSeries()
+//{
+//    if (!p_set.isEmpty()) p_set.current()->setSelection(p_set.current()->current()->selection());
 
 //    if (p_set.size() > 0)
 //    {
@@ -960,7 +1170,7 @@ void ImagePreviewWorker::applySelectionToSeries()
         
 //        p_set.current()->loadSavedIndex();
 //    }
-}
+//}
 
 
 void ImagePreviewWorker::setSet(SeriesSet s)
@@ -1338,88 +1548,88 @@ void ImagePreviewWorker::setSeriesMaxFrame()
 //    }
 //}
 
-void ImagePreviewWorker::analyzeSet()
-{
-    double integral = 0;
-    QStringList series_integral;
-    QStringList series_weightpoint;
-    QStringList series_frames;
-    QString str;
+//void ImagePreviewWorker::analyzeSet()
+//{
+//    double integral = 0;
+//    QStringList series_integral;
+//    QStringList series_weightpoint;
+//    QStringList series_frames;
+//    QString str;
 
     
-    for (int i = 0; i < p_set.size(); i++)
-    {
-        Matrix<double> weightpoint(1,3,0);
+//    for (int i = 0; i < p_set.size(); i++)
+//    {
+//        Matrix<double> weightpoint(1,3,0);
         
-        for (int j = 0; j < p_set.current()->size(); j++)
-        {
-            // Draw the frame and update the intensity OpenCL buffer prior to further operations 
-            setFrame();
-            {
-                QPainter painter(paint_device_gl);
-                render(&painter);
-            }
-            // Force a buffer swap
-            context_gl->swapBuffers(render_surface);
+//        for (int j = 0; j < p_set.current()->size(); j++)
+//        {
+//            // Draw the frame and update the intensity OpenCL buffer prior to further operations
+//            setFrame();
+//            {
+//                QPainter painter(paint_device_gl);
+//                render(&painter);
+//            }
+//            // Force a buffer swap
+//            context_gl->swapBuffers(render_surface);
 
             
-            // Math
-            Matrix<double> Q = getScatteringVector(frame, p_set.current()->current()->selection().weighted_x(), p_set.current()->current()->selection().weighted_y());
+//            // Math
+//            Matrix<double> Q = getScatteringVector(frame, p_set.current()->current()->selection().weighted_x(), p_set.current()->current()->selection().weighted_y());
             
-            weightpoint += p_set.current()->current()->selection().integral()*Q;
+//            weightpoint += p_set.current()->current()->selection().integral()*Q;
             
-            integral += p_set.current()->current()->selection().integral();
+//            integral += p_set.current()->current()->selection().integral();
             
-            str += integrationFrameString(frame, *p_set.current()->current());
+//            str += integrationFrameString(frame, *p_set.current()->current());
         
-            p_set.current()->next(); 
-        }
+//            p_set.current()->next();
+//        }
         
-        if (integral > 0)
-        {
-            weightpoint = weightpoint / integral;
-        }
-        else
-        {
-            weightpoint.set(1,3,0);
-        }
+//        if (integral > 0)
+//        {
+//            weightpoint = weightpoint / integral;
+//        }
+//        else
+//        {
+//            weightpoint.set(1,3,0);
+//        }
         
-        series_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
+//        series_weightpoint << QString::number(weightpoint[0],'E')+" "+QString::number(weightpoint[1],'E')+" "+QString::number(weightpoint[2],'E')+" "+QString::number(vecLength(weightpoint),'E')+"\n";
         
-        series_integral << QString(QString::number(integral,'E')+"\n");
-        integral = 0;
+//        series_integral << QString(QString::number(integral,'E')+"\n");
+//        integral = 0;
         
-        series_frames << str;
-        str.clear();
+//        series_frames << str;
+//        str.clear();
         
-        p_set.next();
-    }
+//        p_set.next();
+//    }
     
-    QString result;
+//    QString result;
     
-    result += "# Analysis of frames in several seriess\n";
-    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
-    result += "#\n";
-    result += "# Sum of total integrated area in seriess\n";
-    foreach(const QString &str, series_integral)
-    {
-        result += str;
-    }
-    result += "# Weightpoints in seriess (Qx, Qy, Qz, |Q|)\n";
-    foreach(const QString &str, series_weightpoint)
-    {
-        result += str;
-    }
+//    result += "# Analysis of frames in several seriess\n";
+//    result += "# "+QDateTime::currentDateTime().toString("yyyy.MM.dd HH:mm:ss t")+"\n";
+//    result += "#\n";
+//    result += "# Sum of total integrated area in seriess\n";
+//    foreach(const QString &str, series_integral)
+//    {
+//        result += str;
+//    }
+//    result += "# Weightpoints in seriess (Qx, Qy, Qz, |Q|)\n";
+//    foreach(const QString &str, series_weightpoint)
+//    {
+//        result += str;
+//    }
     
-    result += "# Analysis of the individual frames for each series (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
-    for (int i = 0; i < series_integral.size(); i++)
-    {
-        result += "# Folder integral "+series_integral.at(i);
-        result += series_frames.at(i);
-    }
+//    result += "# Analysis of the individual frames for each series (integral, origin x, origin y, width, height, weight x, weight y, Qx, Qy, Qz, |Q|, 2theta, background, origin x, origin y, width, height, path)\n";
+//    for (int i = 0; i < series_integral.size(); i++)
+//    {
+//        result += "# Folder integral "+series_integral.at(i);
+//        result += series_frames.at(i);
+//    }
     
-    emit resultFinished(result);
-}
+//    emit resultFinished(result);
+//}
 
 
 void ImagePreviewWorker::showWeightCenter(bool value)
@@ -1558,8 +1768,8 @@ void ImagePreviewWorker::initOpenCL()
     if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
     // Background sampler
-    bg_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
-    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
+//    bg_sampler =  QOpenCLCreateSampler(context_cl->context(), false, CL_ADDRESS_CLAMP_TO_EDGE, CL_FILTER_LINEAR, &err);
+//    if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     
 
     // Tsf sampler
@@ -2368,7 +2578,7 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
 //        qDebug() << *marker;
         
         err =   QOpenCLEnqueueReadBufferRect ( context_cl->queue(),
-            image_data_corrected_cl,
+            image_data_raw_cl,
             CL_TRUE,
             buffer_origin.data(),
             host_origin.data(),
@@ -2559,6 +2769,8 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
     Q_UNUSED(right_button);
     Q_UNUSED(ctrl_button);
 
+    if (!isFrameValid) return;
+
     float move_scaling = 1.0;
     
     pos = QPoint(x,y);
@@ -2657,6 +2869,8 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
     
+    if (!isFrameValid) return;
+
     pos = QPoint(x,y);
     
     if (!shift_button && left_button)
@@ -2736,6 +2950,8 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     Q_UNUSED(ctrl_button);
     Q_UNUSED(shift_button);
 
+    if (!isFrameValid) return;
+
     pos = QPoint(x,y);
     
     if (shift_button && left_button)
@@ -2766,7 +2982,15 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     }
     p_set.current()->setPlaneMarker(marker);
     
-    
+    // Recalculate
+    calculus();
+    refreshDisplay();
+
+    Matrix<double> plane = getPlane(p_set.current()->current()->planeMarker());
+
+    double plane_z = -(plane[0]*getImagePixel(pos).x()+ plane[1]*getImagePixel(pos).y() + plane[3])/plane[2];
+
+    qDebug() << plane_z;
 }   
 
 void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
@@ -2774,6 +2998,8 @@ void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)
     // This is an example of letting the QWindow take care of event handling. In all fairness, only swapbuffers and heavy work (OpenCL and calculations) need to be done in a separate thread. 
     //Currently bugged somehow. A signal to the worker appears to block further key events.
 //    qDebug() << "Press key " << ev->key();
+
+
     if (ev->key() == Qt::Key_Shift) 
     {
         emit selectionActiveChanged(true);

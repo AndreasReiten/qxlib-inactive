@@ -95,9 +95,11 @@ public slots:
 //    void setSelectionAlphaActive(bool value);
 //    void setSelectionBetaActive(bool value);
     void centerImage();
-    void analyzeSingle();
-    void analyzeSeries();
-    void analyzeSet();
+//    void analyzeSingle();
+//    void analyzeSeries();
+    void analyze(QString str);
+    void applyPlaneMarker(QString str);
+
     void traceSet();
 //    void estimateBackground();
 //    void setSeriesBackgroundBuffer();
@@ -113,8 +115,8 @@ public slots:
     void nextSeries();
     void prevSeries();
     void removeCurrentImage();
-    void applySelectionToSeriesSet();
-    void applySelectionToSeries();
+//    void applySelectionToSeriesSet();
+    void applySelection(QString);
     void setCorrectionNoise(bool value);
     void setCorrectionPlane(bool value);
     void setCorrectionClutter(bool value);
@@ -135,6 +137,8 @@ public:
     
 private:
     
+
+
     // Series
 //    QList<SeriesToolShed> set_tools;
     QList<Matrix<float>> set_trace;
@@ -174,6 +178,7 @@ private:
     cl_mem image_data_generic_cl;
     
     // Misc
+    Matrix<double> getPlane(QList<Selection> points);
     QString integrationFrameString(DetectorFile &f, ImageInfo &image);
     
     SharedContextWindow * shared_window;
@@ -195,7 +200,7 @@ private:
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
-    cl_sampler bg_sampler;
+//    cl_sampler bg_sampler;
 
     TransferFunction tsf;
     int rgb_style, alpha_style;

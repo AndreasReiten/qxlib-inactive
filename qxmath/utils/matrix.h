@@ -563,13 +563,14 @@ template <class T>
 Matrix<T> Matrix<T>::inverse(int verbose)  const
 {
     if(p_m != p_n) qDebug() << "Matrix is can not be inverted: m (= " << p_m  << ") != n (=" << p_n << ")";
-    Matrix<T> L, y, I, U, x;
+    Matrix<T> L, y, I, U, x, rescue;
     L.set(p_n, p_n, 0);
     y.set(p_n, p_n, 0);
     I.setIdentity(p_n);
     
     U.set(p_n, p_n, 0);
     x.set(p_n, p_n, 0);
+    rescue.setIdentity(p_n);
 
     /* Ax = LUx = I method */
     
@@ -601,7 +602,8 @@ Matrix<T> Matrix<T>::inverse(int verbose)  const
                 sum +=  L[j*p_n+k]*U[k*p_n+i];
             }
             if(L[j*p_n+j] == 0) {
-                qFatal("det(L) close to 0!\n Can't divide by 0...");
+                qWarning("det(L) close to 0!\n Can't divide by 0...");
+                return rescue;
             }
             U[j*p_n+i] = (p_buffer[j*p_n+i]-sum)/L[j*p_n+j];
         }

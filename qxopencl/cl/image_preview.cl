@@ -19,11 +19,11 @@ __kernel void imageDisplay(
         
         if (log)
         {
-            if (data_limit.x <= 0.001) data_limit.x = 0.001;
-            if (intensity <= 0.001)
+            if (data_limit.x <= 0.00001) data_limit.x = 0.00001;
+            if (intensity <= 0.00001)
             {
-                tsf_position = (float2)(1.0f, 0.5f);
-                sample = read_imagef(tsf_image, tsf_sampler, tsf_position) + (float4)(0.0,0.0,1.0,0.2);
+                tsf_position = (float2)(0.0f, 0.5f);
+                sample = read_imagef(tsf_image, tsf_sampler, tsf_position);// + (float4)(0.0,0.0,1.0,0.2);
             }
             else
             {
@@ -67,7 +67,8 @@ __kernel void imageCalculus(
     int isCorrectionPlaneActive,
     int isCorrectionPolarizationActive,
     int isCorrectionFluxActive,
-    int isCorrectionExposureActive
+    int isCorrectionExposureActive,
+    float4 plane
 //    __read_only image3d_t background,
 //    sampler_t bg_sampler,
 //    int sample_interdist,
@@ -129,11 +130,20 @@ __kernel void imageCalculus(
 //                value -= bg; // Subtract
 //            }
 
-            // Flat noise filter
+            // Flat background subtraction
             if (isCorrectionNoiseActive)
             {
-                value = clamp(value, noise_low, noise_high); // All readings within noise thresholds
-                value -= noise_low; // Subtracts noise
+                value = clamp(value, noise_low, noise_high); // All readings within thresholds
+                value -= noise_low; // Subtract
+            }
+
+            // Planar background subtraction
+            if (isCorrectionPlaneActive)
+            {
+                float plane_z = -(plane.x*(float)id_glb.x + plane.y*(float)id_glb.y + plane.w)/plane.z;
+                if (plane_z < 0) plane_z = 0; // Negative values do not make sense
+                value = clamp(value, plane_z, noise_high); // All readings within thresholds
+                value -= plane_z;
             }
             
             // Corrections
