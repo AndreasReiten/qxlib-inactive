@@ -36,6 +36,11 @@ double Selection::integral() const
     return p_integral;
 }
 
+double Selection::average() const
+{
+    return p_integral/(double)(this->width()*this->height());
+}
+
 double Selection::weighted_x() const
 {
     return p_weighted_x;

@@ -42,6 +42,7 @@ public:
 
     Matrix<int> lrtb();
     double integral() const;
+    double average() const;
     double weighted_x() const;
     double weighted_y() const;
 

@@ -179,7 +179,7 @@ private:
     cl_mem image_data_generic_cl;
     
     // Misc
-    Matrix<double> getPlane(QList<Selection> points);
+    Matrix<double> getPlane();
     QString integrationFrameString(DetectorFile &f, ImageInfo &image);
     
     SharedContextWindow * shared_window;
@@ -232,7 +232,7 @@ private:
 
     // Draw
     void drawImage(QRectF rect, GLuint texture, QPainter * painter);
-    void drawSelection(Selection area, QPainter *painter, Matrix<float> &color);
+    void drawSelection(Selection area, QPainter *painter, Matrix<float> &color, QPointF offset = QPointF(0,0));
     void drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset = QPoint(0,0));
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawPixelToolTip(QPainter * painter);
