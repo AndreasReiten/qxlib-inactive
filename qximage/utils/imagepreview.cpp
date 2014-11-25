@@ -842,6 +842,21 @@ void ImagePreviewWorker::setCorrectionExposure(bool value)
      isCorrectionExposureActive = (int) value;
 }
 
+void ImagePreviewWorker::setLsqSamples(int value)
+{
+    n_lsq_samples = value;
+
+    calculus();
+    refreshDisplay();
+
+    if(!p_set.isEmpty())
+    {
+        Selection analysis_area = p_set.current()->current()->selection();
+        refreshSelection(&analysis_area);
+        p_set.current()->current()->setSelection(analysis_area);
+    }
+}
+
 void ImagePreviewWorker::analyze(QString str)
 {
     if (str == "undef")
@@ -864,12 +879,14 @@ void ImagePreviewWorker::analyze(QString str)
         result += integrationFrameString(frame, *p_set.current()->current());
         emit resultFinished(result);
     }
-    else if(str == "Seriers")
+    else if(str == "Series")
     {
         double integral = 0;
         Matrix<double> weightpoint(1,3,0);
 
         QString frames;
+        p_set.current()->saveCurrentIndex();
+
         for (int i = 0; i < p_set.current()->size(); i++)
         {
             // Draw the frame and update the intensity OpenCL buffer prior to further operations
@@ -893,6 +910,8 @@ void ImagePreviewWorker::analyze(QString str)
 
             p_set.current()->next();
         }
+
+        p_set.current()->loadSavedIndex();
 
         if (integral > 0)
         {
@@ -922,6 +941,8 @@ void ImagePreviewWorker::analyze(QString str)
         QStringList series_frames;
         QString str;
 
+        p_set.saveCurrentIndex();
+        p_set.current()->saveCurrentIndex();
 
         for (int i = 0; i < p_set.size(); i++)
         {
@@ -970,6 +991,9 @@ void ImagePreviewWorker::analyze(QString str)
 
             p_set.next();
         }
+
+        p_set.loadSavedIndex();
+        p_set.current()->loadSavedIndex();
 
         QString result;
 
@@ -1083,38 +1107,82 @@ void ImagePreviewWorker::applyPlaneMarker(QString str)
     }
 }
 
-Matrix<double> ImagePreviewWorker::getPlane(QList<Selection> points)
+Matrix<double> ImagePreviewWorker::getPlane(QList<Selection> point)
 {
+    // Create LSQ matrix
+    double xx = 0, yy = 0, xy = 0, zx = 0, zy = 0, x = 0, y = 0, z = 0;
+
+    for (int i = 0; i < n_lsq_samples; i++)
+    {
+        double x_val = point[i].center().x();
+        double y_val = point[i].center().y();
+        double z_val = point[i].integral()/(point[i].width()*point[i].height());
+
+        xx += x_val*x_val;
+        xy += x_val*y_val;
+        yy += y_val*y_val;
+        zx += z_val*x_val;
+        zy += z_val*y_val;
+        x += x_val;
+        y += y_val;
+        z += z_val;
+    }
+
     Matrix<double> A(3,3);
     Matrix<double> B(3,1);
-    Matrix<double> C(3,1,-1);
+    Matrix<double> C(3,1);
 
-    A[0] = points[0].center().x();
-    A[1] = points[0].center().y();
-    A[2] = points[0].integral()/(points[0].width()*points[0].height());
+    A[0] = xx;
+    A[1] = xy;
+    A[2] = x;
 
-    A[3] = points[1].center().x();
-    A[4] = points[1].center().y();
-    A[5] = points[1].integral()/(points[1].width()*points[1].height());
+    A[3] = xy;
+    A[4] = yy;
+    A[5] = y;
 
-    A[6] = points[2].center().x();
-    A[7] = points[2].center().y();
-    A[8] = points[2].integral()/(points[2].width()*points[2].height());
+    A[6] = x;
+    A[7] = y;
+    A[8] = (float) n_lsq_samples;
+
+    C[0] = -zx;
+    C[1] = -zy;
+    C[2] = -z;
 
     B = A.inverse()*C;
 
+
+    // The error
+    double err = 0;
+    for (int i = 0; i < n_lsq_samples; i++)
+    {
+        double x_val = point[i].center().x();
+        double y_val = point[i].center().y();
+        double z_val = point[i].integral()/(point[i].width()*point[i].height());
+
+        err += pow(z_val + B[0]*x_val + B[1]*y_val + B[2], 2);
+    }
+
+    err /= (float) n_lsq_samples;
+
+//    qDebug() << sqrt(err);
+
+//    B.print(5,"abcd (3)");
+
     B.resize(4,1);
     B[3] = 1;
+    B[2] = B[3]/B[2];
+    B[1] = B[1]*B[2];
+    B[0] = B[0]*B[2];
 
-//    B.print(4,"B");
+//    B.print(5,"abcd (4)");
+
+
 
     return B;
 }
 
 void ImagePreviewWorker::applySelection(QString str)
 {
-//    qDebug() << str;
-
     if (!p_set.isEmpty())
     {
         if (str == "Series") p_set.current()->setSelection(p_set.current()->current()->selection());
@@ -2237,7 +2305,7 @@ void ImagePreviewWorker::drawPlaneMarker(QList<Selection> marker, QPainter *pain
     
     glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
     
-    for (int i = 0; i < marker.size(); i++)
+    for (int i = 0; i < n_lsq_samples; i++)
     {
         float selection_left = (((qreal) marker[i].left() + offset.x() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
         float selection_right = (((qreal) marker[i].x() + offset.x() + marker[i].width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
@@ -2476,14 +2544,15 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     tip += "Integral "+QString::number(p_set.current()->current()->selection().integral(),'f',2);
     
     
-    QFont font("Helvetica", 9);
+    QFont font("Helvetica",10);
     QFontMetrics fm(font);
-    
-    QBrush brush;
-    brush.setStyle(Qt::SolidPattern);
-    brush.setColor(QColor(200,200,255,215));
-            
+
+    QBrush brush(Qt::SolidPattern);
+    brush.setColor(QColor(0,0,0,155));
+
+    QPen pen(Qt::white);
     painter->setFont(font);
+    painter->setPen(pen);
     painter->setBrush(brush);
     
     
@@ -2494,7 +2563,7 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     area.moveBottomLeft(QPoint(5,render_surface->height()-5));
     
     area += QMargins(2,2,2,2);
-    painter->drawRoundedRect(area,5,5);
+    painter->drawRect(area);
     area -= QMargins(2,2,2,2);
     
     // Draw tooltip
@@ -2506,11 +2575,9 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
 {
     QList<Selection> marker = p_set.current()->current()->planeMarker();
 
-    for (int i = 0; i < marker.size(); i++)
+    for (int i = 0; i < n_lsq_samples; i++)
     {
-        QString tip;
-        
-        // Intensity average
+        // Intensity average under the marker
         Matrix<size_t> buffer_origin(1,3,0);
         buffer_origin[0] = marker.at(i).x()*sizeof(float); // In bytes (see comment below)
         buffer_origin[1] = marker.at(i).y(); // In units
@@ -2537,8 +2604,7 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
         
         marker[i].setSum(marker_buf.sum());
         
-        tip += QString::number(marker.at(i).integral()/(double)(marker_buf.size()),'g',3);
-        
+        // Draw box to indicate area
         QFont font("Helvetica",10);
         QFontMetrics fm(font);
                     
@@ -2578,8 +2644,14 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
         QRectF rect(topleft_text_pos_qt, botright_text_pos_qt);
 
         painter->drawRect(rect);
-        if (fm.boundingRect(tip).width() < rect.width()) painter->drawText(rect, tip);
 
+        QString tip_medium = QString::number(marker.at(i).integral()/(double)(marker_buf.size()),'g',3);
+        QString tip_small = QString::number(marker.at(i).integral()/(double)(marker_buf.size()),'g',2);
+
+        if ((fm.boundingRect(tip_medium).width() < rect.width()) && (fm.boundingRect(tip_medium).height() < rect.height())) painter->drawText(rect, tip_medium);
+        else if ((fm.boundingRect(tip_small).width() < rect.width()) && (fm.boundingRect(tip_small).height() < rect.height())) painter->drawText(rect, tip_small);
+
+        // Draw extra box if the trace image is active
         if (isSetTraced)
         {
             text_pos_gl = posQttoGL(QPointF(
@@ -2774,13 +2846,10 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
             bool isSomethingSelected = false;
 
             QList<Selection> marker(p_set.current()->current()->planeMarker());
-            for (int i = 0; i < marker.size(); i++)
+            for (int i = 0; i < n_lsq_samples; i++)
             {
-//                qDebug() << marker[i].selected();
-
                 if (marker[i].selected() == true)
                 {
-//                    qDebug() << "marker move:" << marker[i].topLeft() << getImagePixel(pos) << getImagePixel(prev_pos);
                     isSomethingSelected = true;
                     marker[i].moveTo(marker[i].topLeft() + (getImagePixel(pos) - getImagePixel(prev_pos)));
                     marker[i].restrictToRect(QRect(0,0,frame.getFastDimension(),frame.getSlowDimension()));
@@ -2796,41 +2865,6 @@ void ImagePreviewWorker::metaMouseMoveEvent(int x, int y, int left_button, int m
                 translation_matrix[3] += dx*move_scaling;
                 translation_matrix[7] += dy*move_scaling;
             }
-
-//            if (isSomethingSelected)
-//            {
-                //Position
-//                Matrix<double> screen_pixel_pos(4,1,0); // Uses GL coordinates
-//                screen_pixel_pos[0] = 2.0 * (double) pos.x()/(double) render_surface->width() - 1.0;
-//                screen_pixel_pos[1] = 2.0 * (1.0 - (double) pos.y()/(double) render_surface->height()) - 1.0;
-//                screen_pixel_pos[2] = 0;
-//                screen_pixel_pos[3] = 1.0;
-
-//                Matrix<double> image_pixel_pos(4,1); // Uses GL coordinates
-
-//                image_pixel_pos = texture_view_matrix.inverse4x4() * screen_pixel_pos;
-
-//                double pixel_x = image_pixel_pos[0] * render_surface->width() * 0.5;
-//                double pixel_y = - image_pixel_pos[1] * render_surface->height() * 0.5;
-
-//                if (pixel_x < 0) pixel_x = 0;
-//                if (pixel_y < 0) pixel_y = 0;
-//                if (pixel_x >= frame.getFastDimension()) pixel_x = frame.getFastDimension()-1;
-//                if (pixel_y >= frame.getSlowDimension()) pixel_y = frame.getSlowDimension()-1;
-
-
-//                for (int i = 0; i < marker.size(); i++)
-//                {
-//                    if (((pixel_x >= marker[i].x()) && (pixel_x <= marker[i].x() + marker[i].width())) && ((pixel_y >= marker[i].y()) && (pixel_y <= marker[i].y() + marker[i].height())))
-//                    {
-//                        marker[i].setSelected(true);
-//                    }
-//                }
-
-//                p_set.current()->current()->setPlaneMarker(marker);
-//            }
-
-
         }
     }
 
@@ -2871,34 +2905,16 @@ void ImagePreviewWorker::metaMousePressEvent(int x, int y, int left_button, int 
 
         QList<Selection> marker(p_set.current()->current()->planeMarker());
 
-        for (int i = 0; i < marker.size(); i++)
+        for (int i = 0; i < n_lsq_samples; i++)
         {
             if (((pixel_x >= marker[i].x()) && (pixel_x <= marker[i].x() + marker[i].width())) && ((pixel_y >= marker[i].y()) && (pixel_y <= marker[i].y() + marker[i].height())))
             {
-//                qDebug() << "marker press:" << marker[i];
                 marker[i].setSelected(true);
                 break;
-//                qDebug() << "marker press:" << marker[i].selected();
             }
         }
-//        for (int i = 0; i < marker.size(); i++)
-//        {
-//            qDebug() << marker[i].selected();
-//        }
-
-//        for (int i = 0; i < marker.size(); i++)
-//        {
-//            qDebug() << marker[i].selected() << marker[i].integral();;
-//        }
 
         p_set.current()->current()->setPlaneMarkerTest(marker);
-
-//        for (int i = 0; i < marker.size(); i++)
-//        {
-//            qDebug() << p_set.current()->current()->planeMarker()[i].selected();
-//        }
-
-
     }
     else if (shift_button && left_button)
     {
@@ -2942,17 +2958,12 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
         refreshSelection(&analysis_area);
         
         p_set.current()->current()->setSelection(analysis_area);
-        
-
-//        emit selectionChanged(p_set.current()->current()->selection());
-//        emit imageChanged(frame_image);
     }
 
     // Deselect objects
     QList<Selection> marker(p_set.current()->current()->planeMarker());
     for (int i = 0; i < marker.size(); i++)
     {
-//        qDebug() << "marker released:" << marker[i];
         marker[i].setSelected(false);
     }
     p_set.current()->setPlaneMarker(marker);
@@ -2960,12 +2971,6 @@ void ImagePreviewWorker::metaMouseReleaseEvent(int x, int y, int left_button, in
     // Recalculate
     calculus();
     refreshDisplay();
-
-    Matrix<double> plane = getPlane(p_set.current()->current()->planeMarker());
-
-    double plane_z = -(plane[0]*getImagePixel(pos).x()+ plane[1]*getImagePixel(pos).y() + plane[3])/plane[2];
-
-    qDebug() << plane_z;
 }   
 
 void ImagePreviewWindow::keyPressEvent(QKeyEvent *ev)

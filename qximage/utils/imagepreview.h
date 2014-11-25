@@ -124,6 +124,7 @@ public slots:
     void setCorrectionPolarization(bool value);
     void setCorrectionFlux(bool value);
     void setCorrectionExposure(bool value);
+    void setLsqSamples(int value);
     //    void nextFrame();
 //    void prevFrame();
 //    void nextFrameMulti();
@@ -206,6 +207,9 @@ private:
     int rgb_style, alpha_style;
     int bg_sample_interdist;
     
+    int n_lsq_samples;
+
+
     GLuint image_tex_gl;
     GLuint max_tex_gl;
     GLuint tsf_tex_gl;
