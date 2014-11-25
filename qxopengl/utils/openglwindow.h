@@ -38,7 +38,9 @@ public:
     void setVbo(GLuint vbo, float * buf, size_t length, GLenum usage);
     void getPosition2D(float * pos_2d, float * pos_3d, Matrix<double> * transform);
     void getPosition2D(double * pos_2d, double * pos_3d, Matrix<double> * transform);
-    QPointF coordQttoGL(QPointF coord);
+
+    QPointF posGLtoQt(QPointF coord);
+    QPointF posQttoGL(QPointF coord);
     Matrix<GLfloat> glRect(QRectF &qt_rect);
     void setMultiThreading(bool value);
 

@@ -1,6 +1,6 @@
 #include "framecontainer.h"
 
-int ImageInfo::MAX_LSQ_SAMPLES = 3;
+int ImageInfo::MAX_LSQ_SAMPLES = 20;
 int ImageInfo::LSQ_SAMPLE_SIZE = 32;
 
 ImageInfo::ImageInfo()

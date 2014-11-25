@@ -2045,10 +2045,6 @@ void ImagePreviewWorker::render(QPainter *painter)
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     const qreal retinaScale = render_surface->devicePixelRatio();
-//    glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-//    glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-
-//    endRawGLCalls(painter);
 
     glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
     glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
@@ -2059,23 +2055,20 @@ void ImagePreviewWorker::render(QPainter *painter)
         ColorMatrix<float> analysis_area_color(0.0,0,0,0.7);
         ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
 
+        beginRawGLCalls(painter);
+
+        QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+        image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
+
+        drawImage(image_rect, image_tex_gl, painter);
+
+        endRawGLCalls(painter);
+
+        drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
+
         if (isSetTraced)
         {
             beginRawGLCalls(painter);
-//            paint_device_gl->setSize(QSize(render_surface->width()*0.5, render_surface->height()));
-//            glViewport(0, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
-//            glScissor(0, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
-
-
-            QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-            image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
-
-            drawImage(image_rect, image_tex_gl, painter);
-
-//            drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
-
-//            glViewport(render_surface->width() * retinaScale * 0.5, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
-//            glScissor(render_surface->width() * retinaScale * 0.5, 0, render_surface->width() * retinaScale * 0.5, render_surface->height() * retinaScale);
 
             QRectF trace_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
             trace_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
@@ -2084,39 +2077,9 @@ void ImagePreviewWorker::render(QPainter *painter)
 
             endRawGLCalls(painter);
         }
-        else
-        {
-            beginRawGLCalls(painter);
-
-//            glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-//            glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-
-            QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-            image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
-
-            drawImage(image_rect, image_tex_gl, painter);
-
-//            drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
-
-            endRawGLCalls(painter);
-        }
-
-//        glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-//        glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-
-
-        drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
-
         
         if (isCorrectionPlaneActive) 
         {
-            drawPlaneMarker(p_set.current()->current()->planeMarker(), painter);
-
-            if (isSetTraced)
-            {
-                drawPlaneMarker(p_set.current()->current()->planeMarker(), painter, QPoint(frame.getFastDimension() + 20,0));
-            }
-            
             drawPlaneMarkerToolTip(painter);
         }
         
@@ -2296,7 +2259,7 @@ void ImagePreviewWorker::drawPlaneMarker(QList<Selection> marker, QPainter *pain
         
         setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
     
-        ColorMatrix<float> color(1,1,1,1);
+        ColorMatrix<float> color(0,0,0,0.9);
         
         glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
     
@@ -2543,17 +2506,9 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
 {
     QList<Selection> marker = p_set.current()->current()->planeMarker();
 
-    QPoint position(2,5);
-    
-    QList<QColor> color;
-    color << QColor(255,155,155,215) << QColor(155,255,155,215) << QColor(155,155,255,215);
-    
     for (int i = 0; i < marker.size(); i++)
     {
         QString tip;
-        
-        // Position at marker center
-        tip += "Pos (x,y) "+QString::number((int) (marker.at(i).x() + 0.5 * marker.at(i).width()))+" "+QString::number((int) (marker.at(i).y() + 0.5 * marker.at(i).height()))+"\n";
         
         // Intensity average
         Matrix<size_t> buffer_origin(1,3,0);
@@ -2564,15 +2519,7 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
         region[0] = marker.at(i).width()*sizeof(float);
         region[1] = marker.at(i).height(); // The 1.1 OpenCL doc is unclear on this, but based on how slice pitches are calculated region[1] should not be in bytes, but elements
         
-//        buffer_origin.print(0,"buffer_origin");
-//        host_origin.print(0,"host_origin");
-//        region.print(0,"region");
-//        image_buffer_size.print(0,"image_buffer_size");
-        
         Matrix<float> marker_buf(marker.at(i).height(), marker.at(i).width()); // Too small in comparison to region
-        
-//        marker_buf.print(0,"marker_buf");
-//        qDebug() << *marker;
         
         err =   QOpenCLEnqueueReadBufferRect ( context_cl->queue(),
             image_data_raw_cl,
@@ -2588,40 +2535,68 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
             0, NULL, NULL);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
-//        if (i == 0) marker_buf.print();
-
         marker[i].setSum(marker_buf.sum());
         
-        tip += "Avg intensity "+QString::number(marker.at(i).integral()/(double)(marker_buf.size()),'g',3);
+        tip += QString::number(marker.at(i).integral()/(double)(marker_buf.size()),'g',3);
         
-        QFont font("Helvetica", 9);
+        QFont font("Helvetica",10);
         QFontMetrics fm(font);
-        
-        
-        QLinearGradient lgrad(0,0,32,32);
-        lgrad.setColorAt(0.0, Qt::red);
-        lgrad.setColorAt(1.0, Qt::yellow);
                     
-        QBrush brush(lgrad);
+        QBrush brush(Qt::SolidPattern);
+        brush.setColor(QColor(0,0,0,155));
                 
+        QPen pen(Qt::white);
         painter->setFont(font);
+        painter->setPen(pen);
         painter->setBrush(brush);
         
-        
-        
-        // Define the area assigned to displaying the tooltip
-        QRect area = fm.boundingRect (render_surface->geometry(), Qt::AlignLeft, tip);
-        
-        area.moveTopLeft(position);
-        
-        position.setY(position.y()+area.height()+6);
-        
-        area += QMargins(2,2,2,2);
-        painter->drawRoundedRect(area,2,2);
-        area -= QMargins(2,2,2,2);
-        
-        // Draw tooltip
-        painter->drawText(area, Qt::AlignLeft, tip);
+        QPointF text_pos_gl = posQttoGL(QPointF(
+                            (float)marker.at(i).topLeft().x() + (float) render_surface->width()*0.5,
+                            (float)marker.at(i).topLeft().y() + (float) render_surface->height()*0.5));
+        Matrix<double> pos_gl(4,1);
+        pos_gl[0] = text_pos_gl.x();
+        pos_gl[1] = text_pos_gl.y();
+        pos_gl[2] = 0;
+        pos_gl[3] = 1;
+
+        pos_gl = texture_view_matrix*pos_gl;
+
+        QPointF topleft_text_pos_qt = posGLtoQt(QPointF(pos_gl[0]/pos_gl[3],pos_gl[1]/pos_gl[3]));
+
+        text_pos_gl = posQttoGL(QPointF(
+                            (float)marker.at(i).bottomRight().x() + (float) render_surface->width()*0.5,
+                            (float)marker.at(i).bottomRight().y() + (float) render_surface->height()*0.5));
+        pos_gl[0] = text_pos_gl.x();
+        pos_gl[1] = text_pos_gl.y();
+        pos_gl[2] = 0;
+        pos_gl[3] = 1;
+
+        pos_gl = texture_view_matrix*pos_gl;
+
+        QPointF botright_text_pos_qt = posGLtoQt(QPointF(pos_gl[0]/pos_gl[3],pos_gl[1]/pos_gl[3]));
+
+        QRectF rect(topleft_text_pos_qt, botright_text_pos_qt);
+
+        painter->drawRect(rect);
+        if (fm.boundingRect(tip).width() < rect.width()) painter->drawText(rect, tip);
+
+        if (isSetTraced)
+        {
+            text_pos_gl = posQttoGL(QPointF(
+                                (float)marker.at(i).topLeft().x() + (float) render_surface->width()*0.5 + frame.getFastDimension() + 20,
+                                (float)marker.at(i).topLeft().y() + (float) render_surface->height()*0.5));
+            pos_gl[0] = text_pos_gl.x();
+            pos_gl[1] = text_pos_gl.y();
+            pos_gl[2] = 0;
+            pos_gl[3] = 1;
+
+            pos_gl = texture_view_matrix*pos_gl;
+
+            QPointF trace_pos_qt = posGLtoQt(QPointF(pos_gl[0]/pos_gl[3],pos_gl[1]/pos_gl[3]));
+
+            rect.moveTo(trace_pos_qt);
+            painter->drawRect(rect);
+        }
     }
 
     p_set.current()->current()->setPlaneMarker(marker);

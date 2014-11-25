@@ -150,11 +150,21 @@ void OpenGLWorker::getPosition2D(double * pos_2d, double * pos_3d, Matrix<double
     pos_2d[1] = pos_2d_matrix[1]/pos_2d_matrix[3];
 }
 
-QPointF OpenGLWorker::coordQttoGL(QPointF coord)
+QPointF OpenGLWorker::posGLtoQt(QPointF coord)
+{
+    QPointF QtPoint;
+
+    QtPoint.setX(0.5 * (float)render_surface->width() * (coord.x()+1.0) - 1.0);
+    QtPoint.setY(0.5 * (float)render_surface->height() * (1.0-coord.y()) - 1.0);
+
+    return QtPoint;
+}
+
+QPointF OpenGLWorker::posQttoGL(QPointF coord)
 {
     QPointF GLPoint;
-    GLPoint.setX((coord.x()/(float) render_surface->width())*2.0-1.0);
-    GLPoint.setY((1.0 - coord.y()/(float) render_surface->height())*2.0-1.0);
+    GLPoint.setX((coord.x()+1.0)/(float) (render_surface->width())*2.0-1.0);
+    GLPoint.setY((1.0 - (coord.y()+1.0)/(float) render_surface->height())*2.0-1.0);
     return GLPoint;
 }
 
