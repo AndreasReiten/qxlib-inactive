@@ -29,6 +29,8 @@ ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isWeightCenterActive(false),
     isInterpolGpuInitialized(false),
     isSetTraced(false),
+    isSwapped(true),
+    texture_number(0),
 //    bgCorrectionMode(0),
 //    isBGEstimated(true),
 //    isAutoBackgroundCorrectionActive(false),
@@ -385,7 +387,16 @@ void ImagePreviewWorker::calculus()
     {
         // Normal intensity
         {
-            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+            switch(texture_number)
+            {
+                case 0:
+                    imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+                    break;
+                case 1:
+                    imageCalcuclus(image_data_max_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+                    break;
+            }
+            
 //            imageCalcuclus(image_data_raw_cl, image_data_max_cl, parameter, image_size, local_ws, 0, 0, -1);
             
             // Calculate the weighted intensity position
@@ -398,8 +409,15 @@ void ImagePreviewWorker::calculus()
     {
         // Variance
         {
-            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
-//            imageCalcuclus(image_data_raw_cl, image_data_max_cl, parameter, image_size, local_ws, 0, 0, -1);
+            switch(texture_number)
+            {
+                case 0:
+                    imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+                    break;
+                case 1:
+                    imageCalcuclus(image_data_max_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+                    break;
+            }
             
             // Calculate the variance
             copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
@@ -417,8 +435,15 @@ void ImagePreviewWorker::calculus()
     {
         // Skewness
         {
-            imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
-//            imageCalcuclus(image_data_raw_cl, image_data_max_cl, parameter, image_size, local_ws, 0, 0, -1);
+            switch(texture_number)
+            {
+                case 0:
+                    imageCalcuclus(image_data_raw_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+                    break;
+                case 1:
+                    imageCalcuclus(image_data_max_cl, image_data_corrected_cl, parameter, image_size, local_ws, 0, 0, 0);
+                    break;
+            }
             
             // Calculate the variance
             copyBufferRect(image_data_corrected_cl, image_data_generic_cl, image_size, origin, image_size, origin, local_ws);
@@ -674,19 +699,19 @@ void ImagePreviewWorker::refreshDisplay()
     {
         // Normal intensity
         imageDisplay(image_data_corrected_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
-        imageDisplay(image_data_max_cl, max_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+//        imageDisplay(image_data_max_cl, max_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
     }
     if (mode == 1)
     {
         // Variance
         imageDisplay(image_data_variance_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
-        imageDisplay(image_data_max_cl, max_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+//        imageDisplay(image_data_max_cl, max_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
     }
     else if (mode == 2)
     {
         // Skewness
         imageDisplay(image_data_skewness_cl, image_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
-        imageDisplay(image_data_max_cl, max_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
+//        imageDisplay(image_data_max_cl, max_tex_cl, tsf_tex_cl, data_limit, image_size, local_ws, tsf_sampler, isLog);
     }
     else
     {
@@ -701,10 +726,10 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
         if (isImageTexInitialized)
         {
             err =  QOpenCLReleaseMemObject(image_tex_cl);
-            err |=  QOpenCLReleaseMemObject(max_tex_cl);
+//            err |=  QOpenCLReleaseMemObject(max_tex_cl);
             if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
             glDeleteTextures(1, &image_tex_gl);
-            glDeleteTextures(1, &max_tex_gl);
+//            glDeleteTextures(1, &trace_tex_gl);
         }
         
         context_gl->makeCurrent(render_surface);
@@ -725,28 +750,28 @@ void ImagePreviewWorker::maintainImageTexture(Matrix<size_t> &image_size)
             NULL);
         glBindTexture(GL_TEXTURE_2D, 0);
 
-        glGenTextures(1, &max_tex_gl);
-        glBindTexture(GL_TEXTURE_2D, max_tex_gl);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RGBA32F,
-            image_size[0],
-            image_size[1],
-            0,
-            GL_RGBA,
-            GL_FLOAT,
-            NULL);
-        glBindTexture(GL_TEXTURE_2D, 0);
+//        glGenTextures(1, &trace_tex_gl);
+//        glBindTexture(GL_TEXTURE_2D, trace_tex_gl);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//        glTexImage2D(
+//            GL_TEXTURE_2D,
+//            0,
+//            GL_RGBA32F,
+//            image_size[0],
+//            image_size[1],
+//            0,
+//            GL_RGBA,
+//            GL_FLOAT,
+//            NULL);
+//        glBindTexture(GL_TEXTURE_2D, 0);
         
         image_tex_size[0] = image_size[0];
         image_tex_size[1] = image_size[1];
         
         // Share the texture with the OpenCL runtime
         image_tex_cl =  QOpenCLCreateFromGLTexture2D(context_cl->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, image_tex_gl, &err);
-        max_tex_cl =  QOpenCLCreateFromGLTexture2D(context_cl->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, max_tex_gl, &err);
+//        max_tex_cl =  QOpenCLCreateFromGLTexture2D(context_cl->context(), CL_MEM_WRITE_ONLY, GL_TEXTURE_2D, 0, trace_tex_gl, &err);
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
         
         isImageTexInitialized = true;
@@ -841,6 +866,22 @@ void ImagePreviewWorker::setCorrectionExposure(bool value)
 {
      isCorrectionExposureActive = (int) value;
 }
+
+void ImagePreviewWorker::toggleTraceTexture(bool value)
+{
+    texture_number = (int) value;
+    
+    calculus();
+    refreshDisplay();
+
+    if(!p_set.isEmpty())
+    {
+        Selection analysis_area = p_set.current()->current()->selection();
+        refreshSelection(&analysis_area);
+        p_set.current()->current()->setSelection(analysis_area);
+    }
+}
+
 
 void ImagePreviewWorker::setLsqSamples(int value)
 {
@@ -2184,28 +2225,40 @@ void ImagePreviewWorker::render(QPainter *painter)
         
         QRectF image_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
         image_rect.moveTopLeft(QPointF((qreal) render_surface->width()*0.5, (qreal) render_surface->height()*0.5));
-
+        
+//        switch(texture_number)
+//        {
+//            case 0:
         drawImage(image_rect, image_tex_gl, painter);
+//                break;
+//            case 1:
+//                drawImage(image_rect, trace_tex_gl, painter);
+//                break;
+//        }
+
+        
+        
 
         endRawGLCalls(painter);
         
-        ColorMatrix<float> analysis_area_color(0.0,0,0,0.7);
+        ColorMatrix<float> analysis_area_color(0.0,0,0,0.3);
         drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color);
 
         // Draw trace
-        if (isSetTraced)
-        {
-            beginRawGLCalls(painter);
+//        if (isSetTraced)
+//        {
+//            beginRawGLCalls(painter);
 
-            QRectF trace_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
-            trace_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
+//            QRectF trace_rect(QPoint(0,0),QSizeF(frame.getFastDimension(), frame.getSlowDimension()));
+//            trace_rect.moveTopLeft(image_rect.topRight() + QPointF(20,0));
 
-            drawImage(trace_rect, max_tex_gl, painter);
+//            drawImage(trace_rect,  isSetTraced && isSwapped ? image_tex_gl : trace_tex_gl, painter);
 
-            endRawGLCalls(painter);
+//            endRawGLCalls(painter);
             
-            drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color, QPointF(frame.getFastDimension() + 20, 0));
-        }
+//            ColorMatrix<float> analysis_area_color_trace(0.0,0,0,0.3);
+//            drawSelection(p_set.current()->current()->selection(), painter, analysis_area_color_trace, QPointF(frame.getFastDimension() + 20, 0));
+//        }
         
         // Draw pixel tootip
         if (isCorrectionPlaneActive) 
@@ -2361,58 +2414,58 @@ void ImagePreviewWorker::drawSelection(Selection area, QPainter *painter, Matrix
     endRawGLCalls(painter);
 }
 
-void ImagePreviewWorker::drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset)
-{
-    beginRawGLCalls(painter);
+//void ImagePreviewWorker::drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset)
+//{
+//    beginRawGLCalls(painter);
 
-    shared_window->std_2d_col_program->bind();
+//    shared_window->std_2d_col_program->bind();
     
-    glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
+//    glEnableVertexAttribArray(shared_window->std_2d_col_fragpos);
     
-    for (int i = 0; i < n_lsq_samples; i++)
-    {
-        float selection_left = (((qreal) marker[i].left() + offset.x() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
-        float selection_right = (((qreal) marker[i].x() + offset.x() + marker[i].width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
+//    for (int i = 0; i < n_lsq_samples; i++)
+//    {
+//        float selection_left = (((qreal) marker[i].left() + offset.x() + 0.5*render_surface->width()) / (qreal) render_surface->width()) * 2.0 - 1.0; // Left
+//        float selection_right = (((qreal) marker[i].x() + offset.x() + marker[i].width()  + 0.5*render_surface->width())/ (qreal) render_surface->width()) * 2.0 - 1.0; // Right
         
-        float selection_top = (1.0 - (qreal) (marker[i].top() + offset.y() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
-        float selection_bot = (1.0 - (qreal) (marker[i].y() + offset.y() + marker[i].height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
+//        float selection_top = (1.0 - (qreal) (marker[i].top() + offset.y() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Top
+//        float selection_bot = (1.0 - (qreal) (marker[i].y() + offset.y() + marker[i].height() + 0.5*render_surface->height())/ (qreal) render_surface->height()) * 2.0 - 1.0; // Bottom
         
-        // Points
-        Matrix<GLfloat> point(4,2);
-        point[0] = selection_left;
-        point[1] = selection_top;
-        point[2] = selection_left;
-        point[3] = selection_bot;
+//        // Points
+//        Matrix<GLfloat> point(4,2);
+//        point[0] = selection_left;
+//        point[1] = selection_top;
+//        point[2] = selection_left;
+//        point[3] = selection_bot;
         
-        point[4] = selection_right;
-        point[5] = selection_top;
-        point[6] = selection_right;
-        point[7] = selection_bot;
+//        point[4] = selection_right;
+//        point[5] = selection_top;
+//        point[6] = selection_right;
+//        point[7] = selection_bot;
         
-        setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
+//        setVbo(selections_vbo[0], point.data(), point.size(), GL_DYNAMIC_DRAW);
     
-        ColorMatrix<float> color(0,0,0,0.9);
+//        ColorMatrix<float> color(0,0,0,0.9);
         
-        glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
+//        glUniform4fv(shared_window->std_2d_col_color, 1, color.data());
     
-        glBindBuffer(GL_ARRAY_BUFFER, selections_vbo[0]);
-        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, selections_vbo[0]);
+//        glVertexAttribPointer(shared_window->std_2d_col_fragpos, 2, GL_FLOAT, GL_FALSE, 0, 0);
+//        glBindBuffer(GL_ARRAY_BUFFER, 0);
     
-        texture_view_matrix = zoom_matrix*translation_matrix;
+//        texture_view_matrix = zoom_matrix*translation_matrix;
     
-        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
+//        glUniformMatrix4fv(shared_window->std_2d_col_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
         
-        GLuint indices[] = {0,1,2, 1,2,3};
-        glDrawElements(GL_TRIANGLES,  3*2, GL_UNSIGNED_INT, indices);
-    }
+//        GLuint indices[] = {0,1,2, 1,2,3};
+//        glDrawElements(GL_TRIANGLES,  3*2, GL_UNSIGNED_INT, indices);
+//    }
     
-    glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
+//    glDisableVertexAttribArray(shared_window->std_2d_col_fragpos);
 
-    shared_window->std_2d_col_program->release();
+//    shared_window->std_2d_col_program->release();
 
-    endRawGLCalls(painter);
-}
+//    endRawGLCalls(painter);
+//}
 
 void ImagePreviewWorker::drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color)
 {
@@ -2689,23 +2742,23 @@ void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)
         else if ((fm.boundingRect(tip_small).width()+5 < rect.width()) && (fm.boundingRect(tip_small).height() < rect.height())) painter->drawText(rect, tip_small);
 
         // Draw extra box if the trace image is active
-        if (isSetTraced)
-        {
-            text_pos_gl = posQttoGL(QPointF(
-                                (float)marker.at(i).topLeft().x() + (float) render_surface->width()*0.5 + frame.getFastDimension() + 20,
-                                (float)marker.at(i).topLeft().y() + (float) render_surface->height()*0.5));
-            pos_gl[0] = text_pos_gl.x();
-            pos_gl[1] = text_pos_gl.y();
-            pos_gl[2] = 0;
-            pos_gl[3] = 1;
+//        if (isSetTraced)
+//        {
+//            text_pos_gl = posQttoGL(QPointF(
+//                                (float)marker.at(i).topLeft().x() + (float) render_surface->width()*0.5 + frame.getFastDimension() + 20,
+//                                (float)marker.at(i).topLeft().y() + (float) render_surface->height()*0.5));
+//            pos_gl[0] = text_pos_gl.x();
+//            pos_gl[1] = text_pos_gl.y();
+//            pos_gl[2] = 0;
+//            pos_gl[3] = 1;
 
-            pos_gl = texture_view_matrix*pos_gl;
+//            pos_gl = texture_view_matrix*pos_gl;
 
-            QPointF trace_pos_qt = posGLtoQt(QPointF(pos_gl[0]/pos_gl[3],pos_gl[1]/pos_gl[3]));
+//            QPointF trace_pos_qt = posGLtoQt(QPointF(pos_gl[0]/pos_gl[3],pos_gl[1]/pos_gl[3]));
 
-            rect.moveTo(trace_pos_qt);
-            painter->drawRect(rect);
-        }
+//            rect.moveTo(trace_pos_qt);
+//            painter->drawRect(rect);
+//        }
     }
 
     p_set.current()->current()->setPlaneMarker(marker);

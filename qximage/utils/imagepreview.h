@@ -125,6 +125,7 @@ public slots:
     void setCorrectionFlux(bool value);
     void setCorrectionExposure(bool value);
     void setLsqSamples(int value);
+    void toggleTraceTexture(bool value);
     //    void nextFrame();
 //    void prevFrame();
 //    void nextFrameMulti();
@@ -191,7 +192,7 @@ private:
     cl_kernel cl_buffer_max;
 //    cl_kernel cl_glowstick;
     cl_mem image_tex_cl;
-    cl_mem max_tex_cl;
+//    cl_mem max_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
@@ -211,7 +212,7 @@ private:
 
 
     GLuint image_tex_gl;
-    GLuint max_tex_gl;
+//    GLuint trace_tex_gl;
     GLuint tsf_tex_gl;
     Matrix<size_t> image_tex_size;
     Matrix<size_t> image_buffer_size;
@@ -233,7 +234,7 @@ private:
     // Draw
     void drawImage(QRectF rect, GLuint texture, QPainter * painter);
     void drawSelection(Selection area, QPainter *painter, Matrix<float> &color, QPointF offset = QPointF(0,0));
-    void drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset = QPoint(0,0));
+//    void drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset = QPoint(0,0));
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawPixelToolTip(QPainter * painter);
     void drawPlaneMarkerToolTip(QPainter *painter);
@@ -247,6 +248,9 @@ private:
     bool isWeightCenterActive;
     bool isInterpolGpuInitialized;
     bool isSetTraced;
+    bool isSwapped;
+    int texture_number;
+    
     int isCorrectionNoiseActive; // Happens in calculus function
     int isCorrectionPlaneActive; // Happens in calculus function
     int isCorrectionClutterActive; // Should happen in a kernel that works on image objects
