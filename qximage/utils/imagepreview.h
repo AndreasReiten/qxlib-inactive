@@ -85,6 +85,8 @@ public slots:
     void setDataMin(double value);
     void setDataMax(double value);
     void calculus();
+    void takeScreenShot(QString path);
+    void saveImage(QString path);
 
     void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
     void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);

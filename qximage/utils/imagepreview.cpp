@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QCoreApplication>
 #include <QFontMetrics>
+#include <QOpenGLFramebufferObject>
 
 //AreaSample()
 //{
@@ -154,6 +155,9 @@ ImagePreviewWorker::~ImagePreviewWorker()
     glDeleteBuffers(5, selections_vbo);
     glDeleteBuffers(5, weightpoints_vbo);
 }
+
+
+
 
 void ImagePreviewWorker::setSharedWindow(SharedContextWindow * window)
 {
@@ -2195,14 +2199,14 @@ void ImagePreviewWorker::beginRawGLCalls(QPainter * painter)
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_MULTISAMPLE);
-    glEnable(GL_SCISSOR_TEST);
+//    glEnable(GL_SCISSOR_TEST);
 }
 
 void ImagePreviewWorker::endRawGLCalls(QPainter * painter)
 {
     glDisable(GL_BLEND);
     glDisable(GL_MULTISAMPLE);
-    glDisable(GL_SCISSOR_TEST);
+//    glDisable(GL_SCISSOR_TEST);
     painter->endNativePainting();
 }
 
@@ -2217,7 +2221,7 @@ void ImagePreviewWorker::render(QPainter *painter)
     const qreal retinaScale = render_surface->devicePixelRatio();
 
     glViewport(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
-    glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
+//    glScissor(0, 0, render_surface->width() * retinaScale, render_surface->height() * retinaScale);
 
     if(!p_set.isEmpty())
     {
@@ -3283,3 +3287,108 @@ SeriesSet ImagePreviewWorker::set()
     // Move relevant samples into a separate buffer
 
 //}
+
+void ImagePreviewWorker::takeScreenShot(QString path)
+{
+    QOpenGLFramebufferObjectFormat format;
+
+    format.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
+    format.setMipmap(true);
+    format.setSamples(64);
+    format.setTextureTarget(GL_TEXTURE_2D);
+    format.setInternalTextureFormat(GL_RGBA32F);
+
+    QOpenGLFramebufferObject buffy(render_surface->width(), render_surface->height(), format);
+
+    buffy.bind();
+    
+    // Render into buffer
+    QPainter painter(paint_device_gl);
+    
+    render(&painter);
+
+    
+    
+    // Save buffer as image
+    buffy.toImage().save(path);
+    
+    buffy.release();
+}
+
+void ImagePreviewWorker::saveImage(QString path)
+{
+    QOpenGLFramebufferObjectFormat format;
+
+    format.setAttachment(QOpenGLFramebufferObject::CombinedDepthStencil);
+    format.setMipmap(true);
+    format.setSamples(64);
+    format.setTextureTarget(GL_TEXTURE_2D);
+    format.setInternalTextureFormat(GL_RGBA32F);
+
+    QOpenGLFramebufferObject buffy(frame.getFastDimension(), frame.getSlowDimension(), format);
+
+    buffy.bind();
+    
+    // Render into buffer
+    QPainter painter(paint_device_gl);
+    
+    /////////////////////////////////
+    beginRawGLCalls(&painter);
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+    const qreal retinaScale = render_surface->devicePixelRatio();
+
+    glViewport(0, 0, frame.getFastDimension() * retinaScale, frame.getSlowDimension() * retinaScale);
+//    glScissor(0, 0, frame.getFastDimension() * retinaScale, frame.getSlowDimension() * retinaScale);
+
+    if(!p_set.isEmpty())
+    {
+        shared_window->std_2d_tex_program->bind();
+    
+        shared_window->std_2d_tex_program->setUniformValue(shared_window->std_2d_tex_texture, 0);
+    
+        GLfloat texpos[] = {
+            0.0, 0.0,
+            1.0, 0.0,
+            1.0, 1.0,
+            0.0, 1.0
+        };
+        
+        GLuint indices[] = {0,1,3,1,2,3};
+    
+        texture_view_matrix.setIdentity(4);
+        
+        glUniformMatrix4fv(shared_window->std_2d_tex_transform, 1, GL_FALSE, texture_view_matrix.colmajor().toFloat().data());
+        
+        glEnableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+        glEnableVertexAttribArray(shared_window->std_2d_tex_pos);
+    
+        GLfloat fragpos[] = {
+            -1.0,-1.0,
+            1.0,-1.0,
+            1.0,1.0,
+            -1.0,1.0
+        };
+                
+        // Draw image
+        glBindTexture(GL_TEXTURE_2D, image_tex_gl);
+        glVertexAttribPointer(shared_window->std_2d_tex_fragpos, 2, GL_FLOAT, GL_FALSE, 0, fragpos);
+        glVertexAttribPointer(shared_window->std_2d_tex_pos, 2, GL_FLOAT, GL_FALSE, 0, texpos);
+    
+        glDrawElements(GL_TRIANGLES,  6,  GL_UNSIGNED_INT,  indices);
+    
+        glDisableVertexAttribArray(shared_window->std_2d_tex_pos);
+        glDisableVertexAttribArray(shared_window->std_2d_tex_fragpos);
+    
+        shared_window->std_2d_tex_program->release();
+        
+        // Save buffer as image
+        buffy.toImage().save(path);
+    }
+    
+    endRawGLCalls(&painter);
+    /////////////////////////////////
+    
+    buffy.release();
+}
