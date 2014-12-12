@@ -7,6 +7,28 @@
 #include <QFontMetrics>
 #include <QOpenGLFramebufferObject>
 
+ImageOpenGLWidget::ImageOpenGLWidget(QWidget * parent, Qt::WindowFlags f) : QOpenGLWidget(parent, f)
+{
+    ;
+}
+ImageOpenGLWidget::~ImageOpenGLWidget()
+{
+    ;
+}
+void ImageOpenGLWidget::paintGL()
+{
+    ;
+}
+void ImageOpenGLWidget::resizeGL(int w, int h)
+{
+    ;
+}
+void ImageOpenGLWidget::initializeGL()
+{
+    ;
+}
+
+
 //AreaSample()
 //{
     

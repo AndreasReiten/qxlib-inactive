@@ -6,6 +6,7 @@
  * */
 
 #include <QLibrary>
+#include <QOpenGLWidget>
 #include <CL/opencl.h>
 
 #include "../../qxopengl/qxopengllib.h"
@@ -45,6 +46,21 @@
 
 //    Matrix<float> trace_image;
 //};
+
+class ImageOpenGLWidget : QOpenGLWidget
+{
+    Q_OBJECT
+public:
+    explicit ImageOpenGLWidget(QWidget * parent = 0, Qt::WindowFlags f = 0);
+    ~ImageOpenGLWidget();
+    
+private:
+    // Reimplemented virtual functions
+    void paintGL();
+    void resizeGL(int w, int h);
+    void initializeGL();    
+};
+
 
 class ImagePreviewWorker : public OpenGLWorker
 {

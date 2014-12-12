@@ -22,6 +22,7 @@
 #include "../../qxopencl/qxopencllib.h"
 #include "../../qxmath/qxmathlib.h"
 
+
 class OpenGLWorker  : public QObject, protected QOpenGLFunctions
 {
     Q_OBJECT
