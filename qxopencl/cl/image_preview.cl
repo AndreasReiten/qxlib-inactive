@@ -158,14 +158,12 @@ __kernel void imageCalculus(
 
             Q.xyz = k_f - k_i;
             {
-                float lab_theta = asin(native_divide(Q.y, k)); // Not to be confused with 2-theta, the scattering angle
+                float lab_theta = asin(native_divide(fabs(Q.y), k)); // Not to be confused with 2-theta, the scattering angle
 
                 // Lorentz correction: Assuming rotation around the z-axis of the lab frame:
                 if (correction_lorentz)
                 {
-                    float L = fabs(native_sin(lab_theta));
-
-                    value *= L;
+                    value *= sin(lab_theta);
                 }
 
                 // Polarization correction begs implementation
