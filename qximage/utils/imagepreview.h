@@ -12,56 +12,33 @@
 #include "../../qxfile/qxfilelib.h"
 #include "../../qxmath/qxmathlib.h"
 
-//class SeriesToolShed
-//{
-//public:
-//    SeriesToolShed();
-//    ~SeriesToolShed();
-
-//    Matrix<float> series_interpol_cpu;
-//    Matrix<size_t> dim;
-
-
-//};
-
-//class AreaSample
-//{
-//public:
-//    AreaSample();
-//    ~AreaSample();
-
-//    Selection * area();
-    
-//private:
-//    Selection p_area;
-//};
-
-
-//class SeriesTrace
-//{
-//public:
-//    SeriesTrace();
-//    ~SeriesTrace();
-
-//    Matrix<float> trace_image;
-//};
-
 class ImagePreviewWorker : public OpenGLWorker
 {
     Q_OBJECT
 public:
+    int projectFile(DetectorFile * file, Selection selection);
+    void setReducedPixels(Matrix<float> * reduced_pixels);
+    
     explicit ImagePreviewWorker(QObject *parent = 0);
     ~ImagePreviewWorker();
     void setSharedWindow(SharedContextWindow * window);
-
+    SeriesSet set();
+    
 signals:
+    void changedMessageString(QString str);
+    void changedGenericProgress(int value);
+    void changedMemoryUsage(int value);
+    void changedFormatGenericProgress(QString str);
+    void changedFormatMemoryUsage(QString str);
+    void changedRangeMemoryUsage(int min, int max);
+    void changedRangeGenericProcess(int min, int max);
+    void popup(QString title, QString text);
+    void qSpaceInfoChanged(float suggested_search_radius_low, float suggested_search_radius_high, float suggested_q);
+    
     void resultFinished(QString str);
     void selectionAlphaChanged(bool value);
     void selectionBetaChanged(bool value);
     void noiseLowChanged(double value);
-//    void imageChanged(ImageInfo image);
-//    void selectionChanged(Selection selection);
-    
     void pathRemoved(QString path);
     void pathChanged(QString path);
     void imageRangeChanged(int low, int high);
@@ -71,6 +48,14 @@ signals:
     void visibilityChanged(bool value);
     
 public slots:
+//    void initializeCLKernel();
+    void killProcess();
+    void setActiveAngle(int value);
+    void setOffsetOmega(double value);
+    void setOffsetKappa(double value);
+    void setOffsetPhi(double value);
+    void reconstruct();
+    
     void setMode(int value);
     void setThresholdNoiseLow(double value);
     void setThresholdNoiseHigh(double value);
@@ -81,43 +66,22 @@ public slots:
     void setLog(bool value);
     void setCorrectionLorentz(bool value);
     void setCorrectionBackground(bool value);
-//    void setAutoBackgroundCorrection(bool value);
     void setDataMin(double value);
     void setDataMax(double value);
     void calculus();
     void takeScreenShot(QString path);
     void saveImage(QString path);
-
-    void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-    void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-    void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
-    void wheelEvent(QWheelEvent* ev);
-    void resizeEvent(QResizeEvent * ev);
     void setFrame();
-//    void setSelectionAlphaActive(bool value);
-//    void setSelectionBetaActive(bool value);
     void centerImage();
-//    void analyzeSingle();
-//    void analyzeSeries();
     void analyze(QString str);
     void applyPlaneMarker(QString str);
-
     void traceSet();
-//    void estimateBackground();
-//    void setSeriesBackgroundBuffer();
-    
-//    void peakHuntSingle(ImageInfo image);
-//    void peakHuntFolder(ImageSeries series);
-//    void peakHuntSet(SeriesSet p_set);
-    
     void showWeightCenter(bool value);
-    
     void setSet(SeriesSet s);
     void setFrameByIndex(int i);
     void nextSeries();
     void prevSeries();
     void removeCurrentImage();
-//    void applySelectionToSeriesSet();
     void applySelection(QString);
     void setCorrectionNoise(bool value);
     void setCorrectionPlane(bool value);
@@ -128,27 +92,26 @@ public slots:
     void setCorrectionExposure(bool value);
     void setLsqSamples(int value);
     void toggleTraceTexture(bool value);
-    //    void nextFrame();
-//    void prevFrame();
-//    void nextFrameMulti();
-//    void prevFrameMulti();
     
-//    void setMulti
-    
-public: 
-    SeriesSet set();    
+    void metaMouseMoveEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
+    void metaMousePressEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
+    void metaMouseReleaseEvent(int x, int y, int left_button, int mid_button, int right_button, int ctrl_button, int shift_button);
+    void wheelEvent(QWheelEvent* ev);
+    void resizeEvent(QResizeEvent * ev);
     
     
 private:
+    Matrix<float> * reduced_pixels;
+    double offset_omega;
+    double offset_kappa;
+    double offset_phi;
+    int active_angle;
+    bool kill_flag;
     
-
-
     // Series
-//    QList<SeriesToolShed> set_tools;
     QList<Matrix<float>> set_trace;
     SeriesSet p_set;
     cl_mem series_interpol_gpu_3Dimg;
-//    void populateSeriesBackgroundSamples(ImageSeries * series);
     void setSeriesMaxFrame();
 
     // GPU functions
@@ -165,7 +128,6 @@ private:
     // Convenience 
     void refreshDisplay();
     void refreshSelection(Selection *area);
-//    void refreshBackground(Selection *area);
     
     // GPU buffer management
     void maintainImageTexture(Matrix<size_t> &image_size);
@@ -173,8 +135,9 @@ private:
     
     // GPU buffers
     cl_mem image_data_raw_cl;
-    cl_mem image_data_max_cl;
+    cl_mem image_data_trace_cl;
     cl_mem image_data_corrected_cl;
+//    cl_mem xyzi_buf_cl;
     cl_mem image_data_variance_cl;
     cl_mem image_data_skewness_cl;
     cl_mem image_data_weight_x_cl;
@@ -186,15 +149,16 @@ private:
     QString integrationFrameString(DetectorFile &f, ImageInfo &image);
     
     SharedContextWindow * shared_window;
-
+    
+    size_t n_reduced_pixels;
+    
     cl_int err;
     cl_program program;
     cl_kernel cl_display_image;
     cl_kernel cl_image_calculus;
     cl_kernel cl_buffer_max;
-//    cl_kernel cl_glowstick;
+    cl_kernel project_kernel;
     cl_mem image_tex_cl;
-//    cl_mem max_tex_cl;
     cl_mem source_cl;
     cl_mem tsf_tex_cl;
     cl_mem parameter_cl;
@@ -204,7 +168,6 @@ private:
     
     cl_sampler tsf_sampler;
     cl_sampler image_sampler;
-//    cl_sampler bg_sampler;
 
     TransferFunction tsf;
     int rgb_style, alpha_style;
@@ -214,14 +177,12 @@ private:
 
 
     GLuint image_tex_gl;
-//    GLuint trace_tex_gl;
     GLuint tsf_tex_gl;
     Matrix<size_t> image_tex_size;
     Matrix<size_t> image_buffer_size;
     
     // Eventually merge the following two objects into a single class, or at least name them appropriately
     DetectorFile frame;
-//    ImageInfo frame_image;
 
     void initOpenCL();
     void setParameter(Matrix<float> &data);
@@ -236,7 +197,6 @@ private:
     // Draw
     void drawImage(QRectF rect, GLuint texture, QPainter * painter);
     void drawSelection(Selection area, QPainter *painter, Matrix<float> &color, QPointF offset = QPointF(0,0));
-//    void drawPlaneMarker(QList<Selection> marker, QPainter *painter, QPoint offset = QPoint(0,0));
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawPixelToolTip(QPainter * painter);
     void drawPlaneMarkerToolTip(QPainter *painter);
@@ -260,9 +220,6 @@ private:
     int isCorrectionPolarizationActive; // Happens in calculus function
     int isCorrectionFluxActive; // Happens in calculus function
     int isCorrectionExposureActive; // Happens in calculus function
-//    int bgCorrectionMode;
-//    bool isBGEstimated;
-//    bool isAutoBackgroundCorrectionActive;
 
     Matrix<double> texture_view_matrix; // Used to draw main texture
     Matrix<double> translation_matrix;
@@ -285,8 +242,6 @@ private:
     // Selection
     GLuint selections_vbo[5];
     GLuint weightpoints_vbo[5];
-//    bool isSelectionAlphaActive;
-//    bool isSelectionBetaActive;
     QPoint getImagePixel(QPoint pos);
 
     typedef cl_int (*PROTOTYPE_QOpenCLGetPlatformIDs)(  	cl_uint num_entries,

@@ -69,6 +69,7 @@ __kernel void imageCalculus(
     int isCorrectionFluxActive,
     int isCorrectionExposureActive,
     float4 plane
+//    __global float * xyzi_buf
 //    __read_only image3d_t background,
 //    sampler_t bg_sampler,
 //    int sample_interdist,
@@ -153,9 +154,9 @@ __kernel void imageCalculus(
             float3 k_i = (float3)(-k,0.0f,0.0f);
             float3 k_f = k*normalize((float3)(
                 -det_dist,
-                pix_size_x * ((float) (image_size.y - id_glb.y) - beam_x), /* DANGER */
-                pix_size_y * ((float) id_glb.x - beam_y))); /* DANGER */
-
+                pix_size_x * ((float) (image_size.y - 1 - id_glb.y) - beam_x), /* DANGER */
+                pix_size_y * ((float) (image_size.x - 1 - id_glb.x) - beam_y))); /* DANGER */
+            
             Q.xyz = k_f - k_i;
             {
                 float lab_theta = asin(native_divide(fabs(Q.y), k)); // Not to be confused with 2-theta, the scattering angle
@@ -174,6 +175,11 @@ __kernel void imageCalculus(
             value -= pct_low;
 
             out_buf[id_glb.y * image_size.x + id_glb.x] = value;
+            
+//            xyzi_buf[(id_glb.y * image_size.x + id_glb.x)*4+0] = Q.x;
+//            xyzi_buf[(id_glb.y * image_size.x + id_glb.x)*4+1] = Q.y;
+//            xyzi_buf[(id_glb.y * image_size.x + id_glb.x)*4+2] = Q.z;
+//            xyzi_buf[(id_glb.y * image_size.x + id_glb.x)*4+3] = value;
         }
         else if (task == 1)
         {
