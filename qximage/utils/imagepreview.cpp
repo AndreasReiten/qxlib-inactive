@@ -227,7 +227,7 @@ void ImagePreviewWorker::reconstruct()
             }
             else
             {
-                emit changedMessageString("\n["+QString(this->metaObject()->className())+"] Warning: Could not process \""+p_set.current()->current()->path()+"\".\n Too much data was kept during reconstruction. Try increasing the lower data thresholds (noise, PCT).");
+                emit changedMessageString("\n["+QString(this->metaObject()->className())+"] Warning: Could not process \""+p_set.current()->current()->path()+"\".\n Too much data was kept during reconstruction.");
                 kill_flag = true;
             }
             
