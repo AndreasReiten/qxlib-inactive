@@ -22,7 +22,8 @@ class SearchNode {
         /* gets and sets */
         void setParent(SearchNode * parent);
 
-        void getData(double *brick_extent,
+        bool getData(size_t max_points,
+                     double *brick_extent,
                      float * point_data,
                      size_t *accumulated_points,
                      float search_radius);
@@ -34,7 +35,7 @@ class SearchNode {
         double * getExtent();
 
     private:
-        void getIntersectedItems(Matrix<double> * effective_extent, size_t * accumulated_points, float * point_data);
+        bool getIntersectedItems(Matrix<double> * effective_extent, size_t * accumulated_points, size_t max_points, float * point_data);
         SearchNode * parent;
         SearchNode ** children;
         float * points;

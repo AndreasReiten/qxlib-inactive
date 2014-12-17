@@ -249,7 +249,7 @@ float SearchNode::getIDW(float * sample, float p, float search_radius)
     else return 0;
 }
 
-void SearchNode::getIntersectedItems(Matrix<double> * effective_extent, size_t * accumulated_points, float * point_data)
+bool SearchNode::getIntersectedItems(Matrix<double> * effective_extent, size_t * accumulated_points, size_t max_points, float * point_data)
 {
     if ((this->isMsd) && (!this->isEmpty))
     {
@@ -266,6 +266,11 @@ void SearchNode::getIntersectedItems(Matrix<double> * effective_extent, size_t *
                 point_data[*accumulated_points*4+3] = points[i*4+3];
                 
                 (*accumulated_points)++;
+
+                if (max_points >= *accumulated_points)
+                {
+                    return true;
+                }
             }
         }
     }
@@ -275,19 +280,28 @@ void SearchNode::getIntersectedItems(Matrix<double> * effective_extent, size_t *
         {
             if(children[i]->isIntersected(effective_extent->data()))
             {
-                children[i]->getIntersectedItems(effective_extent, accumulated_points, point_data);
+                children[i]->getIntersectedItems(effective_extent, accumulated_points, max_points, point_data);
             }
         }
     }
+
+    return false;
 }
 
 
-void SearchNode::getData(
+bool SearchNode::getData(
+        size_t max_points,
         double * brick_extent,
         float * point_data,
         size_t * accumulated_points,
         float search_radius)
 {
+    // First check if max bytes is reached
+    if (max_points >= *accumulated_points)
+    {
+        return true;
+    }
+
     Matrix<double> effective_extent(1,6);
     effective_extent[0] = brick_extent[0] - search_radius;
     effective_extent[1] = brick_extent[1] + search_radius;
@@ -296,7 +310,7 @@ void SearchNode::getData(
     effective_extent[4] = brick_extent[4] - search_radius;
     effective_extent[5] = brick_extent[5] + search_radius;
     
-    getIntersectedItems(&effective_extent, accumulated_points, point_data);
+    return getIntersectedItems(&effective_extent, accumulated_points, max_points, point_data);
 }
 
 float SearchNode::distance(float * a, float * b)

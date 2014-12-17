@@ -7,7 +7,7 @@
 #include <QFontMetrics>
 #include <QOpenGLFramebufferObject>
 
-static const size_t REDUCED_PIXELS_MAX_BYTES = 100e6;
+static const size_t REDUCED_PIXELS_MAX_BYTES = 1000e6;
 
 ImagePreviewWorker::ImagePreviewWorker(QObject *parent) :
     isImageTexInitialized(false),
@@ -140,7 +140,7 @@ ImagePreviewWorker::~ImagePreviewWorker()
 
 void ImagePreviewWorker::reconstruct()
 {
-    QCoreApplication::processEvents();
+    toggleTraceTexture(false);
 
     int verbose = 0;
 
@@ -200,6 +200,7 @@ void ImagePreviewWorker::reconstruct()
                 QPainter painter(paint_device_gl);
                 render(&painter);
             }
+
             // Force a buffer swap
             context_gl->swapBuffers(render_surface);
             size_raw += frame.getBytes();
@@ -515,7 +516,7 @@ int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection)
         if ( err != CL_SUCCESS) qFatal(cl_error_cstring(err));
     }
 
-    emit changedFormatMemoryUsage(QString("Mem usage: %p% (%v of %m KB)"));
+    emit changedFormatMemoryUsage(QString("Mem usage: %p% (%v of %m MB)"));
     
     
     for (int i = 0; i < selection.width()*selection.height(); i++)
@@ -532,15 +533,15 @@ int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection)
             }
             else
             {
-                emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e3);
-                emit changedMemoryUsage(n_reduced_pixels*4/1e3);
+                emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e6);
+                emit changedMemoryUsage(n_reduced_pixels*4/1e6);
                 return 0;
             }
         }
     }
 
-    emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e3);
-    emit changedMemoryUsage(n_reduced_pixels*4/1e3);
+    emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e6);
+    emit changedMemoryUsage(n_reduced_pixels*4/1e6);
 
     return 1;
 }
@@ -2534,7 +2535,7 @@ void ImagePreviewWorker::setDataMax(double value)
     refreshDisplay();
 }
 
-void ImagePreviewWorker::setThresholdNoiseLow(double value)
+void ImagePreviewWorker::setNoise(double value)
 {
     parameter[0] = value;
     setParameter(parameter);
@@ -2553,51 +2554,51 @@ void ImagePreviewWorker::setThresholdNoiseLow(double value)
 
 
 
-void ImagePreviewWorker::setThresholdNoiseHigh(double value)
-{
-    parameter[1] = value;
-    setParameter(parameter);
+//void ImagePreviewWorker::setThresholdNoiseHigh(double value)
+//{
+//    parameter[1] = value;
+//    setParameter(parameter);
 
-    calculus();
-    refreshDisplay();
+//    calculus();
+//    refreshDisplay();
 
-    if(!p_set.isEmpty())
-    {
-        Selection analysis_area = p_set.current()->current()->selection();
-        refreshSelection(&analysis_area);
-        p_set.current()->current()->setSelection(analysis_area);
-    }
-}
-void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
-{
-    parameter[2] = value;
-    setParameter(parameter);
+//    if(!p_set.isEmpty())
+//    {
+//        Selection analysis_area = p_set.current()->current()->selection();
+//        refreshSelection(&analysis_area);
+//        p_set.current()->current()->setSelection(analysis_area);
+//    }
+//}
+//void ImagePreviewWorker::setThresholdPostCorrectionLow(double value)
+//{
+//    parameter[2] = value;
+//    setParameter(parameter);
 
-    calculus();
-    refreshDisplay();
+//    calculus();
+//    refreshDisplay();
 
-    if(!p_set.isEmpty())
-    {
-        Selection analysis_area = p_set.current()->current()->selection();
-        refreshSelection(&analysis_area);
-        p_set.current()->current()->setSelection(analysis_area);
-    }
-}
-void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
-{
-    parameter[3] = value;
-    setParameter(parameter);
+//    if(!p_set.isEmpty())
+//    {
+//        Selection analysis_area = p_set.current()->current()->selection();
+//        refreshSelection(&analysis_area);
+//        p_set.current()->current()->setSelection(analysis_area);
+//    }
+//}
+//void ImagePreviewWorker::setThresholdPostCorrectionHigh(double value)
+//{
+//    parameter[3] = value;
+//    setParameter(parameter);
 
-    calculus();
-    refreshDisplay();
+//    calculus();
+//    refreshDisplay();
 
-    if(!p_set.isEmpty())
-    {
-        Selection analysis_area = p_set.current()->current()->selection();
-        refreshSelection(&analysis_area);
-        p_set.current()->current()->setSelection(analysis_area);
-    }
-}
+//    if(!p_set.isEmpty())
+//    {
+//        Selection analysis_area = p_set.current()->current()->selection();
+//        refreshSelection(&analysis_area);
+//        p_set.current()->current()->setSelection(analysis_area);
+//    }
+//}
 
 void ImagePreviewWorker::beginRawGLCalls(QPainter * painter)
 {

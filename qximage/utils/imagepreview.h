@@ -57,10 +57,10 @@ public slots:
     void reconstruct();
     
     void setMode(int value);
-    void setThresholdNoiseLow(double value);
-    void setThresholdNoiseHigh(double value);
-    void setThresholdPostCorrectionLow(double value);
-    void setThresholdPostCorrectionHigh(double value);
+    void setNoise(double value);
+//    void setThresholdNoiseHigh(double value);
+//    void setThresholdPostCorrectionLow(double value);
+//    void setThresholdPostCorrectionHigh(double value);
     void setTsfTexture(int value);
     void setTsfAlpha(int value);
     void setLog(bool value);
