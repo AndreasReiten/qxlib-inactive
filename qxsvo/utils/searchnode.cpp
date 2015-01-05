@@ -267,7 +267,7 @@ bool SearchNode::getIntersectedItems(Matrix<double> * effective_extent, size_t *
                 
                 (*accumulated_points)++;
 
-                if (max_points >= *accumulated_points)
+                if (max_points <= *accumulated_points)
                 {
                     return true;
                 }
@@ -280,7 +280,7 @@ bool SearchNode::getIntersectedItems(Matrix<double> * effective_extent, size_t *
         {
             if(children[i]->isIntersected(effective_extent->data()))
             {
-                children[i]->getIntersectedItems(effective_extent, accumulated_points, max_points, point_data);
+                if(children[i]->getIntersectedItems(effective_extent, accumulated_points, max_points, point_data)) return true;
             }
         }
     }
@@ -297,7 +297,7 @@ bool SearchNode::getData(
         float search_radius)
 {
     // First check if max bytes is reached
-    if (max_points >= *accumulated_points)
+    if (max_points <= *accumulated_points)
     {
         return true;
     }
