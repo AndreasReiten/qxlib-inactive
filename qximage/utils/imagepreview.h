@@ -16,7 +16,7 @@ class ImagePreviewWorker : public OpenGLWorker
 {
     Q_OBJECT
 public:
-    int projectFile(DetectorFile * file, Selection selection);
+    int projectFile(DetectorFile * file, Selection selection, Matrix<float> *samples, size_t *n_samples);
     void setReducedPixels(Matrix<float> * reduced_pixels);
     
     explicit ImagePreviewWorker(QObject *parent = 0);

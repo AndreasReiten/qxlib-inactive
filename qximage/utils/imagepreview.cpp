@@ -157,7 +157,7 @@ void ImagePreviewWorker::reconstruct()
     emit changedMessageString("\n["+QString(this->metaObject()->className())+"] Processing set "+QString::number(p_set.size())+": ");
     emit changedFormatGenericProgress(QString("Processing file %v of %m (%p%)"));
 
-    // Parameters for Ewald's projection
+    // Container for relevant scattering data
     reduced_pixels->reserve(1, REDUCED_PIXELS_MAX_BYTES/sizeof(float));
 
     // Reset suggested values
@@ -211,7 +211,7 @@ void ImagePreviewWorker::reconstruct()
             if (selection.height() > frame.getSlowDimension()) selection.setHeight(frame.getSlowDimension());
             p_set.current()->current()->setSelection(selection);
             
-            int STATUS_OK = projectFile(&frame, selection);
+            int STATUS_OK = projectFile(&frame, selection, reduced_pixels, &n_reduced_pixels);
 
             if (STATUS_OK)
             {
@@ -317,7 +317,7 @@ void ImagePreviewWorker::setReducedPixels(Matrix<float> *reduced_pixels)
 //    isCLInitialized = true;
 //}
 
-int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection)
+int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection, Matrix<float> * samples, size_t * n_samples)
 {
     // Project and correct the data
     cl_image_format target_format;
@@ -523,25 +523,25 @@ int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection)
     {
         if (projected_data_buf[i*4+3] > 0.0) // Above 0 check
         {
-            if ((n_reduced_pixels)+3 < reduced_pixels->size())
+            if ((*n_samples)+3 < samples->size())
             {
-                (*reduced_pixels)[n_reduced_pixels+0] = projected_data_buf[i*4+0];
-                (*reduced_pixels)[n_reduced_pixels+1] = projected_data_buf[i*4+1];
-                (*reduced_pixels)[n_reduced_pixels+2] = projected_data_buf[i*4+2];
-                (*reduced_pixels)[n_reduced_pixels+3] = projected_data_buf[i*4+3];
-                n_reduced_pixels+=4;
+                (*samples)[*n_samples+0] = projected_data_buf[i*4+0];
+                (*samples)[*n_samples+1] = projected_data_buf[i*4+1];
+                (*samples)[*n_samples+2] = projected_data_buf[i*4+2];
+                (*samples)[*n_samples+3] = projected_data_buf[i*4+3];
+                *n_samples+=4;
             }
             else
             {
                 emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e6);
-                emit changedMemoryUsage(n_reduced_pixels*4/1e6);
+                emit changedMemoryUsage(*n_samples*4/1e6);
                 return 0;
             }
         }
     }
 
     emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e6);
-    emit changedMemoryUsage(n_reduced_pixels*4/1e6);
+    emit changedMemoryUsage(*n_samples*4/1e6);
 
     return 1;
 }
