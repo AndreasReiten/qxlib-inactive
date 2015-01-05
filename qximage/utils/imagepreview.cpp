@@ -140,6 +140,8 @@ ImagePreviewWorker::~ImagePreviewWorker()
 
 void ImagePreviewWorker::reconstruct()
 {
+//        emit resultFinished(result);
+
     toggleTraceTexture(false);
 
     int verbose = 0;
@@ -155,7 +157,8 @@ void ImagePreviewWorker::reconstruct()
 
     // Emit to appropriate slots
     emit changedMessageString("\n["+QString(this->metaObject()->className())+"] Processing set "+QString::number(p_set.size())+": ");
-    emit changedFormatGenericProgress(QString("Processing file %v of %m (%p%)"));
+//    emit changedFormatGenericProgress(QString("Processing file %v of %m (%p%)"));
+    emit visibilityChanged(false);
 
     // Container for relevant scattering data
     reduced_pixels->reserve(1, REDUCED_PIXELS_MAX_BYTES/sizeof(float));
@@ -181,7 +184,7 @@ void ImagePreviewWorker::reconstruct()
         p_set.current()->saveCurrentIndex();
         p_set.current()->begin();
         
-        emit changedRangeGenericProcess(0, p_set.current()->size());
+//        emit changedRangeGenericProcess(0, p_set.current()->size());
         
         for (size_t j = 0; j < (size_t) p_set.current()->size(); j++)
         {
@@ -193,7 +196,9 @@ void ImagePreviewWorker::reconstruct()
     
                 break;
             }
-    
+
+            emit progressRangeChanged(0, p_set.current()->size());
+
             // Draw the frame and update the intensity OpenCL buffer prior to further operations
             setFrame();
             {
@@ -233,7 +238,8 @@ void ImagePreviewWorker::reconstruct()
             }
             
             // Update the progress bar
-            emit changedGenericProgress(j+1);
+//            emit changedGenericProgress(j+1);
+            emit progressChanged(j+1);
         }
         
         p_set.current()->loadSavedIndex();
@@ -267,7 +273,7 @@ void ImagePreviewWorker::reconstruct()
         emit qSpaceInfoChanged(suggested_search_radius_low, suggested_search_radius_high, suggested_q);
     }
 
-
+    emit visibilityChanged(true);
     emit finished();
 }
 

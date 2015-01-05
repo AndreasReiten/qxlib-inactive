@@ -26,12 +26,12 @@ public:
     
 signals:
     void changedMessageString(QString str);
-    void changedGenericProgress(int value);
+//    void changedGenericProgress(int value);
     void changedMemoryUsage(int value);
-    void changedFormatGenericProgress(QString str);
+//    void changedFormatGenericProgress(QString str);
     void changedFormatMemoryUsage(QString str);
     void changedRangeMemoryUsage(int min, int max);
-    void changedRangeGenericProcess(int min, int max);
+//    void changedRangeGenericProcess(int min, int max);
     void popup(QString title, QString text);
     void qSpaceInfoChanged(float suggested_search_radius_low, float suggested_search_radius_high, float suggested_q);
     
