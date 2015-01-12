@@ -50,7 +50,7 @@ signals:
 public slots:
 //    void initializeCLKernel();
     void killProcess();
-    void setActiveAngle(int value);
+    void setActiveAngle(QString value);
     void setOffsetOmega(double value);
     void setOffsetKappa(double value);
     void setOffsetPhi(double value);
@@ -105,7 +105,7 @@ private:
     double offset_omega;
     double offset_kappa;
     double offset_phi;
-    int active_angle;
+    QString active_rotation;
     bool kill_flag;
     
     // Series
@@ -211,6 +211,7 @@ private:
     bool isInterpolGpuInitialized;
     bool isSetTraced;
     bool isSwapped;
+    
     int texture_number;
     
     int isCorrectionNoiseActive; // Happens in calculus function

@@ -277,6 +277,8 @@ void ImagePreviewWorker::reconstruct()
     emit finished();
 }
 
+
+
 void ImagePreviewWorker::setOffsetOmega(double value)
 {
     offset_omega = value*pi/180.0;
@@ -290,14 +292,15 @@ void ImagePreviewWorker::setOffsetPhi(double value)
     offset_phi = value*pi/180.0;
 }
 
-void ImagePreviewWorker::setActiveAngle(int value)
+void ImagePreviewWorker::setActiveAngle(QString value)
 {
-    active_angle = value;
+    active_rotation = value;
+    
+    qDebug() << "Active angle" << active_rotation;
 }
 
 void ImagePreviewWorker::killProcess()
 {
-
     kill_flag = true;
 }
 
@@ -363,23 +366,27 @@ int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection, Ma
     // Sample rotation matrix to be applied to each projected pixel to account for rotations. First set the active angle. Ideally this would be given by the header file, but for some reason it is not stated in there. Maybe it is just so normal to rotate around the omega angle to keep the resolution function consistent
     
     double phi = 0, kappa = 0, omega = 0;
-    if(active_angle == 0)
+    if(active_rotation == "Phi")
     {
         phi = file->start_angle + 0.5*file->angle_increment;
         kappa = file->kappa;
         omega = file->omega;
     }
-    else if(active_angle == 1) 
+    else if(active_rotation == "Kappa") 
     {
         phi = file->phi;
         kappa = file->start_angle + 0.5*file->angle_increment;
         omega = file->omega;
     }
-    else if(active_angle == 2) 
+    else if(active_rotation == "Omega") 
     {
         phi = file->phi;
         kappa = file->kappa;
         omega = file->start_angle + 0.5*file->angle_increment;
+    }
+    else
+    {
+        qDebug() << "No rotation angle set!" << active_rotation;
     }
     
     RotationMatrix<double> PHI;
