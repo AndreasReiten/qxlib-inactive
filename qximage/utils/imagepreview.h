@@ -46,6 +46,7 @@ signals:
     void progressChanged(int value);
     void progressRangeChanged(int min, int max);
     void visibilityChanged(bool value);
+    void showProgressBar(bool value);
     
 public slots:
 //    void initializeCLKernel();

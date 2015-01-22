@@ -178,6 +178,8 @@ void ImagePreviewWorker::reconstruct()
     p_set.saveCurrentIndex();
     p_set.begin();
     
+    emit showProgressBar(true);
+    
     for (size_t i = 0; i < (size_t) p_set.size(); i++)
     {
         // Set to first frame
@@ -246,6 +248,7 @@ void ImagePreviewWorker::reconstruct()
         p_set.next();
     }
     
+    
     p_set.loadSavedIndex();
     p_set.current()->loadSavedIndex();
     setFrame();
@@ -272,7 +275,8 @@ void ImagePreviewWorker::reconstruct()
 
         emit qSpaceInfoChanged(suggested_search_radius_low, suggested_search_radius_high, suggested_q);
     }
-
+    
+    emit showProgressBar(false);
     emit visibilityChanged(true);
     emit finished();
 }
@@ -555,7 +559,8 @@ int ImagePreviewWorker::projectFile(DetectorFile * file, Selection selection, Ma
 
     emit changedRangeMemoryUsage(0,REDUCED_PIXELS_MAX_BYTES/1e6);
     emit changedMemoryUsage(*n_samples*4/1e6);
-
+    
+    
     return 1;
 }
 
@@ -945,7 +950,8 @@ void ImagePreviewWorker::setFrame()
     // Emit the image instead of components
 //    emit imageChanged(frame_image);
     emit pathChanged(p_set.current()->current()->path());
-
+    emit progressRangeChanged(0,p_set.current()->size());
+    emit progressChanged(p_set.current()->i()+1);
 }
 
 
@@ -1780,7 +1786,7 @@ void ImagePreviewWorker::removeCurrentImage()
         p_set.current()->removeCurrent();
         p_set.current()->next();
         
-        isSetTraced = false;
+//        isSetTraced = false;
 
         setFrame();
         
@@ -1899,7 +1905,9 @@ void ImagePreviewWorker::traceSet()
             
             frame.set(p_set.current()->next()->path());
             
-            emit progressChanged(j+1);
+            emit pathChanged(p_set.current()->current()->path());
+            emit progressRangeChanged(0,p_set.current()->size());
+            emit progressChanged(p_set.current()->i()+1);
         }
 
         // Read back the second VRAM buffer and store in system RAM for later usage 
