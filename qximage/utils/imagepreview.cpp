@@ -3083,7 +3083,9 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     Matrix<double> Q(1,3);
     Q = getScatteringVector(frame, pixel_x, pixel_y);
 
-    tip += "Position (x,y,z) "+QString::number(Q[0],'f',2)+", "+QString::number(Q[1],'f',2)+", "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")\n";
+    tip += "Q Position (x,y,z) "+QString::number(Q[0],'f',2)+", "+QString::number(Q[1],'f',2)+", "+QString::number(Q[2],'f',2)+" ("+QString::number(vecLength(Q),'f',2)+") ("+QString::number(1.0/vecLength(Q),'f',2)+")\n";
+    
+//    tip += "Real dist. [] "+QString::number(Q[0],'f',2)+", "+QString::number(Q[1],'f',2)+", "+QString::number(Q[2],'f',2)+" ("+QString::number(sqrt(Q[0]*Q[0] + Q[1]*Q[1] + Q[2]*Q[2]),'f',2)+")\n";
     
     
     // Weight center
