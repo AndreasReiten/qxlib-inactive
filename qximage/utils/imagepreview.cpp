@@ -201,7 +201,8 @@ void ImagePreviewWorker::reconstruct()
 
             emit progressRangeChanged(0, p_set.current()->size());
 
-            // Draw the frame and update the intensity OpenCL buffer prior to further operations
+            // Draw the frame and update the intensity OpenCL buffer prior to further operations. 
+            // setFrame() calls calculus() which carries out any corrections
             setFrame();
             {
                 QPainter painter(paint_device_gl);
@@ -218,6 +219,7 @@ void ImagePreviewWorker::reconstruct()
             if (selection.height() > frame.getSlowDimension()) selection.setHeight(frame.getSlowDimension());
             p_set.current()->current()->setSelection(selection);
             
+            // Project the data
             int STATUS_OK = projectFile(&frame, selection, reduced_pixels, &n_reduced_pixels);
 
             if (STATUS_OK)
