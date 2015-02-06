@@ -138,6 +138,21 @@ ImagePreviewWorker::~ImagePreviewWorker()
     glDeleteBuffers(5, weightpoints_vbo);
 }
 
+void ImagePreviewWorker::setBeamOverrideActive(bool value)
+{
+    
+}
+
+void ImagePreviewWorker::setBeamXOverride(double value)
+{
+    
+}
+
+void ImagePreviewWorker::setBeamYOverride(double value)
+{
+    
+}
+
 void ImagePreviewWorker::reconstruct()
 {
 //        emit resultFinished(result);
@@ -301,8 +316,7 @@ void ImagePreviewWorker::setOffsetPhi(double value)
 void ImagePreviewWorker::setActiveAngle(QString value)
 {
     active_rotation = value;
-    
-    qDebug() << "Active angle" << active_rotation;
+//    qDebug() << "Active angle" << active_rotation;
 }
 
 void ImagePreviewWorker::killProcess()
@@ -2703,7 +2717,8 @@ void ImagePreviewWorker::render(QPainter *painter)
         // Draw weight center
         ColorMatrix<float> analysis_wp_color(0.0,0.0,0.0,1.0);
         if (isWeightCenterActive) drawWeightpoint(p_set.current()->current()->selection(), painter, analysis_wp_color);
-
+        
+        drawConeEwaldIntersect(painter);
         drawPixelToolTip(painter);
     }
 }
@@ -3017,6 +3032,8 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     // The tooltip text
     
     //Position
+//    qDebug() << "---" << pos;
+    
     Matrix<double> screen_pixel_pos(4,1,0); // Uses GL coordinates
     screen_pixel_pos[0] = 2.0 * (double) pos.x()/(double) render_surface->width() - 1.0;
     screen_pixel_pos[1] = 2.0 * (1.0 - (double) pos.y()/(double) render_surface->height()) - 1.0;
@@ -3027,8 +3044,13 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     
     image_pixel_pos = texture_view_matrix.inverse4x4() * screen_pixel_pos;
     
+//    screen_pixel_pos.print(1);
+//    image_pixel_pos.print(1);
+    
     double pixel_x = image_pixel_pos[0] * render_surface->width() * 0.5;
     double pixel_y = - image_pixel_pos[1] * render_surface->height() * 0.5;
+    
+//    qDebug() << pixel_x << pixel_y;
     
     if (pixel_x < 0) pixel_x = 0;
     if (pixel_y < 0) pixel_y = 0;
@@ -3096,10 +3118,10 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     // Sum
     tip += "Integral "+QString::number(p_set.current()->current()->selection().integral(),'f',2);
     
-    
+    // Prepare painter 
     QFont font("Helvetica",10);
     QFontMetrics fm(font);
-
+    
     QBrush brush(Qt::SolidPattern);
     brush.setColor(QColor(0,0,0,155));
 
@@ -3107,7 +3129,6 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     painter->setFont(font);
     painter->setPen(pen);
     painter->setBrush(brush);
-    
     
     
     // Define the area assigned to displaying the tooltip
@@ -3121,7 +3142,30 @@ void ImagePreviewWorker::drawPixelToolTip(QPainter *painter)
     
     // Draw tooltip
     painter->drawText(area, Qt::AlignLeft, tip);
+}
 
+void ImagePreviewWorker::drawConeEwaldIntersect(QPainter *painter)
+{
+    // Draw circle corresponding to cone intersection of the Ewald sphere
+    Matrix<double> beam_image_pos(4,1,0);
+    Matrix<double> beam_screen_pos(4,1,0);
+    
+    beam_image_pos[0] = 2.0 * (frame.getFastDimension() - frame.getBeamY()) / render_surface->width(); /* DANGER */
+    beam_image_pos[1] = - 2.0 * (frame.getSlowDimension() - frame.getBeamX()) / render_surface->height(); /* DANGER */
+    beam_image_pos[2] = 0;
+    beam_image_pos[3] = 1.0;
+    
+    beam_screen_pos = texture_view_matrix * beam_image_pos; 
+    
+    beam_screen_pos[0] = (beam_screen_pos[0] + 1.0)*0.5*render_surface->width();
+    beam_screen_pos[1] = (-(beam_screen_pos[1] + 1.0)*0.5 + 1.0)*render_surface->height(); 
+    
+    double radius = sqrt(pow(beam_screen_pos[0] - pos.x(), 2.0) + pow(beam_screen_pos[1] - pos.y(), 2.0)); 
+    
+    QPen pen(Qt::black);
+    painter->setPen(pen);
+    
+    painter->drawEllipse(QPoint(beam_screen_pos[0],beam_screen_pos[1]), radius, radius);
 }
 
 void ImagePreviewWorker::drawPlaneMarkerToolTip(QPainter *painter)

@@ -154,8 +154,8 @@ __kernel void imageCalculus(
             float3 k_i = (float3)(-k,0.0f,0.0f);
             float3 k_f = k*normalize((float3)(
                 -det_dist,
-                pix_size_x * ((float) (image_size.y - 1 - id_glb.y) - beam_x), /* DANGER */
-                pix_size_y * ((float) (image_size.x - 1 - id_glb.x) - beam_y))); /* DANGER */
+                pix_size_x * ((float) (image_size.y - 0.5 - id_glb.y) - beam_x), /* DANGER */
+                pix_size_y * ((float) (image_size.x - 0.5 - id_glb.x) - beam_y))); /* DANGER */
             
             Q.xyz = k_f - k_i;
             {

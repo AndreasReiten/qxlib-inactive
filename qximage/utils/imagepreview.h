@@ -49,6 +49,10 @@ signals:
     void showProgressBar(bool value);
     
 public slots:
+    void setBeamOverrideActive(bool value);
+    void setBeamXOverride(double value);
+    void setBeamYOverride(double value);
+    
 //    void initializeCLKernel();
     void killProcess();
     void setActiveAngle(QString value);
@@ -201,7 +205,7 @@ private:
     void drawWeightpoint(Selection area, QPainter *painter, Matrix<float> &color);
     void drawPixelToolTip(QPainter * painter);
     void drawPlaneMarkerToolTip(QPainter *painter);
-    
+    void drawConeEwaldIntersect(QPainter *painter);
 
     // Boolean checks
     bool isImageTexInitialized;
